@@ -1,0 +1,24 @@
+---
+alwaysApply: false
+---
+
+# MES module context (caveman)
+
+- Path: Modules/MES only.
+- Root rules = base law. Always follow.
+- This file = extra MES law.
+
+- MES need ERP. No ERP, MES no run.
+- Use Core shared parts. Do not clone logic.
+- Keep MES boundaries clean. No random cross-module edits.
+
+- ProductionOrder number: use ERP DocumentType + DocumentNumberAllocator pattern.
+- ProductionOrder link to SalesOrder: keep header `sales_order_id` and line `sales_order_line_id` consistent.
+- Stock movement: MES define contract, ERP adapter execute with ERP stock service.
+- Tracing on items: none|lot|serial. Migration reversible.
+- Heavy KPI/OEE/capacity calc: materialize with jobs + cache, not live recompute.
+- Emit typed MES domain events (production, operation, quality, downtime, lot/serial).
+- High-value MES models use DIFF versioning/audit strategy.
+
+- Core change impact big. ERP change impact medium. Be careful.
+- If requirement unclear or risky: stop and ask user.
