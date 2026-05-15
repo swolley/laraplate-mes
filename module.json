@@ -1,18 +1,20 @@
 {
     "name": "MES",
     "alias": "mes",
-    "description": "MES module for Laraplate: manufacturing execution system.",
+    "description": "MES module — Manufacturing Execution System for production orders, work centres, scheduling and traceability.",
     "keywords": [
-        "laravel",
-        "laraplate",
         "mes",
         "manufacturing",
-        "execution",
-        "system"
+        "production",
+        "laraplate"
     ],
-    "priority": 999,
+    "priority": 2,
     "providers": [
         "Modules\\MES\\Providers\\MESServiceProvider"
     ],
-    "files": []
+    "aliases": {},
+    "files": [],
+    "requires": [
+        "ERP"
+    ]
 }

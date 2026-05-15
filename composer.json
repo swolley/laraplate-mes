@@ -1,12 +1,13 @@
 {
-    "name": "swolley/laraplate-mes",
-    "vendor": "swolley",
-    "description": "MES module for Laraplate: manufacturing execution system.",
+    "name": "laraplate/mes",
+    "vendor": "laraplate",
+    "description": "MES module for Laraplate: manufacturing execution system, production orders, work centres, scheduling and traceability.",
     "version": "v1.0.0",
     "keywords": [
         "laravel",
         "laraplate",
-        "mes"
+        "mes",
+        "manufacturing"
     ],
     "authors": [
         {
@@ -37,6 +38,7 @@
         "pestphp/pest-plugin-stressless": "^4.0",
         "pestphp/pest-plugin-type-coverage": "^4.0",
         "rector/rector": "^2.0",
+        "orchestra/testbench": "^10.9",
         "larastan/larastan": "^3.9",
         "dg/bypass-finals": "^1.9",
         "driftingly/rector-laravel": "^2.2",
@@ -59,14 +61,14 @@
             "pint --parallel --test",
             "rector --dry-run"
         ],
-        "test:unit": "vendor/bin/pest --coverage --exactly=100",
-        "test:unit:parallel": "vendor/bin/pest --parallel --coverage --exactly=100",
+        "test:standalone": "pest --compact tests/Unit",
+        "test:unit": "@test:standalone",
         "test:types": "phpstan",
         "test:refactor": "rector",
         "test:licenses": "@php vendor/bin/check-licenses",
         "test": [
             "@test:type-coverage",
-            "@test:unit",
+            "@test:standalone",
             "@test:lint",
             "@test:types",
             "@test:refactor",
@@ -75,13 +77,7 @@
         "update:requirements": [
             "composer bump",
             "npx npm-check-updates -u"
-        ],
-        "version": "./scripts/version.sh --nointeractive",
-        "version:silent": "./scripts/version.sh --silent --nointeractive",
-        "version:major": "./scripts/version.sh major",
-        "version:minor": "./scripts/version.sh minor",
-        "version:patch": "./scripts/version.sh patch",
-        "setup:hooks": "./scripts/setup-hooks.sh"
+        ]
     },
     "extra": {
         "laravel": {
@@ -99,7 +95,8 @@
     "autoload-dev": {
         "psr-4": {
             "Modules\\MES\\Tests\\Unit\\": "tests/Unit",
-            "Modules\\MES\\Tests\\Feature\\": "tests/Feature"
+            "Modules\\MES\\Tests\\Feature\\": "tests/Feature",
+            "Modules\\MES\\Tests\\Support\\": "tests/Support/"
         },
         "classmap": [
             "tests/TestCase.php"
