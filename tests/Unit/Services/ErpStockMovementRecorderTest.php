@@ -27,7 +27,7 @@ describe('ErpStockMovementRecorder', function (): void {
         $this->stockMovementService
             ->shouldReceive('recordInbound')
             ->once()
-            ->with(1, 10, 20, 5, 0, null);
+            ->with(1, 10, 20, 5, 0);
 
         $this->recorder->record($data);
     });
@@ -47,7 +47,7 @@ describe('ErpStockMovementRecorder', function (): void {
         $this->stockMovementService
             ->shouldReceive('recordOutbound')
             ->once()
-            ->with(1, 10, 20, 3, null);
+            ->with(1, 10, 20, 3);
 
         $this->recorder->record($data);
     });
