@@ -9,17 +9,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Table Prefix
-    |--------------------------------------------------------------------------
-    |
-    | All MES module tables use this prefix to avoid collisions with ERP
-    | or Core tables.
-    |
-    */
-    // 'table_prefix' => 'mes_',
-
-    /*
-    |--------------------------------------------------------------------------
     | Queue
     |--------------------------------------------------------------------------
     |
@@ -33,7 +22,7 @@ return [
     ],
 
     'services' => [
-        'stock_movement_recorder' => env('STOCK_MOVEMENT_RECORDER', ErpStockMovementRecorder::class)
+        'stock_movement_recorder' => env('STOCK_MOVEMENT_RECORDER', ErpStockMovementRecorder::class),
     ],
 
     /*
@@ -44,7 +33,7 @@ return [
     | Maximum number of API requests per minute for MES endpoints.
     |
     */
-    'rate_limit' => (int) env('MES_RATE_LIMIT', 60),
+    // 'rate_limit' => (int) env('MES_RATE_LIMIT', 60),
 
     /*
     |--------------------------------------------------------------------------
@@ -55,5 +44,5 @@ return [
     | Supported tokens: {YEAR}, {MONTH}, {DAY}, {SEQ}
     |
     */
-    'lot_number_format' => env('MES_LOT_NUMBER_FORMAT', '{YEAR}{MONTH}{DAY}-{SEQ}'),
+    // 'lot_number_format' => env('MES_LOT_NUMBER_FORMAT', '{YEAR}{MONTH}{DAY}-{SEQ}'),
 ];
