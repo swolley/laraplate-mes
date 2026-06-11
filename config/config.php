@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use Modules\MES\Services\ErpStockMovementRecorder;
-
 return [
     'name' => 'MES',
 
@@ -19,10 +17,6 @@ return [
     'queue' => [
         'connection' => env('MES_QUEUE_CONNECTION', 'database'),
         'name' => env('MES_QUEUE_NAME', 'mes'),
-    ],
-
-    'services' => [
-        'stock_movement_recorder' => env('STOCK_MOVEMENT_RECORDER', ErpStockMovementRecorder::class),
     ],
 
     /*

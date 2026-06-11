@@ -7,6 +7,7 @@ namespace Modules\MES\Providers;
 use Exception;
 use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Services\ErpStockMovementRecorder;
 use Nwidart\Modules\Facades\Module;
 use Override;
 
@@ -28,6 +29,11 @@ final class MESServiceProvider extends ModuleServiceProvider
 
         parent::register();
 
-        $this->app->singleton(StockMovementRecorder::class, config('mes.services.stock_movement_recorder'));
+        // MES depends on ERP → registers the concrete ERP implementation here.
+        // The ERP module has no knowledge of MES (dependency flows one way only).
+        $this->app->singleton(
+            StockMovementRecorder::class,
+            ErpStockMovementRecorder::class,
+        );
     }
 }
