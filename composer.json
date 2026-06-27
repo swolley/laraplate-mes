@@ -2,7 +2,7 @@
     "name": "laraplate/mes",
     "vendor": "laraplate",
     "description": "MES module for Laraplate: manufacturing execution system, production orders, work centres, scheduling and traceability.",
-    "version": "v1.0.0",
+    "version": "v1.0.1",
     "keywords": [
         "laravel",
         "laraplate",
