@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Providers;
 
-use Exception;
+use Modules\Core\Exceptions\ConfigurationException;
 use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Services\ErpStockMovementRecorder;
@@ -25,7 +25,7 @@ final class MESServiceProvider extends ModuleServiceProvider
     #[Override]
     public function register(): void
     {
-        throw_unless(Module::find('ERP'), Exception::class, 'ERP is required and must be enabled');
+        throw_unless(Module::find('ERP'), ConfigurationException::class, 'ERP is required and must be enabled');
 
         parent::register();
 

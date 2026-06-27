@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\ERP\Enums\TracingType;
+use Modules\ERP\Casts\TracingType;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Models\Item;
 
