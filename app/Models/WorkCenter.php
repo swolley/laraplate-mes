@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,6 +18,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $company_id
  * @property string $code
@@ -28,6 +30,7 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
  * @mixin IdeHelperWorkCenter
  */
 final class WorkCenter extends Model
@@ -101,17 +104,6 @@ final class WorkCenter extends Model
     }
 
     /**
-     * Scope to filter only active work centers.
-     *
-     * @param  Builder<WorkCenter>  $query
-     * @return Builder<WorkCenter>
-     */
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('is_active', true);
-    }
-
-    /**
      * Create a new factory instance for the model.
      *
      * @return Factory<WorkCenter>
@@ -119,6 +111,18 @@ final class WorkCenter extends Model
     protected static function newFactory(): Factory
     {
         return WorkCenterFactory::new();
+    }
+
+    /**
+     * Scope to filter only active work centers.
+     *
+     * @param  Builder<WorkCenter>  $query
+     * @return Builder<WorkCenter>
+     */
+    #[Scope]
+    protected function active(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
     }
 
     /**
