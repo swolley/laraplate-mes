@@ -123,6 +123,6 @@ Canonical English names for MES entities in this module. Use these terms in code
 
 ## Related reading
 
-- `.kiro/specs/mes-module/requirements.md` — full requirements and acceptance criteria
+- `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md` — full implementation plan and acceptance criteria
 - `Modules/ERP/docs/GLOSSARY.md` — ERP entities consumed by MES
 - `docs/GLOSSARY.md` — developer-oriented glossary (this file is the RAG index copy)
