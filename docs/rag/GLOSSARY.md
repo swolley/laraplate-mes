@@ -123,6 +123,7 @@ Canonical English names for MES entities in this module. Use these terms in code
 
 ## Related reading
 
-- `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md` — full implementation plan and acceptance criteria
+- `docs/superpowers/specs/2026-07-09-mes-module-decisions-design.md` — locked MES decisions
+- `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md` — implementation plan
 - `Modules/ERP/docs/GLOSSARY.md` — ERP entities consumed by MES
 - `docs/GLOSSARY.md` — developer-oriented glossary (this file is the RAG index copy)

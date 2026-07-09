@@ -12,8 +12,9 @@ alwaysApply: false
 - Use Core shared parts. Do not clone logic.
 - Keep MES boundaries clean. No random cross-module edits.
 
-- ProductionOrder number: use ERP DocumentType + DocumentNumberAllocator pattern.
-- ProductionOrder link to SalesOrder: keep header `sales_order_id` and line `sales_order_line_id` consistent.
+- ProductionOrder number: use ERP DocumentType + DocumentNumberAllocator pattern (`DocumentType::ProductionOrder`).
+- ProductionOrder link to SalesOrder: keep header `sales_order_id` and line `sales_order_line_id` consistent (both nullable; app rule when both set).
+- Backflush: operation-scoped target. `mes_bom_lines.routing_operation_id` nullable FK → `mes_routing_operations`. Backflush on linked operation complete; if null, backflush on last operation of the order. Job must be idempotent per (operation, bom_line). Manual consumption always operator-driven.
 - Stock movement: MES define contract, ERP adapter execute with ERP stock service.
 - Tracing on items: none|lot|serial. Migration reversible.
 - Heavy KPI/OEE/capacity calc: materialize with jobs + cache, not live recompute.
