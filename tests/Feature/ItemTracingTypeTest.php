@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Modules\ERP\Casts\TracingType;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Models\Item;
@@ -16,7 +17,7 @@ uses(RefreshDatabase::class);
 function mesItemCompany(): Company
 {
     return Company::query()->withoutGlobalScopes()->create([
-        'slug' => fake()->unique()->slug(),
+        'slug' => Str::limit(fake()->unique()->slug(), 64, ''),
         'name' => fake()->company(),
         'fiscal_country' => 'IT',
         'default_currency' => 'EUR',

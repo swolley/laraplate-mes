@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\MES\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 use Modules\ERP\Models\Company;
 use Modules\MES\Enums\WorkCenterType;
 use Modules\MES\Models\WorkCenter;
@@ -31,7 +32,7 @@ final class WorkCenterFactory extends Factory
         return [
             'company_id' => Company::query()->withoutGlobalScopes()->first()?->id
                 ?? Company::query()->withoutGlobalScopes()->create([
-                    'slug' => fake()->unique()->slug(),
+                    'slug' => Str::limit(fake()->unique()->slug(), 64, ''),
                     'name' => fake()->company(),
                     'fiscal_country' => 'IT',
                     'default_currency' => 'EUR',

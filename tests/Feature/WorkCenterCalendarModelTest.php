@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Modules\ERP\Models\Company;
 use Modules\MES\Enums\WorkCenterType;
 use Modules\MES\Models\WorkCenter;
@@ -18,7 +19,7 @@ uses(RefreshDatabase::class);
 function makeWC(): WorkCenter
 {
     $company = Company::query()->withoutGlobalScopes()->create([
-        'slug' => fake()->unique()->slug(),
+        'slug' => Str::limit(fake()->unique()->slug(), 64, ''),
         'name' => fake()->company(),
         'fiscal_country' => 'IT',
         'default_currency' => 'EUR',
