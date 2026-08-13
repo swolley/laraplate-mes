@@ -7,6 +7,7 @@ namespace Modules\MES\Services;
 use DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Modules\MES\Enums\OperatorLogAction;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Jobs\BackflushMaterialsJob;
 use Modules\MES\Models\ProductionOrder;
@@ -20,6 +21,8 @@ use Modules\MES\Models\ProductionOrderOperation;
 final class ProductionOrderOperationService
 {
     private const float MAX_EFFICIENCY = 999.99;
+
+    public function __construct(private ShiftVerificationService $shiftVerificationService) {}
 
     /**
      * Materialise operations for a released order from its routing snapshot.
@@ -68,6 +71,8 @@ final class ProductionOrderOperationService
             'actual_start_at' => now(),
         ]);
 
+        $this->shiftVerificationService->logOperatorAction($operation, OperatorLogAction::Started);
+
         return $operation->refresh();
     }
 
@@ -97,6 +102,7 @@ final class ProductionOrderOperationService
             'efficiency' => $this->efficiency($operation, (float) $actual),
         ]);
 
+        $this->shiftVerificationService->logOperatorAction($operation, OperatorLogAction::Completed);
         BackflushMaterialsJob::dispatch($operation->id);
 
         return $operation->refresh();
