@@ -25,4 +25,5 @@ enum MESTables: string
     case QualityChecks = 'mes_quality_checks';
     case QualityCheckMeasurements = 'mes_quality_check_measurements';
     case NonConformances = 'mes_non_conformances';
+    case Downtimes = 'mes_downtimes';
 }
