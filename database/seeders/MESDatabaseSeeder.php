@@ -5,10 +5,20 @@ declare(strict_types=1);
 namespace Modules\MES\Database\Seeders;
 
 use Modules\Core\Casts\SettingTypeEnum;
+use Modules\Core\Models\Permission;
 use Modules\Core\Models\Setting;
 use Modules\Core\Overrides\Seeder;
 use Modules\Core\Seeding\SeedDefinition;
 use Modules\Core\Seeding\SeedReconciler;
+use Modules\Core\Support\PermissionName;
+use Modules\MES\Models\Bom;
+use Modules\MES\Models\Downtime;
+use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\NonConformance;
+use Modules\MES\Models\ProductionOrder;
+use Modules\MES\Models\ProductionOrderOperation;
+use Modules\MES\Models\QualityCheck;
+use Spatie\Permission\PermissionRegistrar;
 
 class MESDatabaseSeeder extends Seeder
 {
@@ -60,5 +70,51 @@ class MESDatabaseSeeder extends Seeder
         $this->command?->line(
             '    - created ' . count($outcome->created) . ', realigned ' . count($outcome->realigned) . ", unchanged {$outcome->unchanged}",
         );
+
+        $this->ensureDomainPermissions();
+    }
+
+    /**
+     * Domain-action permissions ({connection}.{table}.{action}). These are not
+     * created by `permission:refresh`, which only covers the generic CRUD verbs.
+     */
+    private function ensureDomainPermissions(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $permission = new Permission;
+
+        foreach ($this->domainPermissions() as $name) {
+            $permission->newQuery()->firstOrCreate(['name' => $name]);
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->command?->line('    - MES domain permissions <fg=green>updated</>');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function domainPermissions(): array
+    {
+        $actions = [
+            ProductionOrder::class => ['release', 'complete', 'cancel'],
+            ProductionOrderOperation::class => ['start', 'complete', 'skip'],
+            QualityCheck::class => ['execute'],
+            NonConformance::class => ['resolve', 'close'],
+            Downtime::class => ['close'],
+            Bom::class => ['explode'],
+            LotNumber::class => ['forward_trace', 'backward_trace'],
+        ];
+
+        $permissions = [];
+
+        foreach ($actions as $model => $verbs) {
+            foreach ($verbs as $verb) {
+                $permissions[] = PermissionName::forClass($model, $verb);
+            }
+        }
+
+        return $permissions;
     }
 }
