@@ -8,6 +8,7 @@ use DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
+use Modules\MES\Jobs\BackflushMaterialsJob;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 
@@ -95,6 +96,8 @@ final class ProductionOrderOperationService
             'actual_minutes' => $actual,
             'efficiency' => $this->efficiency($operation, (float) $actual),
         ]);
+
+        BackflushMaterialsJob::dispatch($operation->id);
 
         return $operation->refresh();
     }
