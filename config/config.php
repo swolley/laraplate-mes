@@ -38,5 +38,5 @@ return [
     | Supported tokens: {YEAR}, {MONTH}, {DAY}, {SEQ}
     |
     */
-    // 'lot_number_format' => env('MES_LOT_NUMBER_FORMAT', '{YEAR}{MONTH}{DAY}-{SEQ}'),
+    'lot_number_format' => env('MES_LOT_NUMBER_FORMAT', '{YEAR}{MONTH}{DAY}-{SEQ}'),
 ];

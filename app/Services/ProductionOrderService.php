@@ -10,6 +10,7 @@ use DateTimeInterface;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use Modules\ERP\Casts\DocumentType;
+use Modules\ERP\Casts\TracingType;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Services\Accounting\DocumentNumberAllocator;
 use Modules\MES\Enums\ProductionOrderStatus;
@@ -29,6 +30,7 @@ final class ProductionOrderService
         private RoutingResolverService $routingResolverService,
         private DocumentNumberAllocator $documentNumberAllocator,
         private ProductionOrderOperationService $operationService,
+        private LotTracingService $lotTracingService,
     ) {}
 
     /**
@@ -111,12 +113,16 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be completed from status {$order->status->value}."),
         );
 
-        return DB::transaction(function () use ($order, $quantity_produced): ProductionOrder {
+        return DB::transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {
             $order->update([
                 'quantity_produced' => $quantity_produced,
                 'status' => ProductionOrderStatus::Completed->value,
                 'actual_end_at' => now(),
             ]);
+
+            if ($this->requiresLot($order)) {
+                $this->lotTracingService->createProductionLot($order, $quantity_produced, $lot_code);
+            }
 
             return $order->refresh();
         });
@@ -139,6 +145,17 @@ final class ProductionOrderService
 
             return $order->refresh();
         });
+    }
+
+    /**
+     * Whether the produced item is lot- or serial-traced and therefore needs a
+     * lot generated on completion.
+     */
+    private function requiresLot(ProductionOrder $order): bool
+    {
+        $tracing_type = $order->item?->tracing_type;
+
+        return $tracing_type === TracingType::Lot || $tracing_type === TracingType::Serial;
     }
 
     /**

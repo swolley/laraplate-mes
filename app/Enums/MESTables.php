@@ -19,4 +19,7 @@ enum MESTables: string
     case ProductionOrders = 'mes_production_orders';
     case ProductionOrderOperations = 'mes_production_order_operations';
     case MaterialConsumptions = 'mes_material_consumptions';
+    case LotNumbers = 'mes_lot_numbers';
+    case SerialNumbers = 'mes_serial_numbers';
+    case LotLineages = 'mes_lot_lineages';
 }
