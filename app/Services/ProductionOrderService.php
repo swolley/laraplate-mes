@@ -28,6 +28,7 @@ final class ProductionOrderService
         private BomExplosionService $bomExplosionService,
         private RoutingResolverService $routingResolverService,
         private DocumentNumberAllocator $documentNumberAllocator,
+        private ProductionOrderOperationService $operationService,
     ) {}
 
     /**
@@ -75,10 +76,8 @@ final class ProductionOrderService
     }
 
     /**
-     * Release a draft order for execution.
-     *
-     * Operation generation from the routing snapshot is performed by the
-     * operations service (Task 7); this method only advances the state.
+     * Release a draft order for execution, materialising its operations from
+     * the frozen routing snapshot.
      *
      * @throws DomainException when the order is not in draft state.
      */
@@ -91,6 +90,7 @@ final class ProductionOrderService
 
         return DB::transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Released->value]);
+            $this->operationService->generateForOrder($order);
 
             return $order->refresh();
         });

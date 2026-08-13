@@ -17,4 +17,5 @@ enum MESTables: string
     case Routings = 'mes_routings';
     case RoutingOperations = 'mes_routing_operations';
     case ProductionOrders = 'mes_production_orders';
+    case ProductionOrderOperations = 'mes_production_order_operations';
 }
