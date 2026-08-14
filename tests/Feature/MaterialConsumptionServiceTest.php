@@ -45,21 +45,27 @@ it('records a manual consumption and a stock-out movement when stock suffices', 
         ->and(MaterialConsumption::query()->where('production_order_id', $order->id)->count())->toBe(1);
 });
 
-it('flags a shortage and emits an event without posting a stock-out when stock is short', function (): void {
+it('consumes what is available and flags the shortfall when stock is short', function (): void {
     Event::fake([MaterialShortageDetected::class]);
 
     $company = MesTestHelpers::makeCompany();
     $component = MesTestHelpers::makeItem($company->id);
     $order = ProductionOrder::factory()->create(['company_id' => $company->id]);
 
+    // Needs 7, only 3 on hand: consume 3, short 4.
     $recorder = Mockery::mock(StockMovementRecorder::class);
-    $recorder->shouldNotReceive('record');
+    $recorder->shouldReceive('record')
+        ->once()
+        ->withArgs(fn (StockMovementData $data): bool => $data->direction === 'out'
+            && $data->item_id === $component->id
+            && $data->quantity === 3);
 
     $consumption = new MaterialConsumptionService($recorder, stockReaderReturning(3.0))
         ->recordManual($order, $component->id, 7.0, 'pcs');
 
     expect($consumption->stock_shortage)->toBeTrue()
-        ->and((float) $consumption->quantity_consumed)->toBe(7.0);
+        ->and((float) $consumption->quantity_consumed)->toBe(3.0)
+        ->and((float) $consumption->variance)->toBe(-4.0);
 
     Event::assertDispatched(
         MaterialShortageDetected::class,

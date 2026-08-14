@@ -107,7 +107,8 @@ final class BackflushMaterialsJob implements ShouldQueue
         $planned = (float) $line['quantity'] * $basis;
         $item_id = (int) $line['item_id'];
         $available = $reader->availableQuantity($item_id, (int) $order->warehouse_id, (int) $order->company_id);
-        $short = $available < $planned;
+        $consumed = max(0.0, min($planned, $available));
+        $short = $consumed < $planned;
 
         MaterialConsumption::query()->create([
             'production_order_id' => $order->id,
@@ -115,13 +116,15 @@ final class BackflushMaterialsJob implements ShouldQueue
             'item_id' => $item_id,
             'warehouse_id' => $order->warehouse_id,
             'quantity_planned' => $planned,
-            'quantity_consumed' => $planned,
-            'variance' => 0,
+            'quantity_consumed' => $consumed,
+            'variance' => $consumed - $planned,
             'uom' => $line['uom'] ?? $order->uom,
             'is_backflush' => true,
             'stock_shortage' => $short,
             'recorded_at' => now(),
         ]);
+
+        $this->recordConsumedStock($recorder, $order, $item_id, $consumed);
 
         if ($short) {
             event(new MaterialShortageDetected(
@@ -134,7 +137,22 @@ final class BackflushMaterialsJob implements ShouldQueue
                 available_quantity: $available,
                 is_backflush: true,
             ));
+        }
+    }
 
+    /**
+     * Post the stock-out for the actually consumed quantity, skipping the
+     * movement when nothing is available (a full shortage).
+     */
+    private function recordConsumedStock(
+        StockMovementRecorder $recorder,
+        \Modules\MES\Models\ProductionOrder $order,
+        int $item_id,
+        float $consumed,
+    ): void {
+        $quantity = (int) round($consumed);
+
+        if ($quantity <= 0) {
             return;
         }
 
@@ -143,7 +161,7 @@ final class BackflushMaterialsJob implements ShouldQueue
             warehouse_id: $order->warehouse_id,
             company_id: $order->company_id,
             direction: 'out',
-            quantity: (int) round($planned),
+            quantity: $quantity,
             source_type: MESTables::ProductionOrders->value,
             source_id: $order->id,
             occurred_at: now(),

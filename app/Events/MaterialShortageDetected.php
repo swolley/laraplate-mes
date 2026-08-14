@@ -8,9 +8,9 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Emitted when a material consumption (backflush or manual) requires more of an
- * item than is available in the target warehouse. Non-blocking: the consumption
- * is recorded as a shortage and no stock-out is posted; this event is the hook
- * for notification, dashboards or replenishment.
+ * item than is available in the target warehouse. Non-blocking: the available
+ * quantity is consumed and the shortfall is flagged on the consumption; this
+ * event is the hook for notification, dashboards or replenishment.
  */
 final class MaterialShortageDetected
 {

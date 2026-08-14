@@ -25,9 +25,10 @@ final class MaterialConsumptionService
     ) {}
 
     /**
-     * Record a manual consumption. When stock is short the consumption is
-     * flagged, no stock-out is posted, and a {@see MaterialShortageDetected}
-     * event is emitted; otherwise the corresponding stock-out is recorded.
+     * Record a manual consumption. The stock-out is posted for the quantity
+     * actually available; any shortfall is flagged on the consumption
+     * (`stock_shortage`, negative `variance`) and a {@see MaterialShortageDetected}
+     * event is emitted. Non-blocking: stock never goes negative.
      */
     public function recordManual(
         ProductionOrder $order,
@@ -38,7 +39,8 @@ final class MaterialConsumptionService
     ): MaterialConsumption {
         return DB::transaction(function () use ($order, $item_id, $quantity, $uom, $operation_id): MaterialConsumption {
             $available = $this->reader->availableQuantity($item_id, (int) $order->warehouse_id, (int) $order->company_id);
-            $short = $available < $quantity;
+            $consumed = max(0.0, min($quantity, $available));
+            $short = $consumed < $quantity;
 
             $consumption = MaterialConsumption::query()->create([
                 'production_order_id' => $order->id,
@@ -46,13 +48,26 @@ final class MaterialConsumptionService
                 'item_id' => $item_id,
                 'warehouse_id' => $order->warehouse_id,
                 'quantity_planned' => $quantity,
-                'quantity_consumed' => $quantity,
-                'variance' => 0,
+                'quantity_consumed' => $consumed,
+                'variance' => $consumed - $quantity,
                 'uom' => $uom,
                 'is_backflush' => false,
                 'stock_shortage' => $short,
                 'recorded_at' => now(),
             ]);
+
+            if ((int) round($consumed) > 0) {
+                $this->recorder->record(new StockMovementData(
+                    item_id: $item_id,
+                    warehouse_id: $order->warehouse_id,
+                    company_id: $order->company_id,
+                    direction: 'out',
+                    quantity: (int) round($consumed),
+                    source_type: MESTables::ProductionOrders->value,
+                    source_id: $order->id,
+                    occurred_at: now(),
+                ));
+            }
 
             if ($short) {
                 event(new MaterialShortageDetected(
@@ -65,20 +80,7 @@ final class MaterialConsumptionService
                     available_quantity: $available,
                     is_backflush: false,
                 ));
-
-                return $consumption;
             }
-
-            $this->recorder->record(new StockMovementData(
-                item_id: $item_id,
-                warehouse_id: $order->warehouse_id,
-                company_id: $order->company_id,
-                direction: 'out',
-                quantity: (int) round($quantity),
-                source_type: MESTables::ProductionOrders->value,
-                source_id: $order->id,
-                occurred_at: now(),
-            ));
 
             return $consumption;
         });

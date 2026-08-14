@@ -44,10 +44,10 @@ production KPIs.
 4. **Backflush** (`BackflushMaterialsJob`, idempotent) — consumes snapshot BOM
    lines marked `backflush` whose `routing_operation_id` matches the operation
    (or the order's last operation when null — decision D5). Each line reads
-   on-hand stock via `StockReader`: enough → records a stock `out` movement;
-   short → flags `mes_material_consumptions.stock_shortage` and emits
-   `MaterialShortageDetected` instead of posting a movement the ERP would
-   reject (non-blocking; the line is re-consumed on a later run once replenished).
+   on-hand stock via `StockReader` and consumes the **available** quantity: the
+   stock `out` is posted for what exists, and any shortfall flags
+   `mes_material_consumptions.stock_shortage` (with a negative `variance`) and
+   emits `MaterialShortageDetected`. Non-blocking and stock never goes negative.
 5. **Complete order** (`complete`) — sets produced quantity; generates the
    finished `LotNumber` when the item is lot/serial-traced; creates the
    final-inspection `QualityCheck` from any active plan.
@@ -85,9 +85,11 @@ on failure.
 ## Stock shortage
 
 `StockReader` (ERP-backed `ErpStockReader` over `StockLevel`) is the read side of
-the stock boundary. Backflush and manual consumption check availability before
-posting a stock-out; on shortage they flag `stock_shortage` and emit
-`MaterialShortageDetected` instead of posting a movement the ERP rejects. This
+the stock boundary. Backflush and manual consumption read availability and consume
+what exists: the stock-out is posted for the available quantity
+(`quantity_consumed`), the shortfall is recorded as a negative `variance` with
+`stock_shortage = true`, and `MaterialShortageDetected` is emitted. This keeps the
+stock ledger truthful (never negative, which the ERP `recordOutbound` rejects) and
 turns a hard ERP exception into a structured, non-blocking early warning.
 
 ## Services
