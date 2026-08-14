@@ -47,6 +47,23 @@ production KPIs.
 5. **Complete order** (`complete`) — sets produced quantity; generates the
    finished `LotNumber` when the item is lot/serial-traced.
 
+## Sales-order-driven creation
+
+Confirming an ERP sales order dispatches `Modules\ERP\Events\SalesOrderConfirmed`
+(fired on create-as-confirmed and on the `draft → confirmed` transition). MES
+listens with the queued `CreateProductionOrdersForSalesOrder`, which delegates to
+`SalesOrderProductionPlanner`. Per line the planner creates a draft production
+order only when the line has an item **with an active BOM**; it plans the
+outstanding quantity (`qty_ordered − qty_delivered`) and links the order back via
+`sales_order_id` / `sales_order_line_id`. Planning is idempotent per line (an
+existing order short-circuits), so replays and re-confirmations never duplicate.
+The receiving warehouse comes from `ProductionWarehouseResolver` (config map →
+company's sole warehouse → skip when ambiguous); planned dates come from
+`ProductionLeadTimeEstimator` (routing standard minutes ÷ daily minutes, or the
+default lead time when the item has no routing). Purchased/service lines, already
+delivered lines and multi-warehouse-ambiguous lines are skipped with a reason
+(`ProductionPlanningSkipReason`) rather than guessed.
+
 ## Services
 
 `BomExplosionService` (multi-level explosion + active BOM), `RoutingResolverService`
@@ -54,7 +71,9 @@ production KPIs.
 `LotTracingService` (forward/backward genealogy), `QualityCheckService`
 (limits → non-conformance), `NonConformanceService` (dispositions; rework spawns a
 linked order), `CapacityService` (work-center load), `OeeCalculatorService`
-(A×P×Q, clamped), `DowntimeService`, `ShiftVerificationService`.
+(A×P×Q, clamped), `DowntimeService`, `ShiftVerificationService`,
+`SalesOrderProductionPlanner` (auto-creation from confirmed sales orders, with
+`ProductionWarehouseResolver` and `ProductionLeadTimeEstimator`).
 
 ## HTTP surface
 
@@ -73,6 +92,10 @@ production totals) are surfaced as the `ProductionDashboardWidget`, not routes.
 - `mes.queue.connection` / `mes.queue.name` — queue for backflush and PO jobs.
 - `mes.lot_number_format` — lot code tokens `{YEAR}{MONTH}{DAY}{SEQ}`.
 - `mes.rate_limit` — API requests per minute (seeded setting).
+- `mes.production.default_warehouse` — `[company_id => warehouse_id]` map for
+  sales-order-driven PO creation (falls back to the company's sole warehouse).
+- `mes.production.daily_minutes` / `mes.production.default_lead_time_days` —
+  routing-based lead-time estimation and its no-routing fallback.
 
 ## Locked decisions
 

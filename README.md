@@ -64,7 +64,23 @@ Configuration file: `Modules/MES/config/config.php`.
 ```env
 # MES activation toggle (example)
 MES_ENABLED=true
+
+# Queue used by MES jobs and listeners (backflush, production-order auto-creation)
+MES_QUEUE_CONNECTION=database
+MES_QUEUE_NAME=mes
+
+# Lot number code format (tokens: {YEAR}, {MONTH}, {DAY}, {SEQ})
+MES_LOT_NUMBER_FORMAT="{YEAR}{MONTH}{DAY}-{SEQ}"
+
+# Production-order auto-creation from confirmed sales orders
+MES_PRODUCTION_DAILY_MINUTES=480
+MES_PRODUCTION_DEFAULT_LEAD_TIME_DAYS=5
 ```
+
+The receiving warehouse for auto-created production orders is resolved per company.
+Set it explicitly through the `mes.production.default_warehouse` config map
+(`[company_id => warehouse_id]`) when a company owns more than one warehouse; with a
+single warehouse the module picks it automatically.
 
 > The effective set of environment variables will be expanded as domain features are introduced.
 

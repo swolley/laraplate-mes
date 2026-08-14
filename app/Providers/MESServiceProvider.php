@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\MES\Providers;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Modules\Core\Exceptions\ConfigurationException;
 use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
+use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
@@ -58,6 +61,8 @@ final class MESServiceProvider extends ModuleServiceProvider
         }
 
         resolve(MesDomainActionRegistrar::class)->register(resolve(DomainActionRegistry::class));
+
+        Event::listen(SalesOrderConfirmed::class, CreateProductionOrdersForSalesOrder::class);
     }
 
     /**
