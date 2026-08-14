@@ -42,6 +42,6 @@ final class RoutingOperationFactory extends Factory
      */
     public function parallel(): static
     {
-        return $this->state(static fn () => ['is_parallel' => true]);
+        return $this->state(['is_parallel' => true]);
     }
 }
