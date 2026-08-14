@@ -19,6 +19,7 @@ use Modules\MES\Models\QualityCheck;
 use Modules\MES\Services\BomExplosionService;
 use Modules\MES\Services\DowntimeService;
 use Modules\MES\Services\LotTracingService;
+use Modules\MES\Services\MaterialConsumptionService;
 use Modules\MES\Services\NonConformanceService;
 use Modules\MES\Services\ProductionOrderOperationService;
 use Modules\MES\Services\ProductionOrderService;
@@ -38,6 +39,13 @@ final class MesDomainActionRegistrar
         $registry->register(ProductionOrder::class, 'release', static fn (Model $record, array $payload, User $user): Model => resolve(ProductionOrderService::class)->release($record));
         $registry->register(ProductionOrder::class, 'complete', static fn (Model $record, array $payload, User $user): Model => resolve(ProductionOrderService::class)->complete($record, (float) ($payload['quantity_produced'] ?? 0), $payload['lot_code'] ?? null));
         $registry->register(ProductionOrder::class, 'cancel', static fn (Model $record, array $payload, User $user): Model => resolve(ProductionOrderService::class)->cancel($record));
+        $registry->register(ProductionOrder::class, 'record_consumption', static fn (Model $record, array $payload, User $user): Model => resolve(MaterialConsumptionService::class)->recordManual(
+            $record,
+            (int) $payload['item_id'],
+            (float) $payload['quantity'],
+            (string) ($payload['uom'] ?? 'pcs'),
+            isset($payload['production_order_operation_id']) ? (int) $payload['production_order_operation_id'] : null,
+        ));
 
         $registry->register(ProductionOrderOperation::class, 'start', static fn (Model $record, array $payload, User $user): Model => resolve(ProductionOrderOperationService::class)->start($record));
         $registry->register(ProductionOrderOperation::class, 'complete', static fn (Model $record, array $payload, User $user): Model => resolve(ProductionOrderOperationService::class)->complete($record, isset($payload['actual_minutes']) ? (float) $payload['actual_minutes'] : null));

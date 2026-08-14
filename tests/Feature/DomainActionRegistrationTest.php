@@ -23,6 +23,7 @@ it('registers every MES domain action without collision', function (): void {
         [ProductionOrder::class, 'release'],
         [ProductionOrder::class, 'complete'],
         [ProductionOrder::class, 'cancel'],
+        [ProductionOrder::class, 'record_consumption'],
         [ProductionOrderOperation::class, 'start'],
         [ProductionOrderOperation::class, 'complete'],
         [ProductionOrderOperation::class, 'skip'],

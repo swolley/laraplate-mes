@@ -50,6 +50,12 @@ final class MesModelPolicy
         return $this->allowsDomainAction($user, $record, 'cancel', static fn (Model $record): bool => $record instanceof ProductionOrder && $record->status->canCancel());
     }
 
+    public function recordConsumption(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'record_consumption', static fn (Model $record): bool => $record instanceof ProductionOrder
+            && in_array($record->status->value, ['released', 'in_progress'], true));
+    }
+
     public function start(User $user, Model $record): bool
     {
         return $this->allowsDomainAction($user, $record, 'start', static fn (Model $record): bool => $record instanceof ProductionOrderOperation && $record->status->canStart());

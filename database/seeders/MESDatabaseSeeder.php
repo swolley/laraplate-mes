@@ -98,7 +98,7 @@ class MESDatabaseSeeder extends Seeder
     private function domainPermissions(): array
     {
         $actions = [
-            ProductionOrder::class => ['release', 'complete', 'cancel'],
+            ProductionOrder::class => ['release', 'complete', 'cancel', 'record_consumption'],
             ProductionOrderOperation::class => ['start', 'complete', 'skip'],
             QualityCheck::class => ['execute'],
             NonConformance::class => ['resolve', 'close'],
