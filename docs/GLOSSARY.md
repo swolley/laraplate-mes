@@ -53,6 +53,9 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **MaterialConsumption** | Record of actual component usage during production. |
 | **StockMovementRecorder** | Contract implemented by ERP (`StockMovementService`); MES calls it for inbound/outbound postings without knowing FIFO/costing internals. |
 | **MesStockMovementRecorderAdapter** | MES-side adapter binding to the ERP contract (registered in `MESServiceProvider`). |
+| **StockReader** | Read-side contract (`ErpStockReader` over ERP `StockLevel`) letting MES check on-hand availability before consuming. |
+| **MaterialShortageDetected** | Event emitted when a consumption cannot be fully covered: the available quantity is consumed, the shortfall is flagged (`stock_shortage`, negative `variance`), and `NotifyMaterialShortage` sends a notification. |
+| **SalesOrderProductionPlanner** | Creates production orders for the manufactured lines of a confirmed sales order (ERP event `SalesOrderConfirmed`). |
 
 ## Traceability (planned)
 
@@ -65,6 +68,8 @@ Canonical English names for MES entities in this module. Use these terms in code
 
 | Term | Meaning |
 |------|---------|
+| **QualityPlan** | Date-effective set of expected characteristics for an item, optionally scoped to a routing operation; drives automatic `QualityCheck` creation on operation/order completion. |
+| **QualityPlanCharacteristic** | Expected trait and tolerance band (nominal, lower/upper limit) within a `QualityPlan`. |
 | **QualityCheck** | Inspection on a lot or operation with measurements and outcome. |
 | **NonConformance** | Defect, scrap, or rework event during or after production. |
 

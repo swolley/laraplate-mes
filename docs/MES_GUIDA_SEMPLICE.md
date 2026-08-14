@@ -7,8 +7,9 @@ tecnicismi, nell'ordine in cui lo useresti davvero.
 
 Il MES trasforma **cosa produrre** in **produzione eseguibile**: prepari le
 anagrafiche (centri di lavoro, distinte, cicli), apri un **ordine di
-produzione**, avanzi le operazioni sullo shop floor, e il sistema consuma i
-materiali, genera i lotti e calcola gli indicatori (efficienza, OEE).
+produzione** — anche in automatico da un ordine di vendita confermato — avanzi le
+operazioni sullo shop floor, e il sistema consuma i materiali, genera i lotti,
+crea i controlli qualità previsti e calcola gli indicatori (efficienza, OEE).
 
 ## 1. Centro di lavoro
 
@@ -44,6 +45,17 @@ date pianificate. Alla creazione il sistema:
 
 L'ordine nasce in stato **bozza**.
 
+### Creazione automatica da ordine di vendita
+
+Non sempre devi creare gli ordini a mano: quando un **ordine di vendita** viene
+**confermato**, il sistema crea in automatico un ordine di produzione (in bozza)
+per ogni riga il cui articolo ha una **distinta attiva** (cioè è un articolo da
+fabbricare). Le righe di acquisto/servizio, o già consegnate, vengono ignorate.
+La quantità pianificata è quella **ancora da produrre** (ordinata meno già
+consegnata), il magazzino è quello configurato per l'azienda (o l'unico presente)
+e le date si stimano dal ciclo di lavorazione. Ogni riga genera al massimo un
+ordine: riconfermare l'ordine di vendita non crea duplicati.
+
 ## 5. Avanzamento
 
 - **Rilascia** l'ordine: passa a *rilasciato* e vengono generate le operazioni
@@ -56,7 +68,25 @@ L'ordine nasce in stato **bozza**.
 - **Completa** l'ordine indicando la quantità prodotta. Se l'articolo è tracciato
   a **lotto/seriale**, viene generato automaticamente il lotto del prodotto.
 
+### Se manca materiale
+
+Quando un consumo (backflush o manuale) richiede più di quanto disponibile a
+magazzino, il sistema **non si blocca**: scarica **ciò che c'è**, registra la
+parte mancante come **carenza** (con lo scostamento) e invia una **notifica** ai
+responsabili configurati. La giacenza resta corretta e non va mai sotto zero; la
+carenza resta tracciata per il riassortimento e la riconciliazione.
+
 ## 6. Qualità
+
+### Piani di qualità e controlli automatici
+
+Puoi definire un **piano di qualità** per un articolo, con le caratteristiche
+attese e le relative tolleranze (nominale, minimo, massimo). Il piano può essere
+legato a una **operazione del ciclo** (controllo in produzione) oppure
+all'articolo finito senza operazione (**collaudo finale**). Quando l'operazione o
+l'ordine si completano, il sistema **crea automaticamente** i controlli previsti
+dal piano attivo, in stato *da eseguire*. Non è bloccante: la produzione prosegue
+e i controlli restano in attesa dell'operatore.
 
 Su un ordine puoi eseguire un **controllo qualità** con misure e limiti. Se una
 misura è fuori tolleranza, il controllo risulta **fallito** e si apre una **non
@@ -86,4 +116,7 @@ lavoro.
 ## Dove si vede
 
 Gli indicatori principali (ordini aperti, operazioni in corso, non conformità
-aperte) sono nel **widget dashboard di produzione** del pannello Filament.
+aperte) sono nel **widget dashboard di produzione** del pannello Filament. Le
+anagrafiche e gli ordini si gestiscono dalle relative sezioni del pannello
+(inclusi i **piani di qualità**). Le **carenze di materiale** arrivano come
+notifica in-app ai responsabili configurati.

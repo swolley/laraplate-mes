@@ -25,7 +25,7 @@ production KPIs.
 | Production | `ProductionOrder` (immutable BOM/routing snapshots; audited), `ProductionOrderOperation` |
 | Materials | `MaterialConsumption` |
 | Traceability | `LotNumber`, `SerialNumber`, `LotLineage` |
-| Quality | `QualityCheck`, `QualityCheckMeasurement`, `NonConformance` |
+| Quality | `QualityPlan`, `QualityPlanCharacteristic` (validity window), `QualityCheck`, `QualityCheckMeasurement`, `NonConformance` |
 | Downtime | `Downtime` |
 | Shifts | `Shift`, `ShiftInstance`, `OperatorLog` |
 
