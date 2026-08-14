@@ -12,7 +12,9 @@ use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
+use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
+use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
@@ -70,6 +72,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         resolve(MesDomainActionRegistrar::class)->register(resolve(DomainActionRegistry::class));
 
         Event::listen(SalesOrderConfirmed::class, CreateProductionOrdersForSalesOrder::class);
+        Event::listen(MaterialShortageDetected::class, NotifyMaterialShortage::class);
     }
 
     /**

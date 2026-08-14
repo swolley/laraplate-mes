@@ -90,7 +90,9 @@ what exists: the stock-out is posted for the available quantity
 (`quantity_consumed`), the shortfall is recorded as a negative `variance` with
 `stock_shortage = true`, and `MaterialShortageDetected` is emitted. This keeps the
 stock ledger truthful (never negative, which the ERP `recordOutbound` rejects) and
-turns a hard ERP exception into a structured, non-blocking early warning.
+turns a hard ERP exception into a structured, non-blocking early warning. The
+queued `NotifyMaterialShortage` listener sends `MaterialShortageNotification` to
+the recipients configured by role (`mes.notifications.stock_shortage`).
 
 ## Services
 
@@ -126,6 +128,8 @@ production totals) are surfaced as the `ProductionDashboardWidget`, not routes.
   sales-order-driven PO creation (falls back to the company's sole warehouse).
 - `mes.production.daily_minutes` / `mes.production.default_lead_time_days` —
   routing-based lead-time estimation and its no-routing fallback.
+- `mes.notifications.stock_shortage.channels` / `.recipients.roles` — channels
+  (default `database`) and recipient roles for the shortage notification.
 
 ## Locked decisions
 

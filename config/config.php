@@ -64,4 +64,25 @@ return [
         'daily_minutes' => (float) env('MES_PRODUCTION_DAILY_MINUTES', 480),
         'default_lead_time_days' => (int) env('MES_PRODUCTION_DEFAULT_LEAD_TIME_DAYS', 5),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Notifications
+    |--------------------------------------------------------------------------
+    |
+    | Recipients and channels for MES operational notifications.
+    |
+    | - stock_shortage: sent when a consumption cannot be fully covered by
+    |   available stock. Recipients are resolved by role; channels follow the
+    |   Laravel notification channel names (database, mail, ...).
+    |
+    */
+    'notifications' => [
+        'stock_shortage' => [
+            'channels' => ['database'],
+            'recipients' => [
+                'roles' => ['admin', 'superadmin'],
+            ],
+        ],
+    ],
 ];
