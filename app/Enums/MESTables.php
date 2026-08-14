@@ -22,6 +22,8 @@ enum MESTables: string
     case LotNumbers = 'mes_lot_numbers';
     case SerialNumbers = 'mes_serial_numbers';
     case LotLineages = 'mes_lot_lineages';
+    case QualityPlans = 'mes_quality_plans';
+    case QualityPlanCharacteristics = 'mes_quality_plan_characteristics';
     case QualityChecks = 'mes_quality_checks';
     case QualityCheckMeasurements = 'mes_quality_check_measurements';
     case NonConformances = 'mes_non_conformances';

@@ -31,6 +31,7 @@ final class ProductionOrderService
         private DocumentNumberAllocator $documentNumberAllocator,
         private ProductionOrderOperationService $operationService,
         private LotTracingService $lotTracingService,
+        private QualityCheckPlanner $qualityCheckPlanner,
     ) {}
 
     /**
@@ -123,6 +124,8 @@ final class ProductionOrderService
             if ($this->requiresLot($order)) {
                 $this->lotTracingService->createProductionLot($order, $quantity_produced, $lot_code);
             }
+
+            $this->qualityCheckPlanner->forOrderCompletion($order);
 
             return $order->refresh();
         });

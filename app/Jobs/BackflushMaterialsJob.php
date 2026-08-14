@@ -10,9 +10,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Contracts\StockReader;
 use Modules\MES\Data\StockMovementData;
 use Modules\MES\Enums\ConsumptionMethod;
 use Modules\MES\Enums\MESTables;
+use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Models\MaterialConsumption;
 use Modules\MES\Models\ProductionOrderOperation;
 
@@ -38,7 +40,7 @@ final class BackflushMaterialsJob implements ShouldQueue
         $this->onQueue(config('mes.queue.name'));
     }
 
-    public function handle(StockMovementRecorder $recorder): void
+    public function handle(StockMovementRecorder $recorder, StockReader $reader): void
     {
         $operation = ProductionOrderOperation::query()->find($this->production_order_operation_id);
         $order = $operation?->productionOrder;
@@ -65,7 +67,7 @@ final class BackflushMaterialsJob implements ShouldQueue
                 continue;
             }
 
-            $this->consume($recorder, $order, $operation, $line, $basis);
+            $this->consume($recorder, $reader, $order, $operation, $line, $basis);
         }
     }
 
@@ -96,29 +98,48 @@ final class BackflushMaterialsJob implements ShouldQueue
      */
     private function consume(
         StockMovementRecorder $recorder,
+        StockReader $reader,
         \Modules\MES\Models\ProductionOrder $order,
         ProductionOrderOperation $operation,
         array $line,
         float $basis,
     ): void {
         $planned = (float) $line['quantity'] * $basis;
+        $item_id = (int) $line['item_id'];
+        $available = $reader->availableQuantity($item_id, (int) $order->warehouse_id, (int) $order->company_id);
+        $short = $available < $planned;
 
         MaterialConsumption::query()->create([
             'production_order_id' => $order->id,
             'production_order_operation_id' => $operation->id,
-            'item_id' => (int) $line['item_id'],
+            'item_id' => $item_id,
             'warehouse_id' => $order->warehouse_id,
             'quantity_planned' => $planned,
             'quantity_consumed' => $planned,
             'variance' => 0,
             'uom' => $line['uom'] ?? $order->uom,
             'is_backflush' => true,
-            'stock_shortage' => false,
+            'stock_shortage' => $short,
             'recorded_at' => now(),
         ]);
 
+        if ($short) {
+            event(new MaterialShortageDetected(
+                company_id: (int) $order->company_id,
+                item_id: $item_id,
+                warehouse_id: (int) $order->warehouse_id,
+                production_order_id: (int) $order->id,
+                production_order_operation_id: (int) $operation->id,
+                required_quantity: $planned,
+                available_quantity: $available,
+                is_backflush: true,
+            ));
+
+            return;
+        }
+
         $recorder->record(new StockMovementData(
-            item_id: (int) $line['item_id'],
+            item_id: $item_id,
             warehouse_id: $order->warehouse_id,
             company_id: $order->company_id,
             direction: 'out',

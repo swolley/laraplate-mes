@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Modules\ERP\Casts\TracingType;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Contracts\StockReader;
 use Modules\MES\Enums\ConsumptionMethod;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\ProductionOrderStatus;
@@ -28,6 +29,8 @@ it('runs a full production cycle from order to finished lot and consumed materia
     Queue::fake();
     $recorder = Mockery::spy(StockMovementRecorder::class);
     app()->instance(StockMovementRecorder::class, $recorder);
+    $reader = Mockery::mock(StockReader::class);
+    $reader->shouldReceive('availableQuantity')->andReturn(1_000_000.0);
 
     // --- Master data: a lot-traced finished good with a backflush component ---
     $company = MesTestHelpers::makeCompany();
@@ -90,7 +93,7 @@ it('runs a full production cycle from order to finished lot and consumed materia
     $operation_service->complete($operation_service->start($operation), 20.0);
 
     Queue::assertPushed(BackflushMaterialsJob::class);
-    new BackflushMaterialsJob($operation->id)->handle($recorder);
+    new BackflushMaterialsJob($operation->id)->handle($recorder, $reader);
 
     $consumption = MaterialConsumption::query()->where('item_id', $component->id)->first();
     expect($consumption)->not->toBeNull()

@@ -21,6 +21,7 @@ use Override;
  * @property int $company_id
  * @property int $production_order_id
  * @property int|null $production_order_operation_id
+ * @property int|null $quality_plan_id
  * @property int $item_id
  * @property string $name
  * @property QualityCheckStatus $status
@@ -49,6 +50,7 @@ final class QualityCheck extends Model
         'company_id',
         'production_order_id',
         'production_order_operation_id',
+        'quality_plan_id',
         'item_id',
         'name',
         'status',
@@ -78,6 +80,14 @@ final class QualityCheck extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    /**
+     * @return BelongsTo<QualityPlan, $this>
+     */
+    public function qualityPlan(): BelongsTo
+    {
+        return $this->belongsTo(QualityPlan::class);
     }
 
     /**

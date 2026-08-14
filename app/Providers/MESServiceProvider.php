@@ -11,6 +11,7 @@ use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Contracts\StockReader;
 use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
@@ -22,6 +23,7 @@ use Modules\MES\Models\QualityCheck;
 use Modules\MES\Policies\MesModelPolicy;
 use Modules\MES\Services\DomainActions\MesDomainActionRegistrar;
 use Modules\MES\Services\ErpStockMovementRecorder;
+use Modules\MES\Services\ErpStockReader;
 use Nwidart\Modules\Facades\Module;
 use Override;
 
@@ -43,11 +45,16 @@ final class MESServiceProvider extends ModuleServiceProvider
 
         parent::register();
 
-        // MES depends on ERP → registers the concrete ERP implementation here.
+        // MES depends on ERP → registers the concrete ERP implementations here.
         // The ERP module has no knowledge of MES (dependency flows one way only).
         $this->app->singleton(
             StockMovementRecorder::class,
             ErpStockMovementRecorder::class,
+        );
+
+        $this->app->singleton(
+            StockReader::class,
+            ErpStockReader::class,
         );
     }
 

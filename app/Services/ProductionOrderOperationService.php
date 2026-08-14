@@ -22,7 +22,10 @@ final class ProductionOrderOperationService
 {
     private const float MAX_EFFICIENCY = 999.99;
 
-    public function __construct(private ShiftVerificationService $shiftVerificationService) {}
+    public function __construct(
+        private ShiftVerificationService $shiftVerificationService,
+        private QualityCheckPlanner $qualityCheckPlanner,
+    ) {}
 
     /**
      * Materialise operations for a released order from its routing snapshot.
@@ -104,6 +107,7 @@ final class ProductionOrderOperationService
 
         $this->shiftVerificationService->logOperatorAction($operation, OperatorLogAction::Completed);
         BackflushMaterialsJob::dispatch($operation->id);
+        $this->qualityCheckPlanner->forOperation($operation);
 
         return $operation->refresh();
     }

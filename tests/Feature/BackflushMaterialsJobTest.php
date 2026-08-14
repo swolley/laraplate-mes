@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Contracts\StockReader;
 use Modules\MES\Data\StockMovementData;
 use Modules\MES\Enums\ConsumptionMethod;
+use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Jobs\BackflushMaterialsJob;
 use Modules\MES\Models\MaterialConsumption;
 use Modules\MES\Models\ProductionOrder;
@@ -65,6 +68,14 @@ function backflushScenario(): array
     return ['operation' => $operation, 'component' => $component->id, 'manual' => $manual->id];
 }
 
+function abundantStockReader(): StockReader
+{
+    $reader = Mockery::mock(StockReader::class);
+    $reader->shouldReceive('availableQuantity')->andReturn(1_000_000.0);
+
+    return $reader;
+}
+
 it('backflushes the matching line and records a stock-out movement', function (): void {
     $scenario = backflushScenario();
     $component_id = $scenario['component'];
@@ -76,7 +87,7 @@ it('backflushes the matching line and records a stock-out movement', function ()
             && $data->item_id === $component_id
             && $data->quantity === 20); // 2 per unit * 10 planned
 
-    (new BackflushMaterialsJob($scenario['operation']->id))->handle($recorder);
+    (new BackflushMaterialsJob($scenario['operation']->id))->handle($recorder, abundantStockReader());
 
     $consumption = MaterialConsumption::query()->where('item_id', $component_id)->first();
 
@@ -92,7 +103,7 @@ it('does not consume manually-managed lines', function (): void {
     $recorder = Mockery::mock(StockMovementRecorder::class);
     $recorder->shouldReceive('record')->once();
 
-    (new BackflushMaterialsJob($scenario['operation']->id))->handle($recorder);
+    (new BackflushMaterialsJob($scenario['operation']->id))->handle($recorder, abundantStockReader());
 
     expect(MaterialConsumption::query()->where('item_id', $scenario['manual'])->exists())->toBeFalse();
 });
@@ -104,8 +115,36 @@ it('is idempotent across repeated runs for the same operation', function (): voi
     $recorder->shouldReceive('record'); // any number of times
 
     $job = new BackflushMaterialsJob($scenario['operation']->id);
-    $job->handle($recorder);
-    $job->handle($recorder);
+    $job->handle($recorder, abundantStockReader());
+    $job->handle($recorder, abundantStockReader());
 
     expect(MaterialConsumption::query()->count())->toBe(1);
+});
+
+it('flags a shortage and emits an event without a stock-out when stock is short', function (): void {
+    Event::fake([MaterialShortageDetected::class]);
+    $scenario = backflushScenario();
+    $component_id = $scenario['component'];
+
+    $recorder = Mockery::mock(StockMovementRecorder::class);
+    $recorder->shouldNotReceive('record');
+
+    $reader = Mockery::mock(StockReader::class);
+    $reader->shouldReceive('availableQuantity')->andReturn(5.0); // need 20, only 5 on hand
+
+    (new BackflushMaterialsJob($scenario['operation']->id))->handle($recorder, $reader);
+
+    $consumption = MaterialConsumption::query()->where('item_id', $component_id)->first();
+
+    expect($consumption)->not->toBeNull()
+        ->and($consumption->stock_shortage)->toBeTrue()
+        ->and((float) $consumption->quantity_planned)->toBe(20.0);
+
+    Event::assertDispatched(
+        MaterialShortageDetected::class,
+        static fn (MaterialShortageDetected $event): bool => $event->item_id === $component_id
+            && $event->required_quantity === 20.0
+            && $event->available_quantity === 5.0
+            && $event->is_backflush === true,
+    );
 });

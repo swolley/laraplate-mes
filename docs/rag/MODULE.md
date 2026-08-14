@@ -38,14 +38,19 @@ production KPIs.
    the routing snapshot. Status `released`.
 3. **Execute operations** (`ProductionOrderOperationService`) —
    `start`/`complete`/`skip`; efficiency = standard / actual, clamped
-   `[0, 999.99]`. Completing an operation logs the operator (`OperatorLog`) and
-   dispatches `BackflushMaterialsJob`.
+   `[0, 999.99]`. Completing an operation logs the operator (`OperatorLog`),
+   dispatches `BackflushMaterialsJob`, and creates the in-process
+   `QualityCheck` from any active plan (see «Quality plans»).
 4. **Backflush** (`BackflushMaterialsJob`, idempotent) — consumes snapshot BOM
    lines marked `backflush` whose `routing_operation_id` matches the operation
-   (or the order's last operation when null — decision D5), recording a stock
-   `out` movement per line.
+   (or the order's last operation when null — decision D5). Each line reads
+   on-hand stock via `StockReader`: enough → records a stock `out` movement;
+   short → flags `mes_material_consumptions.stock_shortage` and emits
+   `MaterialShortageDetected` instead of posting a movement the ERP would
+   reject (non-blocking; the line is re-consumed on a later run once replenished).
 5. **Complete order** (`complete`) — sets produced quantity; generates the
-   finished `LotNumber` when the item is lot/serial-traced.
+   finished `LotNumber` when the item is lot/serial-traced; creates the
+   final-inspection `QualityCheck` from any active plan.
 
 ## Sales-order-driven creation
 
@@ -64,6 +69,27 @@ default lead time when the item has no routing). Purchased/service lines, alread
 delivered lines and multi-warehouse-ambiguous lines are skipped with a reason
 (`ProductionPlanningSkipReason`) rather than guessed.
 
+## Quality plans
+
+A `QualityPlan` is a date-effective (`version`/`valid_from`/`valid_to`/`is_active`)
+set of expected characteristics (`QualityPlanCharacteristic`: `nominal`,
+`lower_limit`, `upper_limit` — the same shape as `QualityCheckMeasurement`) for an
+item, optionally scoped to a `routing_operation_id`. When an operation completes,
+`QualityCheckPlanner` resolves the plan for `(item, routing_operation)` and creates
+a pending `QualityCheck` linked to it; when the order completes it resolves the plan
+with `routing_operation_id = null` (final inspection). Creation is non-blocking (no
+plan → no-op) and idempotent per `(order, plan, operation)`. Operators later run the
+existing `execute` action, which evaluates measurements and opens a non-conformance
+on failure.
+
+## Stock shortage
+
+`StockReader` (ERP-backed `ErpStockReader` over `StockLevel`) is the read side of
+the stock boundary. Backflush and manual consumption check availability before
+posting a stock-out; on shortage they flag `stock_shortage` and emit
+`MaterialShortageDetected` instead of posting a movement the ERP rejects. This
+turns a hard ERP exception into a structured, non-blocking early warning.
+
 ## Services
 
 `BomExplosionService` (multi-level explosion + active BOM), `RoutingResolverService`
@@ -73,7 +99,9 @@ delivered lines and multi-warehouse-ambiguous lines are skipped with a reason
 linked order), `CapacityService` (work-center load), `OeeCalculatorService`
 (A×P×Q, clamped), `DowntimeService`, `ShiftVerificationService`,
 `SalesOrderProductionPlanner` (auto-creation from confirmed sales orders, with
-`ProductionWarehouseResolver` and `ProductionLeadTimeEstimator`).
+`ProductionWarehouseResolver` and `ProductionLeadTimeEstimator`),
+`QualityPlanResolver` + `QualityCheckPlanner` (auto quality checks on completion),
+`ErpStockReader` (`StockReader` on-hand read for shortage detection).
 
 ## HTTP surface
 
