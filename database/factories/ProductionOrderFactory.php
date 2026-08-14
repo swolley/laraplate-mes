@@ -71,6 +71,6 @@ final class ProductionOrderFactory extends Factory
      */
     public function released(): static
     {
-        return $this->state(static fn () => ['status' => ProductionOrderStatus::Released->value]);
+        return $this->state(['status' => ProductionOrderStatus::Released->value]);
     }
 }

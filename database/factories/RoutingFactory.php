@@ -56,6 +56,6 @@ final class RoutingFactory extends Factory
      */
     public function inactive(): static
     {
-        return $this->state(static fn () => ['is_active' => false]);
+        return $this->state(['is_active' => false]);
     }
 }

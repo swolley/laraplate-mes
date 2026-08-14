@@ -45,7 +45,7 @@ final class DowntimeFactory extends Factory
      */
     public function closed(float $duration_minutes = 30): static
     {
-        return $this->state(fn (): array => [
+        return $this->state([
             'started_at' => now()->subMinutes((int) $duration_minutes),
             'ended_at' => now(),
             'duration_minutes' => $duration_minutes,

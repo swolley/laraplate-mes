@@ -39,7 +39,7 @@ final class ShiftInstanceFactory extends Factory
      */
     public function coveringNow(int $work_center_id): static
     {
-        return $this->state(fn (): array => [
+        return $this->state([
             'work_center_id' => $work_center_id,
             'date' => now()->toDateString(),
             'starts_at' => now()->subHour(),

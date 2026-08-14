@@ -52,6 +52,6 @@ final class BomLineFactory extends Factory
      */
     public function manual(): static
     {
-        return $this->state(static fn () => ['consumption_method' => ConsumptionMethod::Manual->value]);
+        return $this->state(['consumption_method' => ConsumptionMethod::Manual->value]);
     }
 }

@@ -45,7 +45,7 @@ final class ProductionOrderOperationFactory extends Factory
      */
     public function inProgress(): static
     {
-        return $this->state(static fn () => [
+        return $this->state([
             'status' => ProductionOrderOperationStatus::InProgress->value,
             'actual_start_at' => now(),
         ]);
