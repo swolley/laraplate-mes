@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
-use Illuminate\Support\Facades\DB;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Data\StockMovementData;
@@ -37,7 +36,7 @@ final class MaterialConsumptionService
         string $uom = 'pcs',
         ?int $operation_id = null,
     ): MaterialConsumption {
-        return DB::transaction(function () use ($order, $item_id, $quantity, $uom, $operation_id): MaterialConsumption {
+        return $order->getConnection()->transaction(function () use ($order, $item_id, $quantity, $uom, $operation_id): MaterialConsumption {
             $available = $this->reader->availableQuantity($item_id, (int) $order->warehouse_id, (int) $order->company_id);
             $consumed = max(0.0, min($quantity, $available));
             $short = $consumed < $quantity;

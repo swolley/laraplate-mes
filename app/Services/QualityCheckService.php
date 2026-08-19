@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
-use Illuminate\Support\Facades\DB;
 use Modules\MES\Enums\NonConformanceStatus;
 use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Models\NonConformance;
@@ -24,7 +23,7 @@ final class QualityCheckService
      */
     public function execute(QualityCheck $check, array $measurements): QualityCheck
     {
-        return DB::transaction(function () use ($check, $measurements): QualityCheck {
+        return $check->getConnection()->transaction(function () use ($check, $measurements): QualityCheck {
             $all_within_limits = true;
 
             foreach ($measurements as $measurement) {

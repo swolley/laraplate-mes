@@ -8,7 +8,6 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DomainException;
-use Illuminate\Support\Facades\DB;
 use Modules\ERP\Casts\DocumentType;
 use Modules\ERP\Casts\TracingType;
 use Modules\ERP\Models\Company;
@@ -91,7 +90,7 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be released from status {$order->status->value}."),
         );
 
-        return DB::transaction(function () use ($order): ProductionOrder {
+        return $order->getConnection()->transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Released->value]);
             $this->operationService->generateForOrder($order);
 
@@ -114,7 +113,7 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be completed from status {$order->status->value}."),
         );
 
-        return DB::transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {
+        return $order->getConnection()->transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {
             $order->update([
                 'quantity_produced' => $quantity_produced,
                 'status' => ProductionOrderStatus::Completed->value,
@@ -143,7 +142,7 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be cancelled from status {$order->status->value}."),
         );
 
-        return DB::transaction(function () use ($order): ProductionOrder {
+        return $order->getConnection()->transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Cancelled->value]);
 
             return $order->refresh();

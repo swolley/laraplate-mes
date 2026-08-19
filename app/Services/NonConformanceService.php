@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\MES\Services;
 
 use DomainException;
-use Illuminate\Support\Facades\DB;
 use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Enums\NonConformanceStatus;
 use Modules\MES\Models\NonConformance;
@@ -32,7 +31,7 @@ final class NonConformanceService
             new DomainException("Non-conformance {$non_conformance->id} is not actionable in status {$non_conformance->status->value}."),
         );
 
-        return DB::transaction(function () use ($non_conformance, $disposition): NonConformance {
+        return $non_conformance->getConnection()->transaction(function () use ($non_conformance, $disposition): NonConformance {
             $rework_order_id = $disposition === NonConformanceDisposition::Rework
                 ? $this->createReworkOrder($non_conformance)
                 : null;

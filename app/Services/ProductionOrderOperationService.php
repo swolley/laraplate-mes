@@ -6,7 +6,6 @@ namespace Modules\MES\Services;
 
 use DomainException;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Modules\MES\Enums\OperatorLogAction;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Jobs\BackflushMaterialsJob;
@@ -36,7 +35,7 @@ final class ProductionOrderOperationService
     {
         $operations = $order->routing_snapshot['operations'] ?? [];
 
-        return DB::transaction(static function () use ($order, $operations): Collection {
+        return $order->getConnection()->transaction(static function () use ($order, $operations): Collection {
             $created = collect();
 
             foreach ($operations as $operation) {
