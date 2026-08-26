@@ -49,6 +49,7 @@ final class DevMESDatabaseSeeder extends Seeder
 
         /** @var list<WorkCenter> $workCenters */
         $workCenters = [];
+
         foreach ([['WC-DEMO-A', 'Taglio'], ['WC-DEMO-B', 'Foratura'], ['WC-DEMO-C', 'Assemblaggio'], ['WC-DEMO-D', 'Collaudo']] as [$code, $name]) {
             $workCenters[] = WorkCenter::factory()->create(['code' => $code, 'name' => $name, 'is_active' => true]);
         }
@@ -104,16 +105,32 @@ final class DevMESDatabaseSeeder extends Seeder
             PermissionName::forClass(WorkCenter::class, 'select'),
         ];
 
+        // Bypass Spatie Permission::findOrCreate (same rationale as DevSAO /
+        // MESDatabaseSeeder): avoid hydrating a corrupt spatie.permission.cache.
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->forgetCachedPermissions();
+
+        $permission = new Permission;
+
         foreach (array_unique([...$supervisorPermissions, ...$operatorPermissions]) as $name) {
-            Permission::findOrCreate($name, 'web');
+            $permission->newQuery()->firstOrCreate([
+                'name' => $name,
+                'guard_name' => 'web',
+            ]);
         }
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $registrar->forgetCachedPermissions();
 
-        $supervisor = Role::findOrCreate('mes-supervisor', 'web');
+        $supervisor = Role::query()->firstOrCreate([
+            'name' => 'mes-supervisor',
+            'guard_name' => 'web',
+        ]);
         $supervisor->givePermissionTo($supervisorPermissions);
 
-        $operator = Role::findOrCreate('mes-operator', 'web');
+        $operator = Role::query()->firstOrCreate([
+            'name' => 'mes-operator',
+            'guard_name' => 'web',
+        ]);
         $operator->givePermissionTo($operatorPermissions);
 
         $this->ensureUser('mes.supervisor@laraplate.test', 'MES Supervisor', $supervisor->name);
