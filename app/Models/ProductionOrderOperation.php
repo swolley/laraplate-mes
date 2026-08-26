@@ -14,7 +14,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $production_order_id
  * @property int|null $routing_operation_id
@@ -31,7 +30,6 @@ use Override;
  * @property string|null $efficiency
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperProductionOrderOperation
  */
 final class ProductionOrderOperation extends Model

@@ -14,7 +14,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $company_id
  * @property int $item_id
@@ -25,7 +24,6 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $produced_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperSerialNumber
  */
 final class SerialNumber extends Model

@@ -16,7 +16,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $company_id
  * @property int $production_order_id
@@ -29,7 +28,6 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $checked_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperQualityCheck
  */
 final class QualityCheck extends Model

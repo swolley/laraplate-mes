@@ -16,7 +16,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $company_id
  * @property int|null $production_order_id
@@ -30,7 +29,6 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $resolved_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperNonConformance
  */
 final class NonConformance extends Model

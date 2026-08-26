@@ -17,7 +17,6 @@ use Override;
  * seed the measurements an operator records at execution time.
  *
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $quality_plan_id
  * @property string $characteristic
@@ -27,7 +26,6 @@ use Override;
  * @property int $sort_order
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperQualityPlanCharacteristic
  */
 final class QualityPlanCharacteristic extends Model

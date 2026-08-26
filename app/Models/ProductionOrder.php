@@ -21,7 +21,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $company_id
  * @property string $number
@@ -43,7 +42,6 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
- *
  * @mixin IdeHelperProductionOrder
  */
 final class ProductionOrder extends Model

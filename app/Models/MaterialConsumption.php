@@ -15,7 +15,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $production_order_id
  * @property int|null $production_order_operation_id
@@ -30,7 +29,6 @@ use Override;
  * @property \Illuminate\Support\Carbon $recorded_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperMaterialConsumption
  */
 final class MaterialConsumption extends Model

@@ -13,7 +13,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $routing_id
  * @property int $work_center_id
@@ -22,7 +21,6 @@ use Override;
  * @property int $setup_time_minutes
  * @property string $cycle_time_minutes
  * @property bool $is_parallel
- *
  * @mixin IdeHelperRoutingOperation
  */
 final class RoutingOperation extends Model

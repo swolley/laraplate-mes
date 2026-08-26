@@ -16,7 +16,6 @@ use Override;
 
 /**
  * @mixin \Eloquent
- *
  * @property int $id
  * @property int $company_id
  * @property int $work_center_id
@@ -28,7 +27,6 @@ use Override;
  * @property string|null $notes
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @mixin IdeHelperDowntime
  */
 final class Downtime extends Model
