@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Models\Concerns\HasActivation;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\QualityPlanFactory;
@@ -21,6 +22,7 @@ use Override;
  * of {@see QualityCheck} records on operation/order completion.
  *
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $company_id
  * @property int $item_id
@@ -32,11 +34,12 @@ use Override;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @mixin IdeHelperQualityPlan
  */
 final class QualityPlan extends Model
 {
-    use HasFactory;
+    use HasActivation, HasFactory;
 
     /**
      * @var string

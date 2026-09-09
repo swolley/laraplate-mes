@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\MES\Filament\Resources\Shifts\Tables;
 
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
@@ -26,9 +25,6 @@ final class ShiftsTable
                     TextColumn::make('start_time')
                         ->sortable(),
                     TextColumn::make('end_time')
-                        ->sortable(),
-                    IconColumn::make('is_active')
-                        ->boolean()
                         ->sortable(),
                 ]);
             },

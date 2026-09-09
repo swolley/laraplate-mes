@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\MES\Filament\Resources\QualityPlans\Tables;
 
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
@@ -36,9 +35,6 @@ final class QualityPlansTable
                         ->sortable(),
                     TextColumn::make('valid_from')
                         ->date()
-                        ->sortable(),
-                    IconColumn::make('is_active')
-                        ->boolean()
                         ->sortable(),
                 ]);
             },

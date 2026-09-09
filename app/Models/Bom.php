@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Models\Concerns\HasActivation;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
@@ -18,6 +19,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $company_id
  * @property int $item_id
@@ -28,11 +30,12 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
  * @mixin IdeHelperBom
  */
 final class Bom extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, HasActivation;
 
     /**
      * @var string
