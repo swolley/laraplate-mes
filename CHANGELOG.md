@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚜 Refactor
+
+- *(mes)* Update permission handling in DevMESDatabaseSeeder
+- *(mes)* Declare domain permissions instead of seeding a private list
+
+### ⚙️ Miscellaneous Tasks
+
+- *(models)* Remove unnecessary comment lines in model docblocks
+
+## [1.0.0] - 2026-08-25
+
 ### 🚀 Features
 
 - *(mes)* Refactor MES module structure and add stock movement functionality
