@@ -2,7 +2,8 @@
     "name": "MES",
     "laraplate_owned": true,
     "alias": "mes",
-    "description": "MES module \u2014 Manufacturing Execution System for production orders, work centres, scheduling and traceability.",
+    "description": "MES module — Manufacturing Execution System for production orders, work centres, scheduling and traceability.",
+    "color": "blue",
     "keywords": [
         "mes",
         "manufacturing",

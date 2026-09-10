@@ -59,15 +59,18 @@ final class ProductionDashboardWidget extends BaseWidget
             Stat::make('Open production orders', $data['open_orders'])
                 ->description('Draft, released or in progress')
                 ->descriptionIcon('heroicon-o-clipboard-document-list')
-                ->color('primary'),
+                ->color('primary')
+                ->descriptionColor('mes'),
             Stat::make('Running operations', $data['running_operations'])
                 ->description('Operations in progress')
                 ->descriptionIcon('heroicon-o-cog-6-tooth')
-                ->color('info'),
+                ->color('info')
+                ->descriptionColor('mes'),
             Stat::make('Completed orders', $data['completed_orders'])
                 ->description('Production orders completed')
                 ->descriptionIcon('heroicon-o-check-circle')
-                ->color('success'),
+                ->color('success')
+                ->descriptionColor('mes'),
             Stat::make('Open non-conformances', $data['open_non_conformances'])
                 ->description('Awaiting review or resolution')
                 ->descriptionIcon('heroicon-o-exclamation-triangle')
