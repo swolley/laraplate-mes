@@ -91,6 +91,7 @@ single warehouse the module picks it automatically.
 -   Base folders for HTTP, config, routes, resources, database, and tests in place
 -   Composer package scaffolded with scripts and autoload mappings
 -   Independent git repository initialized under `Modules/MES` (ready to be switched to submodule workflow)
+-   Filament surfaces (resources, widgets) exposed in the admin panel through `Modules\MES\Filament\MESPlugin`, auto-registered by `coolsam/modules`
 
 ## Roadmap
 
