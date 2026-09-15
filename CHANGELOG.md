@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [1.1.0] - 2026-09-15
 
 ### 🚀 Features
 
@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 
 - *(tables)* Remove IconColumn from multiple tables
 - *(models)* Remove unnecessary comment lines in model properties
+
+### 📚 Documentation
+
+- *(changelog)* Regenerate with the corrected git-cliff configuration
 
 ### 🎨 Styling
 
