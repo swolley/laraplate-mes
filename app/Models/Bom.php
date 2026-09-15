@@ -19,6 +19,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $company_id
  * @property int $item_id
@@ -29,6 +30,7 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
  * @mixin IdeHelperBom
  */
 final class Bom extends Model

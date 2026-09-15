@@ -13,6 +13,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $quality_check_id
  * @property string $characteristic
@@ -23,6 +24,7 @@ use Override;
  * @property bool $is_within_limits
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @mixin IdeHelperQualityCheckMeasurement
  */
 final class QualityCheckMeasurement extends Model

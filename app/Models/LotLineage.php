@@ -13,6 +13,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $parent_lot_id
  * @property int $child_lot_id
@@ -20,6 +21,7 @@ use Override;
  * @property string|null $quantity
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @mixin IdeHelperLotLineage
  */
 final class LotLineage extends Model

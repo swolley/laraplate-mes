@@ -14,6 +14,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $shift_id
  * @property int|null $work_center_id
@@ -22,6 +23,7 @@ use Override;
  * @property \Illuminate\Support\Carbon $ends_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @mixin IdeHelperShiftInstance
  */
 final class ShiftInstance extends Model

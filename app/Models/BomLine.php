@@ -15,6 +15,7 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $bom_id
  * @property int $item_id
@@ -23,6 +24,7 @@ use Override;
  * @property ConsumptionMethod $consumption_method
  * @property int|null $routing_operation_id
  * @property int $sort_order
+ *
  * @mixin IdeHelperBomLine
  */
 final class BomLine extends Model

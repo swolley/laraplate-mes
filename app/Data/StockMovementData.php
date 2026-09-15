@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\MES\Data;
 
+use DateTimeInterface;
+
 /**
  * Data Transfer Object for recording a stock movement.
  *
@@ -16,12 +18,16 @@ final readonly class StockMovementData
         public int $item_id,
         public int $warehouse_id,
         public int $company_id,
-        /** @var string 'in'|'out' */
+        /**
+         * @var string 'in'|'out'
+         */
         public string $direction,
         public int $quantity,
-        /** @var string e.g. 'mes_production_orders' */
+        /**
+         * @var string e.g. 'mes_production_orders'
+         */
         public string $source_type,
         public int $source_id,
-        public \DateTimeInterface $occurred_at,
+        public DateTimeInterface $occurred_at,
     ) {}
 }

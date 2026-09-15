@@ -22,6 +22,7 @@ use Override;
  * of {@see QualityCheck} records on operation/order completion.
  *
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $company_id
  * @property int $item_id
@@ -33,6 +34,7 @@ use Override;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @mixin IdeHelperQualityPlan
  */
 final class QualityPlan extends Model

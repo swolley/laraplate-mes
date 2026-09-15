@@ -13,11 +13,13 @@ use Override;
 
 /**
  * @mixin \Eloquent
+ *
  * @property int $id
  * @property int $work_center_id
  * @property int $day_of_week
  * @property string $start_time
  * @property string $end_time
+ *
  * @mixin IdeHelperWorkCenterCalendar
  */
 final class WorkCenterCalendar extends Model
