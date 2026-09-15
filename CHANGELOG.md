@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(filament)* Expose the MES surfaces in the admin panel
+- *(mes)* Enhance module description and add color support
+
+### 🚜 Refactor
+
+- *(tables)* Remove IconColumn from multiple tables
+- *(models)* Remove unnecessary comment lines in model properties
+
+### 🎨 Styling
+
+- Format with the application's Pint configuration
+
+### ⚙️ Miscellaneous Tasks
+
+- The module carries functionality, not the toolchain
+
+## [1.0.1] - 2026-09-09
+
 ### 🚜 Refactor
 
 - *(mes)* Update permission handling in DevMESDatabaseSeeder
@@ -35,6 +55,7 @@ All notable changes to this project will be documented in this file.
 - *(mes)* Shifts, shift instances and operator logging (Task 13)
 - *(mes)* HTTP domain actions via Core registry and policy (Task 14)
 - *(mes)* Production dashboard widget (Task 15)
+- *(mes)* Manual material consumption (deferred Task 8 follow-up)
 - *(mes)* Filament resources for core entities (Task 15 follow-up)
 - *(mes)* Filament resources for quality, downtime and shifts (Task 15 complete)
 - *(mes)* Auto-create production orders from confirmed sales orders
@@ -44,6 +65,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- *(tests)* Add TestCase class for AI tests in MES module
 - *(mes)* Cap Company slug length in factory and test helpers
 - *(mes)* Green test suite on PHP 8.5 (is_deleted column + factory states)
 - *(mes)* RoutingOperation factory state as array (PHP 8.5 binding)
@@ -57,6 +79,8 @@ All notable changes to this project will be documented in this file.
 
 ### 📚 Documentation
 
+- *(mdc)* Add MES module context rules for ERP integration and operational guidelines
+- Fix glossary cross-references
 - Update glossary and module context with new production order and backflush details
 - *(mes)* Developer RAG reference and simple user guide (Task 17)
 - *(mes)* RAG user and developer docs for the new capabilities
@@ -70,6 +94,8 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - *(tests)* Update PHPUnit configuration and enhance test suite structure
+- *(mes)* Bump version to v1.0.1
+- *(mes)* Normalize PHPDoc spacing in WorkCenter model
 - *(mes)* Mark module as laraplate_owned
 - Correct version bump to v1.1.0
 - Add versioning scripts and setup hooks to composer.json
