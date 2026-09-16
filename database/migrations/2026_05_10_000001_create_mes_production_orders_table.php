@@ -41,6 +41,10 @@ return new class extends Migration
                 ->nullable()
                 ->constrained(ERPTables::SalesOrders->value, 'id', "{$table_name}_sales_order_id_FK")
                 ->nullOnDelete();
+            $table->foreignId('sales_order_line_id')
+                ->nullable()
+                ->constrained(ERPTables::SalesOrderLines->value, 'id', "{$table_name}_sales_order_line_id_FK")
+                ->nullOnDelete();
             $table->json('bom_snapshot');
             $table->json('routing_snapshot');
             MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
