@@ -26,6 +26,10 @@ return new class extends Migration
                 ->nullable()
                 ->constrained(MESTables::ProductionOrderOperations->value, 'id', "{$table_name}_operation_id_FK")
                 ->nullOnDelete();
+            $table->foreignId('quality_plan_id')
+                ->nullable()
+                ->constrained(MESTables::QualityPlans->value, 'id', "{$table_name}_quality_plan_id_FK")
+                ->nullOnDelete();
             $table->foreignId('item_id')
                 ->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")
                 ->restrictOnDelete();
