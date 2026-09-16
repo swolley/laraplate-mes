@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Enums\MESTables;
 
@@ -18,13 +19,16 @@ return new class extends Migration
             $table->foreignId('company_id')
                 ->constrained(ERPTables::Companies->value, 'id', "{$table_name}_company_id_FK")
                 ->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'company_id');
             $table->foreignId('item_id')
                 ->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")
                 ->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'item_id');
             $table->foreignId('routing_operation_id')
                 ->nullable()
                 ->constrained(MESTables::RoutingOperations->value, 'id', "{$table_name}_operation_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'routing_operation_id');
             $table->string('name', 255);
             $table->string('version', 32);
             $table->date('valid_from');

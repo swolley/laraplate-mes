@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreignId('item_id')
                 ->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")
                 ->restrictOnDelete();
+            MigrateUtils::prefixIndex($table, 'item_id');
             $table->decimal('quantity_planned', 15, 4);
             $table->decimal('quantity_produced', 15, 4)->nullable();
             $table->decimal('quantity_scrapped', 15, 4)->nullable();
@@ -37,14 +38,17 @@ return new class extends Migration
             $table->foreignId('warehouse_id')
                 ->constrained(ERPTables::Warehouses->value, 'id', "{$table_name}_warehouse_id_FK")
                 ->restrictOnDelete();
+            MigrateUtils::prefixIndex($table, 'warehouse_id');
             $table->foreignId('sales_order_id')
                 ->nullable()
                 ->constrained(ERPTables::SalesOrders->value, 'id', "{$table_name}_sales_order_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'sales_order_id');
             $table->foreignId('sales_order_line_id')
                 ->nullable()
                 ->constrained(ERPTables::SalesOrderLines->value, 'id', "{$table_name}_sales_order_line_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'sales_order_line_id');
             $table->json('bom_snapshot');
             $table->json('routing_snapshot');
             MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);

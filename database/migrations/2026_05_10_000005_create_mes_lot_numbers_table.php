@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Enums\MESTables;
 
@@ -21,14 +22,17 @@ return new class extends Migration
             $table->foreignId('item_id')
                 ->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")
                 ->restrictOnDelete();
+            MigrateUtils::prefixIndex($table, 'item_id');
             $table->foreignId('production_order_id')
                 ->nullable()
                 ->constrained(MESTables::ProductionOrders->value, 'id', "{$table_name}_production_order_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'production_order_id');
             $table->foreignId('warehouse_id')
                 ->nullable()
                 ->constrained(ERPTables::Warehouses->value, 'id', "{$table_name}_warehouse_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'warehouse_id');
             $table->string('code', 64);
             $table->decimal('quantity', 15, 4)->default(0);
             $table->dateTime('produced_at')->nullable();

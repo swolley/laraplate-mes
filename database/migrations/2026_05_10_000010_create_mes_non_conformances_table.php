@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\NonConformanceStatus;
@@ -19,21 +20,26 @@ return new class extends Migration
             $table->foreignId('company_id')
                 ->constrained(ERPTables::Companies->value, 'id', "{$table_name}_company_id_FK")
                 ->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'company_id');
             $table->foreignId('production_order_id')
                 ->nullable()
                 ->constrained(MESTables::ProductionOrders->value, 'id', "{$table_name}_production_order_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'production_order_id');
             $table->foreignId('quality_check_id')
                 ->nullable()
                 ->constrained(MESTables::QualityChecks->value, 'id', "{$table_name}_quality_check_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'quality_check_id');
             $table->foreignId('item_id')
                 ->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")
                 ->restrictOnDelete();
+            MigrateUtils::prefixIndex($table, 'item_id');
             $table->foreignId('rework_production_order_id')
                 ->nullable()
                 ->constrained(MESTables::ProductionOrders->value, 'id', "{$table_name}_rework_order_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'rework_production_order_id');
             $table->enum('status', NonConformanceStatus::values())
                 ->default(NonConformanceStatus::Open->value)
                 ->index("{$table_name}_status_IDX");

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\OperatorLogAction;
 
@@ -20,10 +21,12 @@ return new class extends Migration
                 ->nullable()
                 ->constrained(MESTables::ProductionOrderOperations->value, 'id', "{$table_name}_operation_id_FK")
                 ->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'production_order_operation_id');
             $table->foreignId('shift_instance_id')
                 ->nullable()
                 ->constrained(MESTables::ShiftInstances->value, 'id', "{$table_name}_shift_instance_id_FK")
                 ->nullOnDelete();
+            MigrateUtils::prefixIndex($table, 'shift_instance_id');
             $table->enum('action', OperatorLogAction::values());
             $table->dateTime('logged_at');
             $table->timestamps();

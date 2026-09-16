@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\MES\Enums\MESTables;
 
 return new class extends Migration
@@ -17,6 +18,7 @@ return new class extends Migration
             $table->foreignId('quality_plan_id')
                 ->constrained(MESTables::QualityPlans->value, 'id', "{$table_name}_quality_plan_id_FK")
                 ->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'quality_plan_id');
             $table->string('characteristic', 255);
             $table->decimal('nominal', 15, 4)->nullable();
             $table->decimal('lower_limit', 15, 4)->nullable();

@@ -17,7 +17,9 @@ return new class extends Migration
         Schema::create($table_name, function (Blueprint $table) use ($table_name): void {
             $table->id();
             $table->foreignId('company_id')->constrained(ERPTables::Companies->value, 'id', "{$table_name}_company_id_FK")->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'company_id');
             $table->foreignId('item_id')->constrained(ERPTables::Items->value, 'id', "{$table_name}_item_id_FK")->cascadeOnDelete();
+            MigrateUtils::prefixIndex($table, 'item_id');
             $table->string('version', 32);
             $table->date('valid_from');
             $table->date('valid_to')->nullable();
