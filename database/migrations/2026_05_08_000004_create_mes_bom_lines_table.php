@@ -20,6 +20,10 @@ return new class extends Migration
             $table->decimal('quantity', 15, 4);
             $table->string('uom', 16);
             $table->enum('consumption_method', ['backflush', 'manual']);
+            $table->foreignId('routing_operation_id')
+                ->nullable()
+                ->constrained(MESTables::RoutingOperations->value, 'id', "{$table_name}_routing_operation_id_FK")
+                ->nullOnDelete();
             $table->integer('sort_order')->default(0);
         });
     }
