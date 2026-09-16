@@ -13,26 +13,6 @@ use Modules\ERP\Models\Warehouse;
 use Modules\MES\Database\Factories\MaterialConsumptionFactory;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $production_order_id
- * @property int|null $production_order_operation_id
- * @property int $item_id
- * @property int $warehouse_id
- * @property string $quantity_planned
- * @property string $quantity_consumed
- * @property string $variance
- * @property string $uom
- * @property bool $is_backflush
- * @property bool $stock_shortage
- * @property \Illuminate\Support\Carbon $recorded_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperMaterialConsumption
- */
 final class MaterialConsumption extends Model
 {
     use HasFactory;

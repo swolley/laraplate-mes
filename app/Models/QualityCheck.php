@@ -14,24 +14,6 @@ use Modules\MES\Database\Factories\QualityCheckFactory;
 use Modules\MES\Enums\QualityCheckStatus;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property int $production_order_id
- * @property int|null $production_order_operation_id
- * @property int|null $quality_plan_id
- * @property int $item_id
- * @property string $name
- * @property QualityCheckStatus $status
- * @property string|null $notes
- * @property \Illuminate\Support\Carbon|null $checked_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperQualityCheck
- */
 final class QualityCheck extends Model
 {
     use HasFactory;

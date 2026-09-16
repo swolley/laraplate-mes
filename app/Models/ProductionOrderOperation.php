@@ -12,28 +12,6 @@ use Modules\MES\Database\Factories\ProductionOrderOperationFactory;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $production_order_id
- * @property int|null $routing_operation_id
- * @property int $work_center_id
- * @property int $sequence
- * @property string $description
- * @property ProductionOrderOperationStatus $status
- * @property int $setup_time_minutes
- * @property string $cycle_time_minutes
- * @property bool $is_parallel
- * @property \Illuminate\Support\Carbon|null $actual_start_at
- * @property \Illuminate\Support\Carbon|null $actual_end_at
- * @property string|null $actual_minutes
- * @property string|null $efficiency
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperProductionOrderOperation
- */
 final class ProductionOrderOperation extends Model
 {
     use HasFactory;

@@ -14,25 +14,6 @@ use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Enums\NonConformanceStatus;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property int|null $production_order_id
- * @property int|null $quality_check_id
- * @property int $item_id
- * @property int|null $rework_production_order_id
- * @property NonConformanceStatus $status
- * @property NonConformanceDisposition|null $disposition
- * @property string $quantity
- * @property string $description
- * @property \Illuminate\Support\Carbon|null $resolved_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperNonConformance
- */
 final class NonConformance extends Model
 {
     use HasFactory;

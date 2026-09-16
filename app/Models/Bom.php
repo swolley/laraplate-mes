@@ -17,22 +17,6 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\BomFactory;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property int $item_id
- * @property string $version
- * @property \Illuminate\Support\Carbon $valid_from
- * @property \Illuminate\Support\Carbon|null $valid_to
- * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- *
- * @mixin IdeHelperBom
- */
 final class Bom extends Model
 {
     use BelongsToCompany, HasActivation;

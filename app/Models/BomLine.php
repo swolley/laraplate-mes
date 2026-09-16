@@ -13,20 +13,6 @@ use Modules\MES\Database\Factories\BomLineFactory;
 use Modules\MES\Enums\ConsumptionMethod;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $bom_id
- * @property int $item_id
- * @property string $quantity
- * @property string $uom
- * @property ConsumptionMethod $consumption_method
- * @property int|null $routing_operation_id
- * @property int $sort_order
- *
- * @mixin IdeHelperBomLine
- */
 final class BomLine extends Model
 {
     use HasFactory;

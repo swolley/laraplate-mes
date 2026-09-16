@@ -19,33 +19,6 @@ use Modules\MES\Database\Factories\ProductionOrderFactory;
 use Modules\MES\Enums\ProductionOrderStatus;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property string $number
- * @property int $item_id
- * @property string $quantity_planned
- * @property string|null $quantity_produced
- * @property string|null $quantity_scrapped
- * @property string $uom
- * @property ProductionOrderStatus $status
- * @property \Illuminate\Support\Carbon $planned_start_at
- * @property \Illuminate\Support\Carbon $planned_end_at
- * @property \Illuminate\Support\Carbon|null $actual_start_at
- * @property \Illuminate\Support\Carbon|null $actual_end_at
- * @property int $warehouse_id
- * @property int|null $sales_order_id
- * @property int|null $sales_order_line_id
- * @property array<string, mixed> $bom_snapshot
- * @property array<string, mixed> $routing_snapshot
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- *
- * @mixin IdeHelperProductionOrder
- */
 final class ProductionOrder extends Model
 {
     use BelongsToCompany;

@@ -20,22 +20,6 @@ use Override;
  * scoped to a routing operation (in-process control) or, when the operation is
  * null, to the finished item (final inspection). Drives the automatic creation
  * of {@see QualityCheck} records on operation/order completion.
- *
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property int $item_id
- * @property int|null $routing_operation_id
- * @property string $name
- * @property string $version
- * @property \Illuminate\Support\Carbon $valid_from
- * @property \Illuminate\Support\Carbon|null $valid_to
- * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperQualityPlan
  */
 final class QualityPlan extends Model
 {

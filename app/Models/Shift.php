@@ -12,20 +12,6 @@ use Modules\Core\Models\Concerns\HasActivation;
 use Modules\MES\Database\Factories\ShiftFactory;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property string $name
- * @property string $start_time
- * @property string $end_time
- * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperShift
- */
 final class Shift extends Model
 {
     use HasActivation, HasFactory;

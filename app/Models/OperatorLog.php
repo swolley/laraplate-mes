@@ -12,20 +12,6 @@ use Modules\MES\Database\Factories\OperatorLogFactory;
 use Modules\MES\Enums\OperatorLogAction;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int|null $user_id
- * @property int|null $production_order_operation_id
- * @property int|null $shift_instance_id
- * @property OperatorLogAction $action
- * @property \Illuminate\Support\Carbon $logged_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperOperatorLog
- */
 final class OperatorLog extends Model
 {
     use HasFactory;

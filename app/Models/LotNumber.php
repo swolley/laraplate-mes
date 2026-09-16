@@ -13,22 +13,6 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\LotNumberFactory;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property int $item_id
- * @property int|null $production_order_id
- * @property int|null $warehouse_id
- * @property string $code
- * @property string $quantity
- * @property \Illuminate\Support\Carbon|null $produced_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- *
- * @mixin IdeHelperLotNumber
- */
 final class LotNumber extends Model
 {
     use HasFactory;

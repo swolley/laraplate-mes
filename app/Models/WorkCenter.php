@@ -17,23 +17,6 @@ use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\WorkCenterType;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $company_id
- * @property string $code
- * @property string $name
- * @property WorkCenterType $type
- * @property string $capacity_per_hour
- * @property string $capacity_uom
- * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- *
- * @mixin IdeHelperWorkCenter
- */
 final class WorkCenter extends Model
 {
     use BelongsToCompany, HasActivation;

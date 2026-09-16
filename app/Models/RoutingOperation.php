@@ -11,20 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\RoutingOperationFactory;
 use Override;
 
-/**
- * @mixin \Eloquent
- *
- * @property int $id
- * @property int $routing_id
- * @property int $work_center_id
- * @property int $sequence
- * @property string $description
- * @property int $setup_time_minutes
- * @property string $cycle_time_minutes
- * @property bool $is_parallel
- *
- * @mixin IdeHelperRoutingOperation
- */
 final class RoutingOperation extends Model
 {
     use HasFactory;
