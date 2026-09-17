@@ -15,7 +15,6 @@ use Override;
  * A single expected characteristic of a {@see QualityPlan}: the measured trait
  * and its tolerance band. Mirrors {@see QualityCheckMeasurement} so a plan can
  * seed the measurements an operator records at execution time.
- *
  */
 final class QualityPlanCharacteristic extends Model
 {
