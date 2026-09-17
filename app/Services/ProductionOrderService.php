@@ -51,7 +51,7 @@ final class ProductionOrderService
      */
     public function create(array $payload): ProductionOrder
     {
-        $company = Company::query()->withoutGlobalScopes()->findOrFail($payload['company_id']);
+        $company = Company::query()->withoutGlobalScopes()->whereKey($payload['company_id'])->firstOrFail();
         $on_date = CarbonImmutable::parse($payload['planned_start_at']);
 
         $number = $this->documentNumberAllocator->next(
