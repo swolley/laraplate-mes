@@ -8,14 +8,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IActivatableModel;
 use Modules\Core\Models\Concerns\HasActivation;
 use Modules\MES\Database\Factories\ShiftFactory;
 use Override;
 
-/**
- * @mixin IdeHelperShift
- */
-final class Shift extends Model
+final class Shift extends Model implements IActivatableModel
 {
     use HasActivation, HasFactory;
 

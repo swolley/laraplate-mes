@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IActivatableModel;
 use Modules\Core\Models\Concerns\HasActivation;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
@@ -17,10 +18,7 @@ use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\WorkCenterType;
 use Override;
 
-/**
- * @mixin IdeHelperWorkCenter
- */
-final class WorkCenter extends Model
+final class WorkCenter extends Model implements IActivatableModel
 {
     use BelongsToCompany, HasActivation;
 

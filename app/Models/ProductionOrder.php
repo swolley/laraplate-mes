@@ -19,9 +19,6 @@ use Modules\MES\Database\Factories\ProductionOrderFactory;
 use Modules\MES\Enums\ProductionOrderStatus;
 use Override;
 
-/**
- * @mixin IdeHelperProductionOrder
- */
 final class ProductionOrder extends Model
 {
     use BelongsToCompany;

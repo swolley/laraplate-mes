@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IActivatableModel;
 use Modules\Core\Models\Concerns\HasActivation;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
@@ -17,10 +18,7 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\BomFactory;
 use Override;
 
-/**
- * @mixin IdeHelperBom
- */
-final class Bom extends Model
+final class Bom extends Model implements IActivatableModel
 {
     use BelongsToCompany, HasActivation;
 

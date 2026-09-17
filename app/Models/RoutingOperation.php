@@ -11,9 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\RoutingOperationFactory;
 use Override;
 
-/**
- * @mixin IdeHelperRoutingOperation
- */
 final class RoutingOperation extends Model
 {
     use HasFactory;

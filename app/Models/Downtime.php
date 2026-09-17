@@ -14,9 +14,6 @@ use Modules\MES\Database\Factories\DowntimeFactory;
 use Modules\MES\Enums\DowntimeCause;
 use Override;
 
-/**
- * @mixin IdeHelperDowntime
- */
 final class Downtime extends Model
 {
     use HasFactory;

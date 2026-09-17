@@ -12,9 +12,6 @@ use Modules\MES\Database\Factories\OperatorLogFactory;
 use Modules\MES\Enums\OperatorLogAction;
 use Override;
 
-/**
- * @mixin IdeHelperOperatorLog
- */
 final class OperatorLog extends Model
 {
     use HasFactory;

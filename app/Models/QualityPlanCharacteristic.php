@@ -16,7 +16,6 @@ use Override;
  * and its tolerance band. Mirrors {@see QualityCheckMeasurement} so a plan can
  * seed the measurements an operator records at execution time.
  *
- * @mixin IdeHelperQualityPlanCharacteristic
  */
 final class QualityPlanCharacteristic extends Model
 {

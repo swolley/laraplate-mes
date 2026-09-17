@@ -14,9 +14,6 @@ use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Enums\NonConformanceStatus;
 use Override;
 
-/**
- * @mixin IdeHelperNonConformance
- */
 final class NonConformance extends Model
 {
     use HasFactory;

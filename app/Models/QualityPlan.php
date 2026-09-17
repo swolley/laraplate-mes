@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IActivatableModel;
 use Modules\Core\Models\Concerns\HasActivation;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Models\Item;
@@ -21,9 +22,8 @@ use Override;
  * null, to the finished item (final inspection). Drives the automatic creation
  * of {@see QualityCheck} records on operation/order completion.
  *
- * @mixin IdeHelperQualityPlan
  */
-final class QualityPlan extends Model
+final class QualityPlan extends Model implements IActivatableModel
 {
     use HasActivation, HasFactory;
 
