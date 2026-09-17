@@ -12,6 +12,9 @@ use Modules\MES\Database\Factories\ProductionOrderOperationFactory;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Override;
 
+/**
+ * @mixin IdeHelperProductionOrderOperation
+ */
 final class ProductionOrderOperation extends Model
 {
     use HasFactory;

@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\WorkCenterCalendarFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperWorkCenterCalendar
+ */
 final class WorkCenterCalendar extends Model
 {
     use HasFactory;

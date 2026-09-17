@@ -13,6 +13,9 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\LotNumberFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperLotNumber
+ */
 final class LotNumber extends Model
 {
     use HasFactory;

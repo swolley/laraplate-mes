@@ -13,6 +13,9 @@ use Modules\ERP\Models\Warehouse;
 use Modules\MES\Database\Factories\MaterialConsumptionFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperMaterialConsumption
+ */
 final class MaterialConsumption extends Model
 {
     use HasFactory;

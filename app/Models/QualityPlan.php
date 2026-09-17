@@ -20,6 +20,8 @@ use Override;
  * scoped to a routing operation (in-process control) or, when the operation is
  * null, to the finished item (final inspection). Drives the automatic creation
  * of {@see QualityCheck} records on operation/order completion.
+ *
+ * @mixin IdeHelperQualityPlan
  */
 final class QualityPlan extends Model
 {

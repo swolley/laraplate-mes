@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\MES\Database\Factories\ShiftInstanceFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperShiftInstance
+ */
 final class ShiftInstance extends Model
 {
     use HasFactory;

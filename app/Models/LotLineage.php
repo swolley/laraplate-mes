@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\LotLineageFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperLotLineage
+ */
 final class LotLineage extends Model
 {
     use HasFactory;

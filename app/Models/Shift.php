@@ -12,6 +12,9 @@ use Modules\Core\Models\Concerns\HasActivation;
 use Modules\MES\Database\Factories\ShiftFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperShift
+ */
 final class Shift extends Model
 {
     use HasActivation, HasFactory;

@@ -17,6 +17,9 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\BomFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperBom
+ */
 final class Bom extends Model
 {
     use BelongsToCompany, HasActivation;

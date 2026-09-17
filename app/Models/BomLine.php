@@ -13,6 +13,9 @@ use Modules\MES\Database\Factories\BomLineFactory;
 use Modules\MES\Enums\ConsumptionMethod;
 use Override;
 
+/**
+ * @mixin IdeHelperBomLine
+ */
 final class BomLine extends Model
 {
     use HasFactory;

@@ -17,6 +17,9 @@ use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\WorkCenterType;
 use Override;
 
+/**
+ * @mixin IdeHelperWorkCenter
+ */
 final class WorkCenter extends Model
 {
     use BelongsToCompany, HasActivation;

@@ -12,6 +12,9 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\SerialNumberFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperSerialNumber
+ */
 final class SerialNumber extends Model
 {
     use HasFactory;

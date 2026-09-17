@@ -17,6 +17,9 @@ use Modules\ERP\Models\Item;
 use Modules\MES\Database\Factories\RoutingFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperRouting
+ */
 final class Routing extends Model
 {
     use BelongsToCompany, HasActivation;

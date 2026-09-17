@@ -14,6 +14,9 @@ use Modules\MES\Database\Factories\QualityCheckFactory;
 use Modules\MES\Enums\QualityCheckStatus;
 use Override;
 
+/**
+ * @mixin IdeHelperQualityCheck
+ */
 final class QualityCheck extends Model
 {
     use HasFactory;

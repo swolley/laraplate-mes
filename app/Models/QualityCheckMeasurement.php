@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\QualityCheckMeasurementFactory;
 use Override;
 
+/**
+ * @mixin IdeHelperQualityCheckMeasurement
+ */
 final class QualityCheckMeasurement extends Model
 {
     use HasFactory;
