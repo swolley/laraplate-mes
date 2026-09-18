@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\MES\Services\DomainActions;
 
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 use Illuminate\Support\Carbon;
 use Modules\Core\Models\User;
 use Modules\Core\Services\Crud\DomainActionRegistry;
@@ -58,9 +59,24 @@ final class MesDomainActionRegistrar
 
         $registry->register(Downtime::class, 'close', static fn (Model $record, array $payload, User $user): Model => resolve(DowntimeService::class)->close($record));
 
-        $registry->register(Bom::class, 'explode', static fn (Model $record, array $payload, User $user): array => resolve(BomExplosionService::class)->explode($record->item_id, (float) ($payload['quantity'] ?? 1), Carbon::now()));
+        $registry->register(Bom::class, 'explode', static fn (Model $record, array $payload, User $user): array => resolve(BomExplosionService::class)->explode(self::intValue($record->getAttribute('item_id'), 'item_id'), (float) ($payload['quantity'] ?? 1), Carbon::now()));
 
-        $registry->register(LotNumber::class, 'forward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->forwardTrace($record->id));
-        $registry->register(LotNumber::class, 'backward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->backwardTrace($record->id));
+        $registry->register(LotNumber::class, 'forward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->forwardTrace(self::intValue($record->getKey(), 'key')));
+        $registry->register(LotNumber::class, 'backward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->backwardTrace(self::intValue($record->getKey(), 'key')));
+    }
+
+    /**
+     * The registry hands every action a bare Model, so a key or a foreign key
+     * reaches the service as mixed. A non-numeric value there means the record was
+     * built wrong, which is worth saying rather than turning into 0 and querying
+     * for a row that cannot exist.
+     */
+    private static function intValue(mixed $value, string $name): int
+    {
+        if (! is_numeric($value)) {
+            throw new InvalidArgumentException(sprintf('Expected a numeric %s on the record.', $name));
+        }
+
+        return (int) $value;
     }
 }
