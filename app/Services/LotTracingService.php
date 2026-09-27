@@ -25,7 +25,7 @@ final class LotTracingService
     public function generateLotCode(int $company_id, ?Carbon $on_date = null): string
     {
         $date = $on_date ?? now();
-        $format = (string) config('mes.lot_number_format', '{YEAR}{MONTH}{DAY}-{SEQ}');
+        $format = (string) config('mes.lots.number_format', '{YEAR}{MONTH}{DAY}-{SEQ}');
 
         $sequence = LotNumber::query()
             ->where('company_id', $company_id)

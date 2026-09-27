@@ -23,13 +23,13 @@ it('is idempotent and leaves an operator-changed value untouched on a second run
     $this->seed(MESDatabaseSeeder::class);
 
     Setting::query()->withoutGlobalScopes()
-        ->where('name', 'lot_number_format')
+        ->where('name', 'lots.number_format')
         ->update(['value' => json_encode('{SEQ}'), 'description' => 'drifted']);
 
     $this->seed(MESDatabaseSeeder::class);
 
     $setting = Setting::query()->withoutGlobalScopes()
-        ->where('name', 'lot_number_format')->sole();
+        ->where('name', 'lots.number_format')->sole();
 
     expect($setting->value)->toBe('{SEQ}')
         ->and($setting->description)->toBe('Lot number generation format');

@@ -55,7 +55,7 @@ it('records a lineage edge only once', function (): void {
 });
 
 it('generates a lot code from the configured format', function (): void {
-    config()->set('mes.lot_number_format', '{YEAR}{MONTH}{DAY}-{SEQ}');
+    config()->set('mes.lots.number_format', '{YEAR}{MONTH}{DAY}-{SEQ}');
     $company = MesTestHelpers::makeCompany();
 
     $code = resolve(LotTracingService::class)->generateLotCode($company->id);
