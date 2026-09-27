@@ -7,9 +7,7 @@ namespace Modules\MES\Database\Seeders;
 use Modules\Core\Authorization\PermissionManifest;
 use Modules\Core\Casts\SettingTypeEnum;
 use Modules\Core\Models\Permission;
-use Modules\Core\Models\Setting;
 use Modules\Core\Overrides\Seeder;
-use Modules\Core\Seeding\SeedDefinition;
 use Modules\Core\Seeding\SeedReconciler;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -25,15 +23,6 @@ class MESDatabaseSeeder extends Seeder
     public static function runtimeSettingDefinitions(): array
     {
         return [
-            [
-                'name' => 'mes.rate_limit',
-                'value' => 60,
-                'encrypted' => false,
-                'choices' => null,
-                'type' => SettingTypeEnum::Integer,
-                'group_name' => 'mes',
-                'description' => 'Maximum MES API requests per minute',
-            ],
             [
                 'name' => 'mes.lot_number_format',
                 'value' => '{YEAR}{MONTH}{DAY}-{SEQ}',
@@ -52,12 +41,7 @@ class MESDatabaseSeeder extends Seeder
     public function run(): void
     {
         $outcome = app(SeedReconciler::class)->reconcile(
-            SeedDefinition::for(Setting::class)
-                ->identity(['name'])
-                ->structural(['type', 'group_name', 'description', 'choices'])
-                ->initial(['value'])
-                ->ownedBy('MES')
-                ->rows(self::runtimeSettingDefinitions()),
+            self::internalSettingsDefinition('MES', self::runtimeSettingDefinitions()),
         );
 
         $this->command?->line(

@@ -69,9 +69,6 @@ MES_ENABLED=true
 MES_QUEUE_CONNECTION=database
 MES_QUEUE_NAME=mes
 
-# Lot number code format (tokens: {YEAR}, {MONTH}, {DAY}, {SEQ})
-MES_LOT_NUMBER_FORMAT="{YEAR}{MONTH}{DAY}-{SEQ}"
-
 # Production-order auto-creation from confirmed sales orders
 MES_PRODUCTION_DAILY_MINUTES=480
 MES_PRODUCTION_DEFAULT_LEAD_TIME_DAYS=5

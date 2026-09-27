@@ -23,14 +23,14 @@ it('is idempotent and leaves an operator-changed value untouched on a second run
     $this->seed(MESDatabaseSeeder::class);
 
     Setting::query()->withoutGlobalScopes()
-        ->where('name', 'mes.rate_limit')
-        ->update(['value' => json_encode(999), 'description' => 'drifted']);
+        ->where('name', 'mes.lot_number_format')
+        ->update(['value' => json_encode('{SEQ}'), 'description' => 'drifted']);
 
     $this->seed(MESDatabaseSeeder::class);
 
     $setting = Setting::query()->withoutGlobalScopes()
-        ->where('name', 'mes.rate_limit')->sole();
+        ->where('name', 'mes.lot_number_format')->sole();
 
-    expect($setting->value)->toBe(999)
-        ->and($setting->description)->toBe('Maximum MES API requests per minute');
+    expect($setting->value)->toBe('{SEQ}')
+        ->and($setting->description)->toBe('Lot number generation format');
 });

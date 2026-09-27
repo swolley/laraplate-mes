@@ -123,7 +123,6 @@ production totals) are surfaced as the `ProductionDashboardWidget`, not routes.
 
 - `mes.queue.connection` / `mes.queue.name` — queue for backflush and PO jobs.
 - `mes.lot_number_format` — lot code tokens `{YEAR}{MONTH}{DAY}{SEQ}`.
-- `mes.rate_limit` — API requests per minute (seeded setting).
 - `mes.production.default_warehouse` — `[company_id => warehouse_id]` map for
   sales-order-driven PO creation (falls back to the company's sole warehouse).
 - `mes.production.daily_minutes` / `mes.production.default_lead_time_days` —
