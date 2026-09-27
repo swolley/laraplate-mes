@@ -24,7 +24,7 @@ class MESDatabaseSeeder extends Seeder
     {
         return [
             [
-                'name' => 'mes.lot_number_format',
+                'name' => 'lot_number_format',
                 'value' => '{YEAR}{MONTH}{DAY}-{SEQ}',
                 'encrypted' => false,
                 'choices' => null,
