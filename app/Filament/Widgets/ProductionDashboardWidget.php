@@ -23,6 +23,12 @@ use Override;
 final class ProductionDashboardWidget extends BaseWidget
 {
     #[Override]
+    protected static ?int $sort = 30;
+
+    #[Override]
+    protected ?string $heading = 'MES';
+
+    #[Override]
     protected static bool $isLazy = true;
 
     #[Override]
