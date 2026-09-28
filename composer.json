@@ -1,6 +1,6 @@
 {
-  "name": "laraplate/mes",
-  "vendor": "laraplate",
+  "name": "swolley/laraplate-mes",
+  "vendor": "swolley",
   "description": "MES module for Laraplate: manufacturing execution system, production orders, work centres, scheduling and traceability.",
   "version": "v1.1.0",
   "keywords": [
