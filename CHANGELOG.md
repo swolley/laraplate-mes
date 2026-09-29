@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-09-29
+
+### 🚀 Features
+
+- *(mes)* Order and head the production dashboard widget
+- *(mes)* Create and edit pages say Close until something is unsaved
+
+### 🐛 Bug Fixes
+
+- *(docs)* Update README with PHP version badge and logo size adjustment
+
+### 💼 Other
+
+- Drop tracing_type patch migration on ERP items
+
+The column now belongs to the ERP items schema (intrinsic Item attribute used
+across purchase/warehouse/sales, not only production). MES keeps consuming
+item.tracing_type in ProductionOrderService without owning the column.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+### 🚜 Refactor
+
+- *(migrations)* Fold column/index/enum alters into their create migrations
+- *(migrations)* Fold FK-column alters into their create by moving the referenced table earlier
+- *(migrations)* Fold cascade FK-column alters into their create migrations
+- *(models)* Drop the IdeHelper mixins, declare the activation contract
+- Narrow findOrFail to a single record with whereKey()->firstOrFail()
+- *(mes)* Reject a non-numeric record id instead of casting it
+- *(mes)* Drop unread rate limit setting and config default for the lot format
+- *(mes)* Seed settings without the module prefix
+- *(mes)* Lots.number_format setting name
+
+### 📚 Documentation
+
+- *(rag)* Describe how the module is released from the application
+
+### ⚡ Performance
+
+- *(migrations)* Index all foreign-key and row-scoping columns
+
+### ⚙️ Miscellaneous Tasks
+
+- Rimuove docblock ide-helper generati dai model
+- Add IdeHelper mixin annotations to model classes
+- Trim the docblocks the IdeHelper mixins left behind
+- Rename composer package to swolley/laraplate-mes
+
 ## [1.1.0] - 2026-09-15
 
 ### 🚀 Features
