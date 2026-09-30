@@ -29,10 +29,21 @@ unità di misura. Ogni riga indica come si consuma il componente:
 Una distinta ha una **validità** (da/a): il sistema usa sempre la versione
 attiva alla data.
 
+Puoi modificare una distinta in qualsiasi momento: gli ordini già creati non
+cambiano, perché hanno la propria fotografia. Ogni modifica, comprese quelle alle
+righe, viene registrata in uno **storico** (con le impostazioni predefinite), anche quando una riga viene eliminata
+(l'eliminazione è definitiva, ma nello storico resta l'immagine della riga). Le
+righe con quantità nulla o negativa, o con un'unità di misura troppo lunga,
+vengono rifiutate.
+
 ## 3. Ciclo di lavorazione (Routing)
 
 È la **sequenza di operazioni** per produrre l'articolo: per ciascuna, il centro
 di lavoro, il tempo di setup e il tempo ciclo. Anche il ciclo ha una validità.
+
+Valgono le stesse regole della distinta: le modifiche al ciclo e alle sue
+operazioni finiscono nello storico, e tempi negativi o una descrizione vuota
+vengono rifiutati.
 
 ## 4. Ordine di produzione
 
