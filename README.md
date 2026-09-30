@@ -21,7 +21,7 @@
 -   [Description](#description)
 -   [Installation](#installation)
 -   [Configuration](#configuration)
--   [Current Bootstrap Status](#current-bootstrap-status)
+-   [Current Status](#current-status)
 -   [Roadmap](#roadmap)
 -   [Scripts](#scripts)
 -   [Contributing](#contributing)
@@ -32,7 +32,7 @@
 The MES Module provides the Manufacturing Execution System foundation for Laraplate.
 It is designed to host production workflows, work orders, shop-floor events, traceability, and manufacturing KPIs.
 
-At this stage, the module is intentionally initialized with a minimal structure to support incremental, test-driven development.
+It depends on the ERP module (items, warehouses, stock, companies, sales orders); the dependency runs one way, ERP knows nothing of MES.
 
 ## Installation
 
@@ -89,44 +89,47 @@ single warehouse the module picks it automatically.
 
 > The effective set of environment variables will be expanded as domain features are introduced.
 
-## Current Bootstrap Status
+## Current Status
 
--   Module metadata (`module.json`) configured with provider registration
--   Service providers scaffolded (`MESServiceProvider`, `RouteServiceProvider`, `EventServiceProvider`)
--   Base folders for HTTP, config, routes, resources, database, and tests in place
--   Composer package scaffolded with scripts and autoload mappings
--   Independent git repository initialized under `Modules/MES` (ready to be switched to submodule workflow)
--   Filament surfaces (resources, widgets) exposed in the admin panel through `Modules\MES\Filament\MESPlugin`, auto-registered by `coolsam/modules`
+The manufacturing domain is implemented and covered by the module test suite:
+
+-   Work centers with a weekly calendar, BOMs and routings with validity windows and DIFF versioning (lines and operations included)
+-   Production orders numbered by ERP `DocumentNumberAllocator`, with immutable BOM/routing snapshots, release/complete/cancel; an order cannot complete while an operation is in progress
+-   Automatic draft orders from confirmed ERP sales orders (`SalesOrderConfirmed` listener)
+-   Operation execution (start/complete/skip) with efficiency, operator logs and non-blocking shift warnings
+-   Backflush and manual material consumption through the `StockMovementRecorder` contract, with partial consumption and a shortage notification when stock is short
+-   Lot and serial generation with forward/backward lot genealogy
+-   Quality plans, automatic quality checks, non-conformances with dispositions (rework spawns a linked order)
+-   Downtime, OEE (A x P x Q, clamped to [0, 1]) and work-center capacity load, schedule and overload check (available minutes net of unplanned downtime)
+-   No custom routes: entities go through Core's generic CRUD, domain verbs through the domain-action registry (`MesDomainActionRegistrar`, `MesModelPolicy`, permissions seeded by `MESDatabaseSeeder`)
+-   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
+
+Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_GUIDA_SEMPLICE.md`.
 
 ## Roadmap
 
-Planned next steps for MES domain design and implementation:
+Open items awaiting a decision (tracked in `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md`):
 
--   Manufacturing domain model (work centers, operations, routings, work orders)
--   Production execution workflows and status transitions
--   Material issue/consumption and reporting integration
--   Quality checkpoints and non-conformance handling
--   OEE-oriented telemetry and analytics endpoints
+-   Typed domain events for production order and operation transitions
+-   The production order state machine (`in_progress`, cancellation effects) and its transitions in the backoffice
+-   Capacity: calendar-based available minutes, completion estimate, capacity warning on operation start
+-   Finished-goods stock-in and valuation on order completion
+-   Opening a downtime as a domain action rather than a generic insert
+-   Materialised KPIs (OEE, capacity) by job and cache, and where they are shown
 
 ## Scripts
 
-Run commands from the **MES module root** after `composer install`.
+The module has no Composer scripts of its own. Run tests and checks from the **laraplate root**:
 
 ```bash
-# Run all tests and quality checks
-composer test
+# MES test suite
+php artisan test --compact Modules/MES/tests
 
-# Run specific checks
-composer test:unit
-composer test:type-coverage
-composer test:lint
-composer test:types
-composer test:refactor
-```
+# Static analysis of the module with the root configuration
+vendor/bin/phpstan analyse Modules/MES/app
 
-```bash
-# Local formatting (dirty files only from project root)
-vendor/bin/pint --dirty
+# Formatting: always pass an explicit file list
+vendor/bin/pint --format agent Modules/MES/app/Services/CapacityService.php
 ```
 
 ## Contributing

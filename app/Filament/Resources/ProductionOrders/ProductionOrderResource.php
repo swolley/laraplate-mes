@@ -12,6 +12,10 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Modules\MES\Filament\Resources\ProductionOrders\Pages\EditProductionOrder;
 use Modules\MES\Filament\Resources\ProductionOrders\Pages\ListProductionOrders;
+use Modules\MES\Filament\Resources\ProductionOrders\RelationManagers\LotNumbersRelationManager;
+use Modules\MES\Filament\Resources\ProductionOrders\RelationManagers\MaterialConsumptionsRelationManager;
+use Modules\MES\Filament\Resources\ProductionOrders\RelationManagers\OperationsRelationManager;
+use Modules\MES\Filament\Resources\ProductionOrders\RelationManagers\QualityChecksRelationManager;
 use Modules\MES\Filament\Resources\ProductionOrders\Schemas\ProductionOrderForm;
 use Modules\MES\Filament\Resources\ProductionOrders\Tables\ProductionOrdersTable;
 use Modules\MES\Models\ProductionOrder;
@@ -22,7 +26,8 @@ use UnitEnum;
  * Production orders are created and advanced through ProductionOrderService
  * (number allocation, immutable snapshots, state transitions), so this resource
  * intentionally offers list and edit only — creation goes through the service /
- * domain actions, not a bare Filament form.
+ * domain actions, not a bare Filament form. Its operations, consumptions,
+ * quality checks and lots are shown read-only; state transitions are not offered here.
  */
 final class ProductionOrderResource extends Resource
 {
@@ -63,7 +68,12 @@ final class ProductionOrderResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            OperationsRelationManager::class,
+            MaterialConsumptionsRelationManager::class,
+            QualityChecksRelationManager::class,
+            LotNumbersRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Models\Downtime;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\WorkCenter;
 use Modules\MES\Services\CapacityService;
+use Modules\MES\Services\DowntimeService;
 use Modules\MES\Tests\Support\MesTestHelpers;
 
 uses(RefreshDatabase::class);
@@ -93,4 +96,89 @@ it('reschedules an operation to another work center', function (): void {
     $moved = resolve(CapacityService::class)->rescheduleOperation($operation, $target->id);
 
     expect($moved->work_center_id)->toBe($target->id);
+});
+
+it('subtracts the unplanned downtime overlapping the window from the available minutes', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
+    $from = now()->startOfDay();
+    $to = now()->endOfDay();
+
+    // 60 minutes, fully inside the window.
+    Downtime::factory()->create([
+        'company_id' => $company->id,
+        'work_center_id' => $work_center->id,
+        'cause' => DowntimeCause::Breakdown->value,
+        'started_at' => $from->copy()->addHours(8),
+        'ended_at' => $from->copy()->addHours(9),
+        'duration_minutes' => 60,
+    ]);
+    // Started the day before: only the 30 minutes after midnight count.
+    Downtime::factory()->create([
+        'company_id' => $company->id,
+        'work_center_id' => $work_center->id,
+        'cause' => DowntimeCause::Setup->value,
+        'started_at' => $from->copy()->subMinutes(90),
+        'ended_at' => $from->copy()->addMinutes(30),
+        'duration_minutes' => 120,
+    ]);
+    // Planned maintenance is left out, as in OEE availability.
+    Downtime::factory()->create([
+        'company_id' => $company->id,
+        'work_center_id' => $work_center->id,
+        'cause' => DowntimeCause::PlannedMaintenance->value,
+        'started_at' => $from->copy()->addHours(10),
+        'ended_at' => $from->copy()->addHours(12),
+        'duration_minutes' => 120,
+    ]);
+    // Another work center does not count.
+    Downtime::factory()->closed(200)->create(['company_id' => $company->id, 'cause' => DowntimeCause::Breakdown->value]);
+
+    expect(resolve(CapacityService::class)->availableMinutes($work_center->id, $from, $to))->toBe(480.0 - 90.0);
+});
+
+it('never reports negative available minutes', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
+
+    Downtime::factory()->create([
+        'company_id' => $company->id,
+        'work_center_id' => $work_center->id,
+        'cause' => DowntimeCause::Breakdown->value,
+        'started_at' => now()->startOfDay(),
+        'ended_at' => now()->endOfDay(),
+    ]);
+
+    expect(resolve(CapacityService::class)->availableMinutes($work_center->id, now()->startOfDay(), now()->endOfDay()))->toBe(0.0);
+});
+
+it('flags an overload once downtime eats into the available minutes', function (): void {
+    $ctx = scheduledOrder(quantity: 100);
+    $from = now()->startOfDay();
+    $to = now()->addDay()->endOfDay();
+    $service = resolve(CapacityService::class);
+
+    // Load: 2 * (10 + 2 * 100) = 420 minutes against 960 available over two days.
+    expect($service->checkOverload($ctx['work_center']->id, $from, $to))->toBeFalse();
+
+    Downtime::factory()->create([
+        'company_id' => $ctx['order']->company_id,
+        'work_center_id' => $ctx['work_center']->id,
+        'cause' => DowntimeCause::Breakdown->value,
+        'started_at' => $from->copy()->addHour(),
+        'ended_at' => $from->copy()->addHours(11),
+    ]);
+
+    expect($service->checkOverload($ctx['work_center']->id, $from, $to))->toBeTrue();
+});
+
+it('counts an open downtime up to now', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
+    $this->travelTo(now()->startOfDay()->addHours(12));
+
+    resolve(DowntimeService::class)->open($work_center, DowntimeCause::Breakdown);
+    $this->travel(45)->minutes();
+
+    expect(resolve(CapacityService::class)->availableMinutes($work_center->id, now()->startOfDay(), now()->endOfDay()))->toBe(480.0 - 45.0);
 });

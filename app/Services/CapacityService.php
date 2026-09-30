@@ -15,10 +15,16 @@ use Modules\MES\Models\ProductionOrderOperation;
  * Computes work-center load and schedule from the standard minutes of the
  * operations planned within a window. Standard minutes for an operation are its
  * setup time plus its cycle time multiplied by the order's planned quantity.
+ * Available minutes are the default daily minutes of the window less the
+ * unplanned downtime overlapping it.
  */
 final class CapacityService
 {
     private const float DEFAULT_DAILY_MINUTES = 480.0;
+
+    public function __construct(
+        private DowntimeService $downtimeService,
+    ) {}
 
     /**
      * Total standard minutes required on a work center within a window.
@@ -57,12 +63,26 @@ final class CapacityService
 
     /**
      * Whether the load on a work center exceeds the available minutes in a window.
+     * An explicit budget replaces the computed available minutes.
      */
     public function checkOverload(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, ?float $available_minutes = null): bool
     {
-        $available = $available_minutes ?? $this->availableMinutes($from, $to);
+        $available = $available_minutes ?? $this->availableMinutes($work_center_id, $from, $to);
 
         return $available < $this->getCapacityLoad($work_center_id, $from, $to);
+    }
+
+    /**
+     * Minutes a work center can work in a window: default daily minutes per
+     * calendar day touched, less the unplanned downtime overlapping the window.
+     * Never negative.
+     */
+    public function availableMinutes(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        $days = max(1, Carbon::parse($from)->startOfDay()->diffInDays(Carbon::parse($to)->startOfDay()) + 1);
+        $planned = self::DEFAULT_DAILY_MINUTES * $days;
+
+        return max(0.0, $planned - $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to));
     }
 
     /**
@@ -91,12 +111,5 @@ final class CapacityService
         $quantity = (float) ($operation->productionOrder->quantity_planned ?? 0.0);
 
         return (float) $operation->setup_time_minutes + (float) $operation->cycle_time_minutes * $quantity;
-    }
-
-    private function availableMinutes(DateTimeInterface $from, DateTimeInterface $to): float
-    {
-        $days = max(1, Carbon::parse($from)->startOfDay()->diffInDays(Carbon::parse($to)->startOfDay()) + 1);
-
-        return self::DEFAULT_DAILY_MINUTES * $days;
     }
 }

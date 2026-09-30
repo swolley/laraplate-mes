@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Helpers\MigrateUtils;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Enums\MESTables;
 
@@ -22,8 +23,7 @@ return new class extends Migration
             $table->decimal('capacity_per_hour', 10, 4);
             $table->string('capacity_uom', 16);
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
+            MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['company_id', 'code'], "{$table_name}_company_code_UN");
         });

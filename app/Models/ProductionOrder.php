@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
@@ -123,6 +124,46 @@ final class ProductionOrder extends Model
     public function salesOrderLine(): BelongsTo
     {
         return $this->belongsTo(SalesOrderLine::class);
+    }
+
+    /**
+     * Operations materialised from the routing snapshot on release.
+     *
+     * @return HasMany<ProductionOrderOperation, $this>
+     */
+    public function operations(): HasMany
+    {
+        return $this->hasMany(ProductionOrderOperation::class);
+    }
+
+    /**
+     * Materials consumed by this order, by backflush or manual record.
+     *
+     * @return HasMany<MaterialConsumption, $this>
+     */
+    public function materialConsumptions(): HasMany
+    {
+        return $this->hasMany(MaterialConsumption::class);
+    }
+
+    /**
+     * Quality checks raised for this order.
+     *
+     * @return HasMany<QualityCheck, $this>
+     */
+    public function qualityChecks(): HasMany
+    {
+        return $this->hasMany(QualityCheck::class);
+    }
+
+    /**
+     * Lots produced by this order.
+     *
+     * @return HasMany<LotNumber, $this>
+     */
+    public function lotNumbers(): HasMany
+    {
+        return $this->hasMany(LotNumber::class);
     }
 
     /**

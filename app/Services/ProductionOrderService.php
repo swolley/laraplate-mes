@@ -12,6 +12,7 @@ use Modules\ERP\Casts\DocumentType;
 use Modules\ERP\Casts\TracingType;
 use Modules\ERP\Models\Company;
 use Modules\ERP\Services\Accounting\DocumentNumberAllocator;
+use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\ProductionOrderStatus;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\ProductionOrder;
@@ -104,13 +105,18 @@ final class ProductionOrderService
      * Lot/serial generation (Task 9) and finished-goods stock-in are layered on
      * top of this transition by their respective services.
      *
-     * @throws DomainException when the order is not in an executable state.
+     * @throws DomainException when the order is not in an executable state or an operation is still in progress.
      */
     public function complete(ProductionOrder $order, float $quantity_produced, ?string $lot_code = null): ProductionOrder
     {
         throw_unless(
             in_array($order->status, [ProductionOrderStatus::Released, ProductionOrderStatus::InProgress], true),
             new DomainException("Production order {$order->id} cannot be completed from status {$order->status->value}."),
+        );
+
+        throw_if(
+            $order->operations()->where('status', ProductionOrderOperationStatus::InProgress->value)->exists(),
+            new DomainException("Production order {$order->id} cannot be completed with an operation still in progress."),
         );
 
         return $order->getConnection()->transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {

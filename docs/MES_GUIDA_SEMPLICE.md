@@ -14,8 +14,11 @@ crea i controlli qualità previsti e calcola gli indicatori (efficienza, OEE).
 ## 1. Centro di lavoro
 
 È dove si lavora: una macchina, una cella, una linea o una postazione manuale.
-Ha un **codice** (unico per azienda), una **capacità oraria** e un calendario di
-disponibilità. Crea prima i centri di lavoro: tutto il resto vi si appoggia.
+Ha un **codice** (unico per azienda: un secondo centro con lo stesso codice viene
+rifiutato), una **capacità oraria** e un calendario settimanale di disponibilità
+(giorno, ora di inizio e di fine), che compili direttamente nella scheda del
+centro. Un centro che non usi più si **disattiva**. Crea prima i centri di lavoro:
+tutto il resto vi si appoggia.
 
 ## 2. Distinta base (BOM)
 
@@ -76,8 +79,10 @@ ordine: riconfermare l'ordine di vendita non crea duplicati.
     un turno attivo),
   - vengono **consumati i materiali in backflush** collegati,
   - viene calcolata l'**efficienza** (tempo standard rispetto al tempo reale).
-- **Completa** l'ordine indicando la quantità prodotta. Se l'articolo è tracciato
-  a **lotto/seriale**, viene generato automaticamente il lotto del prodotto.
+- **Completa** l'ordine indicando la quantità prodotta. Se un'operazione è
+  ancora **in corso**, il completamento viene rifiutato: prima chiudila (o
+  saltala). Se l'articolo è tracciato a **lotto/seriale**, viene generato
+  automaticamente il lotto del prodotto.
 
 ### Se manca materiale
 
@@ -117,6 +122,11 @@ Registri i **fermi macchina** (guasto, setup, cambio, mancanza materiale, ecc.)
 con inizio e fine. L'**OEE** riassume l'efficacia dell'impianto come prodotto di
 tre fattori — **Disponibilità × Prestazione × Qualità** — sempre tra 0 e 1.
 
+I fermi non programmati riducono anche il **tempo disponibile** del centro di
+lavoro: il sistema lo usa per capire se il carico pianificato in un periodo
+supera ciò che il centro può fare (sovraccarico). La manutenzione programmata non
+conta, come nell'OEE.
+
 ## 9. Turni e operatori
 
 Definisci i **turni** e le loro **istanze giornaliere**. Ogni avvio/completamento
@@ -126,8 +136,21 @@ lavoro.
 
 ## Dove si vede
 
-Gli indicatori principali (ordini aperti, operazioni in corso, non conformità
-aperte) sono nel **widget dashboard di produzione** del pannello Filament. Le
-anagrafiche e gli ordini si gestiscono dalle relative sezioni del pannello
-(inclusi i **piani di qualità**). Le **carenze di materiale** arrivano come
-notifica in-app ai responsabili configurati.
+Il pannello Filament è il **backoffice**: serve a configurare e a controllare,
+non a lavorare l'ordine tutti i giorni.
+
+- Dal pannello gestisci le **anagrafiche**: centri di lavoro (con il loro
+  calendario), distinte (con le righe dei componenti), cicli, **piani di
+  qualità** e turni. Puoi anche consultare fermi, controlli qualità e non
+  conformità.
+- Gli **ordini di produzione** nel pannello si consultano: per ciascuno vedi le
+  operazioni, i consumi di materiale, i controlli qualità e i lotti prodotti, in
+  sola lettura. **Rilascio, avanzamento e completamento non si fanno dal
+  pannello**: passano dall'applicazione di produzione (o dalle chiamate API), che
+  usa le stesse regole descritte sopra.
+- Il **widget dashboard di produzione** mostra quattro conteggi: ordini aperti,
+  operazioni in corso, ordini completati e non conformità aperte.
+- L'**OEE** e il **carico dei centri di lavoro** vengono calcolati dal sistema su
+  richiesta, ma per ora **non sono mostrati** in nessuna schermata.
+- Le **carenze di materiale** arrivano come notifica in-app ai responsabili
+  configurati.

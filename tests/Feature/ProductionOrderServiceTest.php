@@ -11,6 +11,7 @@ use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\Routing;
 use Modules\MES\Models\RoutingOperation;
 use Modules\MES\Models\WorkCenter;
+use Modules\MES\Services\ProductionOrderOperationService;
 use Modules\MES\Services\ProductionOrderService;
 use Modules\MES\Tests\Support\MesTestHelpers;
 
@@ -143,4 +144,16 @@ it('cancels a draft order but refuses a completed one', function (): void {
 
     $completed = $service->complete($service->release(createOrder($ctx)), 5.0);
     expect(fn () => $service->cancel($completed))->toThrow(DomainException::class);
+});
+
+it('refuses to complete an order while one of its operations is in progress', function (): void {
+    $ctx = makeProducibleItem();
+    $service = resolve(ProductionOrderService::class);
+    $order = $service->release(createOrder($ctx));
+    resolve(ProductionOrderOperationService::class)->start($order->operations()->firstOrFail());
+
+    expect(fn () => $service->complete($order, 5.0))
+        ->toThrow(DomainException::class, 'operation still in progress');
+
+    expect($order->fresh()->status)->toBe(ProductionOrderStatus::Released);
 });

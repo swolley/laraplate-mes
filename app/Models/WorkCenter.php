@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Modules\Core\Contracts\IActivatableModel;
 use Modules\Core\Models\Concerns\HasActivation;
 use Modules\Core\Overrides\Model;
@@ -47,18 +49,17 @@ final class WorkCenter extends Model implements IActivatableModel
     /**
      * Validation rules for create and update operations.
      *
-     * @return array<string, array<string, list<string>>>
+     * @return array<string, array<string, mixed>>
      */
     #[Override]
     public function getRules(): array
     {
         $rules = parent::getRules();
-
-        $table = MESTables::WorkCenters->value;
+        $code_unique = $this->codeUniqueRule();
 
         $rules['create'] = array_merge($rules['create'], [
             'company_id' => ['required', 'integer', 'exists:' . ERPTables::Companies->value . ',id'],
-            'code' => ['required', 'string', 'max:32'],
+            'code' => ['required', 'string', 'max:32', ...$code_unique],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', WorkCenterType::validationRule()],
             'capacity_per_hour' => ['required', 'numeric', 'min:0'],
@@ -67,7 +68,7 @@ final class WorkCenter extends Model implements IActivatableModel
         ]);
 
         $rules['update'] = array_merge($rules['update'], [
-            'code' => ['sometimes', 'string', 'max:32'],
+            'code' => ['sometimes', 'string', 'max:32', ...$code_unique],
             'name' => ['sometimes', 'string', 'max:255'],
             'type' => ['sometimes', 'string', WorkCenterType::validationRule()],
             'capacity_per_hour' => ['sometimes', 'numeric', 'min:0'],
@@ -120,6 +121,27 @@ final class WorkCenter extends Model implements IActivatableModel
             'type' => WorkCenterType::class,
             'is_active' => 'boolean',
             'capacity_per_hour' => 'decimal:4',
+        ];
+    }
+
+    /**
+     * The code is unique per company (index `mes_work_centers_company_code_UN`, soft-deleted rows
+     * included), ignoring the record itself on update. Without a company yet (the generic CRUD
+     * builds its request rules on an empty model) the rule is left to the save-time validation,
+     * which runs once the company is known.
+     *
+     * @return list<Unique>
+     */
+    private function codeUniqueRule(): array
+    {
+        if ($this->company_id === null) {
+            return [];
+        }
+
+        return [
+            Rule::unique(MESTables::WorkCenters->value, 'code')
+                ->where('company_id', $this->company_id)
+                ->ignore($this->getKey()),
         ];
     }
 }

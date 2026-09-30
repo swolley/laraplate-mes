@@ -14,6 +14,19 @@ use Modules\MES\Database\Factories\DowntimeFactory;
 use Modules\MES\Enums\DowntimeCause;
 use Override;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $work_center_id
+ * @property int|null $production_order_operation_id
+ * @property DowntimeCause $cause
+ * @property \Illuminate\Support\Carbon $started_at
+ * @property \Illuminate\Support\Carbon|null $ended_at
+ * @property string|null $duration_minutes
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 final class Downtime extends Model
 {
     use HasFactory;
