@@ -6,8 +6,6 @@ namespace Modules\MES\Services;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Modules\MES\Exceptions\RoutingLockedException;
-use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\Routing;
 
 /**
@@ -31,20 +29,5 @@ final class RoutingResolverService
             })
             ->orderByDesc('valid_from')
             ->first();
-    }
-
-    /**
-     * @throws RoutingLockedException when a released production order froze this routing.
-     */
-    public function assertNotLocked(Routing $routing): void
-    {
-        $locked = ProductionOrder::query()
-            ->where('status', '!=', 'draft')
-            ->where('routing_snapshot->id', $routing->id)
-            ->exists();
-
-        if ($locked) {
-            throw new RoutingLockedException("Routing {$routing->id} is locked by a released production order.");
-        }
     }
 }

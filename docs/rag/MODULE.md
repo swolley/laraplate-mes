@@ -132,10 +132,11 @@ production totals) are surfaced as the `ProductionDashboardWidget`, not routes.
 
 ## Locked decisions
 
-See `docs/superpowers/specs/2026-07-09-mes-module-decisions-design.md` (D1–D10):
+See `docs/superpowers/specs/2026-07-09-mes-module-decisions-design.md` (D1–D11):
 complete scope, ERP-based numbering, dual sales-order link, operation-scoped
 backflush with last-operation fallback, non-blocking shift warning, snapshot
-immutability, DIFF audit on `ProductionOrder`/`Bom`/`Routing`, materialised KPIs.
+immutability, DIFF audit on `ProductionOrder`/`Bom`/`Routing` and on their lines and operations (`BomLine`, `RoutingOperation`; per-table setting `versioning.strategy.{table}`, seeded to `DIFF`; lines and operations are validated on every write and deleted for good), materialised KPIs,
+and no lock by use: a BOM or routing stays editable because every order runs from its own snapshot.
 
 ## Releases
 

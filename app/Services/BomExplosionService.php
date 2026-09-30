@@ -6,9 +6,7 @@ namespace Modules\MES\Services;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Modules\MES\Exceptions\BomLockedException;
 use Modules\MES\Models\Bom;
-use Modules\MES\Models\ProductionOrder;
 
 /**
  * Explodes a bill of materials into its leaf component requirements and guards
@@ -72,20 +70,5 @@ final class BomExplosionService
             })
             ->orderByDesc('valid_from')
             ->first();
-    }
-
-    /**
-     * @throws BomLockedException when a released production order froze this BOM.
-     */
-    public function assertNotLocked(Bom $bom): void
-    {
-        $locked = ProductionOrder::query()
-            ->where('status', '!=', 'draft')
-            ->where('bom_snapshot->id', $bom->id)
-            ->exists();
-
-        if ($locked) {
-            throw new BomLockedException("BOM {$bom->id} is locked by a released production order.");
-        }
     }
 }
