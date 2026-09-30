@@ -10,7 +10,7 @@
         "production",
         "laraplate"
     ],
-    "priority": 2,
+    "priority": 20,
     "providers": [
         "Modules\\MES\\Providers\\MESServiceProvider"
     ],
