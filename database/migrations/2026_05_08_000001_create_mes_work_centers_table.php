@@ -16,7 +16,7 @@ return new class extends Migration
         $table_name = MESTables::WorkCenters->value;
         Schema::create($table_name, function (Blueprint $table) use ($table_name): void {
             $table->id();
-            $table->foreignId('company_id')->constrained(ERPTables::Companies->value, 'id', "{$table_name}_company_id_FK")->restricadeOnDelete();
+            $table->foreignId('company_id')->constrained(ERPTables::Companies->value, 'id', "{$table_name}_company_id_FK")->restrictOnDelete();
             $table->string('code', 32);
             $table->string('name');
             $table->enum('type', ['machine', 'cell', 'line', 'manual_station']);
