@@ -17,10 +17,13 @@ use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\ProductionCostReader;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Events\CapacityOverloadDetected;
+use Modules\MES\Events\MachineIncidentRecorded;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
 use Modules\MES\Listeners\NotifyCapacityOverload;
+use Modules\MES\Listeners\NotifyMachineIncident;
 use Modules\MES\Listeners\NotifyMaterialShortage;
+use Modules\MES\Console\MachineWatchdogCommand;
 use Modules\MES\Console\MaterializeKpisCommand;
 use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
 use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
@@ -112,6 +115,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         Event::listen(SalesOrderConfirmed::class, CreateProductionOrdersForSalesOrder::class);
         Event::listen(MaterialShortageDetected::class, NotifyMaterialShortage::class);
         Event::listen(CapacityOverloadDetected::class, NotifyCapacityOverload::class);
+        Event::listen(MachineIncidentRecorded::class, NotifyMachineIncident::class);
     }
 
     #[Override]
@@ -122,6 +126,17 @@ final class MESServiceProvider extends ModuleServiceProvider
                 ->command(MaterializeKpisCommand::class)
                 ->hourly()
                 ->withoutOverlapping()
+                ->onOneServer();
+
+            $this->app->make(Schedule::class)
+                ->command(MachineWatchdogCommand::class)
+                ->everyMinute()
+                ->withoutOverlapping()
+                ->onOneServer();
+
+            $this->app->make(Schedule::class)
+                ->command('model:prune', ['--model' => [MachineMessage::class]])
+                ->daily()
                 ->onOneServer();
         });
     }

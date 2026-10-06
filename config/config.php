@@ -56,6 +56,8 @@ return [
     |   Laravel notification channel names (database, mail, ...).
     | - capacity_overload: sent when an operation starts on a work center whose
     |   materialised load for the day exceeds its available minutes. Same shape.
+    | - machine_incident: sent when a machine incident is recorded (sequence gap,
+    |   clock skew, failed message, refused authentication, silent device). Same shape.
     |
     */
     'notifications' => [
@@ -66,6 +68,12 @@ return [
             ],
         ],
         'capacity_overload' => [
+            'channels' => ['database'],
+            'recipients' => [
+                'roles' => ['admin', 'superadmin'],
+            ],
+        ],
+        'machine_incident' => [
             'channels' => ['database'],
             'recipients' => [
                 'roles' => ['admin', 'superadmin'],
