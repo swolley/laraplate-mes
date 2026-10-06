@@ -276,6 +276,21 @@ the foundation, with no consumer of the machine data yet.
   `UnmappedSignalMapper`, `MachineSourceTokenService` (one token per source, shown once).
 - **Domain actions** (`MESPermissions`): `MachineMessage` `reprocess`; `MachineSource` `issue_token`,
   `revoke_token`, `reprocess_range`; `MachineDevice` `apply_profile`; `MachineProfile` `export`.
+- **MQTT (step 2).** `php artisan mes:machine-bridge` (`MachineBridgeCommand` over `MachineBridge`): connects
+  through `MachineMessageSubscriber` (`PhpMqttSubscriber`, php-mqtt/client, MQTT 3.1.1, QoS 1, persistent
+  session under `mes.machine.mqtt.client_id`), subscribes to `MqttMessageRouter::subscriptions()` (the
+  effective topics of the active `mqtt` sources, re-read every 60 s), hands each message to `MqttIngest`
+  (router, canonical envelope validation, `MqttPayloadEnvelope` wrapper for `sparkplug_b`, then
+  `MachineMessageInbox::accept()`), writes the heartbeat `mes:machine:bridge-heartbeat` every 10 s, backs off
+  1, 2, 4 ... 60 s on `MqttConnectionLost`, and stops on `stop()` (SIGTERM and SIGINT in the command) after
+  the message it holds. A message that cannot be routed is dropped (log once a minute; an invalid canonical
+  envelope opens a `message_failed` incident). `MachineWatchdog` opens `bridge_down` per active mqtt source when
+  the heartbeat is older than 60 s or absent.
+- **Sparkplug B.** `SparkplugBNormalizer` (`sparkplug_b`) over `SparkplugPayloadDecoder` and `ProtobufReader`
+  (a wire-format reader; no protobuf library; fixtures encoded by `protoc` from the Tahu schema),
+  `SparkplugTopic`, and `SparkplugAliasStore` (`mes_sparkplug_aliases`: alias to metric name per source and
+  device, replaced at each birth, read by data). Devices are `{node}` or `{node}/{device}`; control and null
+  metrics are skipped; `source_seq` is null (the Sparkplug `seq` wraps at 255).
 - **Backoffice** (group "Machine connectivity"): sources, devices with a signals relation manager, profiles
   (import and export), unmapped signals (map in place), the message inbox (reprocess), incidents.
   Not built yet: the MQTT bridge, `sparkplug_b`, states to downtime, counts, probe measurements, process

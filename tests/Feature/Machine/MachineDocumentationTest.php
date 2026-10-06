@@ -30,6 +30,16 @@ it('documents the protocol and the HTTP contract', function () use ($module): vo
     }
 });
 
+it('documents the MQTT bridge and the Sparkplug B mapping', function () use ($module): void {
+    $document = mb_strtolower((string) file_get_contents("{$module}/docs/MACHINE_CONNECTIVITY.md"));
+
+    foreach (['mes:machine-bridge', 'spbv1.0', 'laraplate-machine/1/', 'sparkplug_b', 'bridge_down', 'mosquitto', 'sigterm', 'systemd', 'supervisor', 'alias', 'rebirth'] as $needle) {
+        expect($document)->toContain($needle);
+    }
+
+    expect($document)->not->toContain('not built yet** (later steps): the mqtt bridge');
+});
+
 it('publishes a schema that decodes', function () use ($module): void {
     $schema = json_decode((string) file_get_contents("{$module}/resources/protocol/laraplate-machine-1.schema.json"), true, 512, JSON_THROW_ON_ERROR);
 

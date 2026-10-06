@@ -175,3 +175,13 @@ pezzi o compilare i controlli qualità (arriverà nei passi successivi).
   **rielaborare**, anche per un intervallo di tempo dalla pagina della sorgente.
 - Gli **incidenti** segnalano buchi nella sequenza dei messaggi, orologi sfasati, messaggi falliti,
   accessi rifiutati e macchine che hanno smesso di inviare dati.
+
+### Le macchine che parlano tramite MQTT
+
+Se le macchine mandano i dati a un broker MQTT (il vostro, non incluso nel MES), nella sorgente scegli il
+trasporto **mqtt** e indichi l'argomento (topic) su cui pubblica; per le sorgenti che usano il formato
+standard senza altre indicazioni l'argomento si ricava dal codice della sorgente. Un servizio sempre acceso
+(`mes:machine-bridge`) ascolta il broker e passa i messaggi al MES: se si ferma, dopo un minuto compare un
+incidente **bridge_down** e i dati restano sul broker finché il servizio non riparte. Per le macchine che
+usano **Sparkplug B**, i segnali di una macchina diventano disponibili dopo la sua "nascita": se arrivano dati
+prima, li trovi tra i segnali non mappati come `alias#N` e basta rielaborare il messaggio dopo la nascita.

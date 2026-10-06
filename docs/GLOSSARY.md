@@ -109,6 +109,10 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **Normaliser** | Turns a source's payload into the canonical samples (`canonical`, `mapped_json`). |
 | **Unmapped signal** | A device or signal a source sent that nobody configured, or a raw state value missing from a state map (`{key}#{value}`). |
 | **Attribution** | Deciding which operation a sample belongs to, by the sample time: an explicit reference, else the single operation running then. |
+| **MQTT bridge** | The long-running command `mes:machine-bridge`: subscribes to the broker for the active mqtt sources and feeds the machine message inbox; its heartbeat is watched by the watchdog (`bridge_down`). |
+| **Sparkplug B** | An MQTT payload format for industrial data (`spBv1.0/{group}/{type}/{node}[/{device}]`), read by the `sparkplug_b` normaliser. |
+| **Edge node** | In Sparkplug B, the gateway that publishes for itself and for its devices; its id is the MES device id of node-level metrics. |
+| **Alias** | In Sparkplug B, a number a birth gives to a metric name so that later data can carry the number only; kept in `mes_sparkplug_aliases`. |
 | **Machine incident** | A connectivity problem worth a human: `seq_gap`, `clock_skew`, `message_failed`, `auth_failure`, `device_silent`. |
 
 ## External ERP integration
