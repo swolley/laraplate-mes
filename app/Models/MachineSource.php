@@ -16,6 +16,21 @@ use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\MachineTransport;
 use Override;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property string $code
+ * @property string $name
+ * @property string $normalizer
+ * @property MachineTransport $transport
+ * @property ?string $mqtt_topic
+ * @property array<string, mixed>|null $normalizer_options
+ * @property string $protocol_version
+ * @property int $heartbeat_timeout_seconds
+ * @property ?\Illuminate\Support\Carbon $last_seen_at
+ * @property ?int $last_seq
+ * @property bool $is_active
+ */
 final class MachineSource extends Model
 {
     use BelongsToCompany, HasApiTokens;

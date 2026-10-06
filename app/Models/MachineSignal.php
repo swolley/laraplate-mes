@@ -17,6 +17,17 @@ use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\SignalRole;
 use Override;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property int|null $device_id
+ * @property string $key
+ * @property SignalRole $role
+ * @property string $data_type
+ * @property ?string $unit
+ * @property array<string, mixed>|null $config
+ * @property ?int $quality_plan_characteristic_id
+ */
 final class MachineSignal extends Model
 {
     use BelongsToCompany;

@@ -26,6 +26,9 @@ use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
 use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
 use Modules\MES\Machine\Normalizers\NormalizerRegistry;
 use Modules\MES\Models\Bom;
+use Modules\MES\Models\MachineDevice;
+use Modules\MES\Models\MachineSignal;
+use Modules\MES\Observers\MachineConfigurationObserver;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
 use Modules\MES\Models\NonConformance;
@@ -96,6 +99,9 @@ final class MESServiceProvider extends ModuleServiceProvider
         }
 
         // The throttle runs before the source is authenticated, so it counts by the token, which belongs to one source.
+        MachineDevice::observe(MachineConfigurationObserver::class);
+        MachineSignal::observe(MachineConfigurationObserver::class);
+
         RateLimiter::for('mes-machine-ingest', static fn (Request $request): Limit => Limit::perMinute(config()->integer('mes.machine.rate_limit_per_minute'))
             ->by(sha1((string) $request->bearerToken())));
 

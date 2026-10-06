@@ -15,6 +15,17 @@ use Modules\MES\Database\Factories\MachineDeviceFactory;
 use Modules\MES\Enums\MESTables;
 use Override;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property int|null $source_id
+ * @property string $external_id
+ * @property int $work_center_id
+ * @property ?int $machine_profile_id
+ * @property ?string $profile_version
+ * @property ?\Illuminate\Support\Carbon $last_seen_at
+ * @property bool $is_active
+ */
 final class MachineDevice extends Model
 {
     use BelongsToCompany;

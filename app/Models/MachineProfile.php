@@ -13,6 +13,14 @@ use Modules\MES\Database\Factories\MachineProfileFactory;
 use Modules\MES\Enums\MESTables;
 use Override;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property string $vendor
+ * @property string $model
+ * @property string $version
+ * @property array<string, mixed> $definition
+ */
 final class MachineProfile extends Model
 {
     use BelongsToCompany;
