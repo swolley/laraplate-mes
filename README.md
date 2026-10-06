@@ -101,7 +101,7 @@ MES_MACHINE_MQTT_TOPIC_PREFIX=laraplate
 
 The machine variables set the config keys `mes.machine.queue`, `mes.machine.max_samples`,
 `mes.machine.max_body_kb`, `mes.machine.clock_skew_seconds`, `mes.machine.inbox_retention_days` and
-`mes.machine.rate_limit_per_minute`; the MQTT ones set `mes.machine.mqtt.host`, `.port`, `.username`, `.password`, `.tls`, `.client_id` and `.topic_prefix`. The machine queue (`mes-machine`) needs its own Horizon supervisor;
+`mes.machine.rate_limit_per_minute`; the MQTT ones set `mes.machine.mqtt.host`, `mes.machine.mqtt.port`, `mes.machine.mqtt.username`, `mes.machine.mqtt.password`, `mes.machine.mqtt.tls`, `mes.machine.mqtt.client_id` and `mes.machine.mqtt.topic_prefix`. The machine queue (`mes-machine`) needs its own Horizon supervisor;
 incident notifications go to the roles under `mes.notifications.machine_incident`.
 
 The receiving warehouse for auto-created production orders is resolved per company.
