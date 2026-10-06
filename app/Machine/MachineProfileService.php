@@ -107,7 +107,7 @@ final class MachineProfileService
             'model' => ['required', 'string', 'max:128'],
             'version' => ['required', 'string', 'max:32'],
             'definition' => ['required', 'array'],
-            'definition.signals' => ['required', 'array'],
+            'definition.signals' => ['present', 'array'],
             'definition.state_map' => ['sometimes', 'array'],
             'definition.state_map.*' => ['string', Rule::in(MachineState::values())],
             'definition.alarm_map' => ['sometimes', 'array'],

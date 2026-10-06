@@ -47,6 +47,9 @@ final class MESPlugin implements Plugin
             NavigationGroup::make()
                 ->label('MES')
                 ->icon(Heroicon::OutlinedWrenchScrewdriver),
+            NavigationGroup::make()
+                ->label('Machine connectivity')
+                ->icon(Heroicon::OutlinedSignal),
         ]);
     }
 }
