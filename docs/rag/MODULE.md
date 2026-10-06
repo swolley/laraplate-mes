@@ -163,8 +163,11 @@ The Filament resources are the superadmin backoffice. Work centers edit their
 weekly calendar and BOMs their lines inline (relationship repeaters; line edits
 are versioned). Production orders are list and edit only, with read-only
 relation managers for operations, material consumptions, quality checks and
-lots; they offer no release/complete/cancel actions. Day-to-day execution
-belongs to the application built on the services and domain actions.
+lots, and the edit page carries Release, Complete (produced quantity, optional lot
+code) and Cancel header actions. They call `ProductionOrderService` and are shown by
+`MesModelPolicy` (called directly: the gate would let a superadmin past the state
+guard); a refused transition is a notification. Day-to-day execution still belongs to
+the application built on the services and domain actions.
 
 ## Configuration
 

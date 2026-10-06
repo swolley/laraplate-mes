@@ -102,7 +102,7 @@ The manufacturing domain is implemented and covered by the module test suite:
 -   Quality plans, automatic quality checks, non-conformances with dispositions (rework spawns a linked order)
 -   Downtime, OEE (A x P x Q, clamped to [0, 1]) and work-center capacity load, schedule and overload check (available minutes net of every downtime, planned maintenance included). A downtime is opened through the `open_downtime` action on its work center (one open downtime per work center). OEE and capacity are materialised per work center and day by `mes:kpis:materialize` (hourly, queued) into the cache and shown as an OEE column in the work-center list; starting an operation on a work center materialised as overloaded emits `CapacityOverloadDetected`, notified through `mes.notifications.capacity_overload`
 -   No custom routes: entities go through Core's generic CRUD, domain verbs through the domain-action registry (`MesDomainActionRegistrar`, `MesModelPolicy`, permissions seeded by `MESDatabaseSeeder`)
--   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
+-   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots, and Release/Complete/Cancel header actions), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
 
 Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_GUIDA_SEMPLICE.md`.
 
@@ -110,7 +110,6 @@ Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_G
 
 Open items awaiting a decision (tracked in `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md`):
 
--   Backoffice transitions (release, complete, cancel) on production orders
 -   Capacity: calendar-based available minutes, completion estimate
 -   Finished-goods stock-in and valuation on order completion
 

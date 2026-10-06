@@ -145,9 +145,10 @@ non a lavorare l'ordine tutti i giorni.
   conformità.
 - Gli **ordini di produzione** nel pannello si consultano: per ciascuno vedi le
   operazioni, i consumi di materiale, i controlli qualità e i lotti prodotti, in
-  sola lettura. **Rilascio, avanzamento e completamento non si fanno dal
-  pannello**: passano dall'applicazione di produzione (o dalle chiamate API), che
-  usa le stesse regole descritte sopra.
+  sola lettura. Dalla pagina dell'ordine puoi **rilasciare**, **completare**
+  (indicando la quantità prodotta e, se serve, il lotto) e **annullare**, con le
+  stesse regole descritte sopra; l'avanzamento delle operazioni passa invece
+  dall'applicazione di produzione (o dalle chiamate API).
 - Il **widget dashboard di produzione** mostra quattro conteggi: ordini aperti,
   operazioni in corso, ordini completati e non conformità aperte.
 - L'**OEE** e il **carico dei centri di lavoro** vengono calcolati dal sistema su

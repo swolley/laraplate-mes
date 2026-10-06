@@ -10,6 +10,8 @@ use Livewire\Livewire;
 use Modules\Core\Models\Role;
 use Modules\Core\Models\User;
 use Modules\Core\Services\PerModelSettingResolver;
+use Modules\MES\Enums\ProductionOrderOperationStatus;
+use Modules\MES\Enums\ProductionOrderStatus;
 use Modules\MES\Filament\Resources\Boms\Pages\EditBom;
 use Modules\MES\Filament\Resources\Boms\Pages\ListBoms;
 use Modules\MES\Filament\Resources\Downtimes\Pages\ListDowntimes;
@@ -204,3 +206,56 @@ it('renders every read-only production order relation manager', function (string
     'quality checks' => [QualityChecksRelationManager::class, fn (ProductionOrder $order): QualityCheck => QualityCheck::factory()->create(['production_order_id' => $order->id])],
     'lot numbers' => [LotNumbersRelationManager::class, fn (ProductionOrder $order): LotNumber => LotNumber::factory()->create(['production_order_id' => $order->id])],
 ]);
+
+it('releases, completes and cancels a production order from its edit page', function (): void {
+    $draft = ProductionOrder::factory()->create();
+
+    Livewire::test(EditProductionOrder::class, ['record' => $draft->getKey()])
+        ->assertActionVisible('release')
+        ->assertActionHidden('complete')
+        ->callAction('release')
+        ->assertNotified();
+    expect($draft->fresh()->status)->toBe(ProductionOrderStatus::Released);
+
+    Livewire::test(EditProductionOrder::class, ['record' => $draft->getKey()])
+        ->assertActionHidden('release')
+        ->assertActionVisible('complete')
+        ->callAction('complete', ['quantity_produced' => 5])
+        ->assertNotified();
+    expect($draft->fresh()->status)->toBe(ProductionOrderStatus::Completed)
+        ->and((float) $draft->fresh()->quantity_produced)->toBe(5.0);
+
+    $other = ProductionOrder::factory()->released()->create();
+
+    Livewire::test(EditProductionOrder::class, ['record' => $other->getKey()])
+        ->assertActionVisible('cancel')
+        ->callAction('cancel')
+        ->assertNotified();
+    expect($other->fresh()->status)->toBe(ProductionOrderStatus::Cancelled);
+
+    Livewire::test(EditProductionOrder::class, ['record' => $other->getKey()])
+        ->assertActionHidden('cancel')
+        ->assertActionHidden('release')
+        ->assertActionHidden('complete');
+});
+
+it('reports a refused transition instead of failing the page', function (): void {
+    $order = ProductionOrder::factory()->released()->create();
+    $operation = ProductionOrderOperation::factory()->inProgress()->create(['production_order_id' => $order->id]);
+
+    Livewire::test(EditProductionOrder::class, ['record' => $order->getKey()])
+        ->callAction('complete', ['quantity_produced' => 5])
+        ->assertNotified();
+
+    expect($order->fresh()->status)->toBe(ProductionOrderStatus::Released)
+        ->and($operation->fresh()->status)->toBe(ProductionOrderOperationStatus::InProgress);
+});
+
+it('hides the transition actions from a user without the domain permissions', function (): void {
+    $order = ProductionOrder::factory()->create();
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(EditProductionOrder::class, ['record' => $order->getKey()])
+        ->assertActionHidden('release')
+        ->assertActionHidden('cancel');
+});
