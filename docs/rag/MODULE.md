@@ -12,6 +12,8 @@ production KPIs.
 - Every table is prefixed `mes_` and centralised in `MESTables`.
 - Stock movements are defined by the MES `StockMovementRecorder` contract and
   executed by the ERP adapter `ErpStockMovementRecorder`.
+- Component holds go through the ERP `StockReservationService` under the opaque
+  source alias `mes.production_order_material` (see «Component reservation»).
 - Production order numbers are allocated by ERP `DocumentNumberAllocator` using
   `DocumentType::ProductionOrder`.
 
@@ -36,7 +38,9 @@ production KPIs.
    freezes the effective BOM lines and routing operations into immutable JSON
    snapshots (`bom_snapshot`, `routing_snapshot`). Status `draft`.
 2. **Release** (`release`) — materialises `ProductionOrderOperation` rows from
-   the routing snapshot. Status `released`.
+   the routing snapshot. Status `released`. Once the release is persisted,
+   `ProductionOrderReleased` reserves the order's BOM components in ERP stock
+   (see «Component reservation»).
 3. **Execute operations** (`ProductionOrderOperationService`) —
    `start`/`complete`/`skip`; efficiency = standard / actual, clamped
    `[0, 999.99]`. Completing an operation logs the operator (`OperatorLog`),
@@ -49,12 +53,14 @@ production KPIs.
    stock `out` is posted for what exists, and any shortfall flags
    `mes_material_consumptions.stock_shortage` (with a negative `variance`) and
    emits `MaterialShortageDetected`. Non-blocking and stock never goes negative.
+   After the stock-out, the ERP reservation of the line is closed for the part
+   that was held (see «Component reservation»).
 5. **Order state machine** — `draft → released` (`release`, emits
    `ProductionOrderReleased`) `→ in_progress` (the first `ProductionOrderOperationService::start()`
    on a released order, emits `ProductionOrderStarted`) `→ completed` (`complete`, emits
    `ProductionOrderCompleted`). `cancel` is allowed from draft, released and in progress: the
    operations that did not complete (planned or running) become `skipped`, and
-   `ProductionOrderCancelled` is emitted. Operations emit `OperationStarted`,
+   `ProductionOrderCancelled` is emitted and releases the order's component reservations. Operations emit `OperationStarted`,
    `OperationCompleted` and `OperationSkipped`. Events carry ids only and are dispatched
    after the transition is persisted.
 6. **Complete order** (`complete`) — receives the finished goods into the order's warehouse
@@ -108,8 +114,8 @@ nothing. A backflush still queued when the order completes is not part of the co
 
 ## Stock shortage
 
-`StockReader` (ERP-backed `ErpStockReader` over `StockLevel`) is the read side of
-the stock boundary. Backflush and manual consumption read availability and consume
+`StockReader` (ERP-backed `ErpStockReader` over `StockLevel` and the warehouse-pinned
+reservations) is the read side of the stock boundary. Backflush and manual consumption read availability and consume
 what exists: the stock-out is posted for the available quantity
 (`quantity_consumed`), the shortfall is recorded as a negative `variance` with
 `stock_shortage = true`, and `MaterialShortageDetected` is emitted. This keeps the
@@ -117,6 +123,60 @@ stock ledger truthful (never negative, which the ERP `recordOutbound` rejects) a
 turns a hard ERP exception into a structured, non-blocking early warning. The
 queued `NotifyMaterialShortage` listener sends `MaterialShortageNotification` to
 the recipients configured by role (`mes.notifications.stock_shortage`).
+
+## Component reservation
+
+A released production order holds its BOM components in ERP stock, so a component promised
+to one order is no longer available to another. MES calls the ERP `StockReservationService`
+through `ComponentReservationService`; ERP only sees the opaque source alias
+`mes.production_order_material` and never resolves a MES class.
+
+- **Reserve at release.** `ProductionOrderService::release()` dispatches `ProductionOrderReleased`
+  after the release transaction commits, and the synchronous `ReserveComponentsForProductionOrder`
+  calls `reserveForOrder()`. For every frozen snapshot line that has an `item_id` and a
+  `material_line_id` (whatever its consumption method) it computes the requirement as the per-unit
+  quantity times the order quantity (`quantity_produced`, else `quantity_planned`) and takes a
+  `hard` reservation of `min(requirement, company-wide available)` pinned to the order's warehouse.
+  It is best effort: a short component reserves what exists (nothing when none is left) and never
+  blocks the release; there is no early shortage event, the existing `MaterialShortageDetected`
+  still fires at backflush.
+- **Release at cancel.** `ProductionOrderCancelled` runs `ReleaseComponentsForProductionOrder`, which
+  releases the live hold of every snapshot line (idempotent; consumed quantity is terminal).
+- **Consume at backflush.** `BackflushMaterialsJob` keeps its path unchanged (consume the available
+  quantity, post the stock-out, record `quantity_consumed`/`variance`, flag `stock_shortage`, emit
+  `MaterialShortageDetected`) and then, for the line, closes `min(quantity consumed, quantity still
+  hard-reserved)` through `consumeForLine()`. Only the reserved part is closed: a line that never
+  reserved is a no-op, and stock beyond the reservation is consumed physically as before. The
+  reservation close is not in the same transaction as the stock-out.
+- **Per-warehouse availability.** `ErpStockReader::availableQuantity()` is the on-hand `StockLevel`
+  of the `(item, warehouse)` minus the soft/hard reservations pinned to that same warehouse. A
+  soft row counts by state alone, so an expired but not yet swept soft hold still counts until the
+  ERP expiry sweep closes it. Reservations with no warehouse (every sales-order reservation) are
+  not attributable to one warehouse and are not subtracted.
+- **`material_line_id` keying.** The reservation `source_id` is the snapshot line's
+  `material_line_id`, stamped by `ProductionOrderService::create()` right after the order is inserted
+  as `order id * 1000 + line index`. It is unique to one order and stable for the whole lifecycle
+  (reserve, release, consume). The template `bom_line_id` cannot be used: it is shared by every order
+  built from the same BOM and would pool holds across them. A snapshot line without a
+  `material_line_id` is skipped by reserve, release and consume.
+
+Known limitations:
+
+- The `* 1000` scheme bounds a production order to fewer than 1000 component lines; a larger BOM
+  would run into the id range of the next order.
+- Availability is read two ways: the reserve clamp uses the company-wide ERP availability, while the
+  hold is pinned to the order's warehouse and `ErpStockReader` reads that warehouse alone.
+- `ErpStockReader` subtracts the order's own warehouse-pinned hold. When the warehouse on-hand is not
+  greater than what the order holds, backflush sees less than is physically there for that order, so it
+  consumes less (down to nothing) and reports a shortage even though the stock is held for it.
+- Nothing releases a hold when an order completes, and a manual consumption does not close a
+  reservation: a manual-consumption line is reserved at release but consumed only outside the
+  reservation, and whatever a completed order did not backflush (for example because
+  `quantity_produced` is lower than `quantity_planned`) stays `hard`, since a completed order can no
+  longer be cancelled.
+- `reserveForOrder()` pre-clamps to availability but does not catch a lost race or a lock timeout from
+  `reserve()`; such an exception would surface from the release call after the order is already
+  released.
 
 ## Services
 
@@ -129,7 +189,9 @@ linked order), `CapacityService` (work-center load, available minutes, overload)
 `SalesOrderProductionPlanner` (auto-creation from confirmed sales orders, with
 `ProductionWarehouseResolver` and `ProductionLeadTimeEstimator`),
 `QualityPlanResolver` + `QualityCheckPlanner` (auto quality checks on completion),
-`ErpStockReader` (`StockReader` on-hand read for shortage detection).
+`ErpStockReader` (`StockReader` read for shortage detection: on-hand minus warehouse-pinned reservations),
+`ComponentReservationService` (reserve, release and consume ERP reservations for a production order's BOM
+components).
 
 ## HTTP surface
 
