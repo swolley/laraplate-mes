@@ -9,6 +9,8 @@ use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Events\DowntimeClosed;
+use Modules\MES\Events\DowntimeOpened;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\WorkCenter;
 
@@ -18,9 +20,19 @@ use Modules\MES\Models\WorkCenter;
  */
 final class DowntimeService
 {
+    /**
+     * Open a downtime on a work center. A work center has at most one open downtime.
+     *
+     * @throws DomainException when the work center already has an open downtime.
+     */
     public function open(WorkCenter $work_center, DowntimeCause $cause, ?int $operation_id = null, ?string $notes = null): Downtime
     {
-        return Downtime::query()->create([
+        throw_if(
+            $this->isWorkCenterDown($work_center->id),
+            new DomainException("Work center {$work_center->id} already has an open downtime."),
+        );
+
+        $downtime = Downtime::query()->create([
             'company_id' => $work_center->company_id,
             'work_center_id' => $work_center->id,
             'production_order_operation_id' => $operation_id,
@@ -29,6 +41,10 @@ final class DowntimeService
             'ended_at' => null,
             'notes' => $notes,
         ]);
+
+        DowntimeOpened::dispatch($downtime->company_id, $downtime->work_center_id, $downtime->id, $cause->value);
+
+        return $downtime;
     }
 
     /**
@@ -50,7 +66,11 @@ final class DowntimeService
             'duration_minutes' => (float) $downtime->started_at->diffInMinutes($ended_at),
         ]);
 
-        return $downtime->refresh();
+        $downtime->refresh();
+
+        DowntimeClosed::dispatch($downtime->company_id, $downtime->work_center_id, $downtime->id, (float) $downtime->duration_minutes);
+
+        return $downtime;
     }
 
     /**
@@ -67,17 +87,32 @@ final class DowntimeService
     /**
      * Minutes of unplanned downtime on a work center that overlap a window.
      *
-     * Each downtime is clipped to the window; an open one runs until now. Planned
-     * maintenance is left out, matching {@see OeeCalculatorService::availability()}.
+     * Planned maintenance is left out, matching {@see OeeCalculatorService::availability()}.
      */
     public function unplannedMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        return $this->downtimeMinutesWithin($work_center_id, $from, $to, false);
+    }
+
+    /**
+     * Minutes a work center was out of service within a window, planned maintenance included.
+     */
+    public function outOfServiceMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        return $this->downtimeMinutesWithin($work_center_id, $from, $to, true);
+    }
+
+    /**
+     * Each downtime is clipped to the window; an open one runs until now.
+     */
+    private function downtimeMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, bool $include_planned): float
     {
         $window_start = Carbon::parse($from);
         $window_end = Carbon::parse($to);
 
         return Downtime::query()
             ->where('work_center_id', $work_center_id)
-            ->where('cause', '!=', DowntimeCause::PlannedMaintenance->value)
+            ->when(! $include_planned, static fn (Builder $query): Builder => $query->where('cause', '!=', DowntimeCause::PlannedMaintenance->value))
             ->where('started_at', '<', $window_end)
             ->where(static fn (Builder $query): Builder => $query->whereNull('ended_at')->orWhere('ended_at', '>', $window_start))
             ->get()

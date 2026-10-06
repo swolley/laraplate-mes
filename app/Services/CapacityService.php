@@ -16,7 +16,7 @@ use Modules\MES\Models\ProductionOrderOperation;
  * operations planned within a window. Standard minutes for an operation are its
  * setup time plus its cycle time multiplied by the order's planned quantity.
  * Available minutes are the default daily minutes of the window less the
- * unplanned downtime overlapping it.
+ * downtime overlapping it, planned maintenance included.
  */
 final class CapacityService
 {
@@ -74,15 +74,24 @@ final class CapacityService
 
     /**
      * Minutes a work center can work in a window: default daily minutes per
-     * calendar day touched, less the unplanned downtime overlapping the window.
-     * Never negative.
+     * calendar day touched, less every downtime overlapping the window, planned maintenance included
+     * (the work center is out of service either way). Never negative.
      */
     public function availableMinutes(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
     {
-        $days = max(1, Carbon::parse($from)->startOfDay()->diffInDays(Carbon::parse($to)->startOfDay()) + 1);
-        $planned = self::DEFAULT_DAILY_MINUTES * $days;
+        $planned = $this->plannedMinutes($from, $to);
 
-        return max(0.0, $planned - $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to));
+        return max(0.0, $planned - $this->downtimeService->outOfServiceMinutesWithin($work_center_id, $from, $to));
+    }
+
+    /**
+     * Calendar minutes of a window: default daily minutes per day touched.
+     */
+    public function plannedMinutes(DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        $days = max(1, Carbon::parse($from)->startOfDay()->diffInDays(Carbon::parse($to)->startOfDay()) + 1);
+
+        return self::DEFAULT_DAILY_MINUTES * $days;
     }
 
     /**

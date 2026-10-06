@@ -9,18 +9,22 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\QualityCheckStatus;
-use Modules\MES\Models\Downtime;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
 
 /**
  * Computes Overall Equipment Effectiveness (OEE = Availability x Performance x
  * Quality) for a work center over a window. Every factor and the result are
- * clamped to [0, 1].
+ * clamped to [0, 1]. Availability counts only the part of each unplanned downtime
+ * that falls inside the window.
  */
 final class OeeCalculatorService
 {
     private const float DEFAULT_DAILY_MINUTES = 480.0;
+
+    public function __construct(
+        private DowntimeService $downtimeService,
+    ) {}
 
     /**
      * OEE for a work center within a window, in [0, 1].
@@ -50,11 +54,7 @@ final class OeeCalculatorService
             return 1.0;
         }
 
-        $downtime = (float) Downtime::query()
-            ->where('work_center_id', $work_center_id)
-            ->where('cause', '!=', 'planned_maintenance')
-            ->whereBetween('started_at', [$from, $to])
-            ->sum('duration_minutes');
+        $downtime = $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to);
 
         return $this->clamp(($planned_minutes - $downtime) / $planned_minutes);
     }

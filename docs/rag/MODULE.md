@@ -48,7 +48,15 @@ production KPIs.
    stock `out` is posted for what exists, and any shortfall flags
    `mes_material_consumptions.stock_shortage` (with a negative `variance`) and
    emits `MaterialShortageDetected`. Non-blocking and stock never goes negative.
-5. **Complete order** (`complete`) — refused (`DomainException`) while any
+5. **Order state machine** — `draft → released` (`release`, emits
+   `ProductionOrderReleased`) `→ in_progress` (the first `ProductionOrderOperationService::start()`
+   on a released order, emits `ProductionOrderStarted`) `→ completed` (`complete`, emits
+   `ProductionOrderCompleted`). `cancel` is allowed from draft, released and in progress: the
+   operations that did not complete (planned or running) become `skipped`, and
+   `ProductionOrderCancelled` is emitted. Operations emit `OperationStarted`,
+   `OperationCompleted` and `OperationSkipped`. Events carry ids only and are dispatched
+   after the transition is persisted.
+6. **Complete order** (`complete`) — refused (`DomainException`) while any
    operation is `in_progress`; sets produced quantity; generates the
    finished `LotNumber` when the item is lot/serial-traced; creates the
    final-inspection `QualityCheck` from any active plan.
@@ -114,29 +122,40 @@ No custom routes. Entities are reachable through Core's generic CRUD
 (`/app/crud/{verb}/mes/{entity}`). Domain verbs use Core's domain-action
 registry (`POST /app/crud/{action}/mes/{entity}`): production-orders
 `release`/`complete`/`cancel`, operations `start`/`complete`/`skip`,
-quality-checks `execute`, non-conformances `resolve`/`close`, downtimes `close`,
+quality-checks `execute`, non-conformances `resolve`/`close`, downtimes `close`, work-centers `open_downtime`,
 boms `explode`, lot-numbers `forward_trace`/`backward_trace`. Registered by
 `MesDomainActionRegistrar`; authorized by `MesModelPolicy` against seeded
 `{connection}.{table}.{action}` permissions (seeded by `MESDatabaseSeeder`
-from `MESPermissions`). A downtime is opened through the generic insert; there
-is no `open` verb. Aggregate reads have no routes: the `ProductionDashboardWidget`
+from `MESPermissions`). A downtime is opened with the `open_downtime` action on its
+work center (payload `cause`, optional `production_order_operation_id` and `notes`), which
+refuses a second open downtime on the same work center and emits `DowntimeOpened`
+(`close` emits `DowntimeClosed`); the generic insert still exists for back-filling
+history and bypasses those rules. Aggregate reads have no routes: the `ProductionDashboardWidget`
 shows four counts (open orders, running operations, completed orders, open
-non-conformances) cached for 60 seconds. OEE and capacity are computed on
-request by their services and are not materialised or displayed (decision D10
-is not implemented yet).
+non-conformances) cached for 60 seconds. OEE and capacity are materialised
+(decision D10): `mes:kpis:materialize` (hourly, `--day=Y-m-d` to backfill) queues one
+`MaterializeWorkCenterKpisJob` per active work center, which stores a `WorkCenterKpis`
+(availability, performance, quality, OEE, capacity load, available minutes, overload flag)
+in the cache through `WorkCenterKpiMaterializer` and `WorkCenterKpiStore`. Reads never
+recompute: a day not materialised yet has no figure. The work-center list shows the
+OEE of today.
 
 ## Capacity and downtime
 
 `CapacityService::getCapacityLoad()` sums the standard minutes (setup + cycle ×
 planned quantity) of the operations planned on a work center in a window.
 `availableMinutes()` is 480 default minutes per calendar day of the window less
-the unplanned downtime overlapping it (`DowntimeService::unplannedMinutesWithin()`:
-every cause except `planned_maintenance`, as in OEE availability; each downtime
-is clipped to the window and an open one runs until now), never negative.
+every downtime overlapping it (`DowntimeService::outOfServiceMinutesWithin()`:
+planned maintenance included, because the work center is out of service either way;
+each downtime is clipped to the window and an open one runs until now), never negative.
+OEE availability keeps excluding planned maintenance
+(`unplannedMinutesWithin()`) and clips downtimes to the window the same way.
 `checkOverload(work_center, from, to, ?available)` compares the load with the
 available minutes, or with an explicit budget when one is passed. The
 work-center calendar is not read yet, and `estimateCompletionDate()` returns the
-order's `planned_end_at`.
+order's `planned_end_at`. Starting an operation on a work center whose materialised
+KPIs flag an overload emits `CapacityOverloadDetected` (non-blocking, nothing is
+recomputed live), notified to the roles in `mes.notifications.capacity_overload`.
 
 ## Backoffice
 

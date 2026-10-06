@@ -5,9 +5,17 @@ declare(strict_types=1);
 namespace Modules\MES\Services;
 
 use DomainException;
+use LogicException;
 use Illuminate\Support\Collection;
+use Modules\MES\Data\WorkCenterKpis;
 use Modules\MES\Enums\OperatorLogAction;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
+use Modules\MES\Enums\ProductionOrderStatus;
+use Modules\MES\Events\CapacityOverloadDetected;
+use Modules\MES\Events\OperationCompleted;
+use Modules\MES\Events\OperationSkipped;
+use Modules\MES\Events\OperationStarted;
+use Modules\MES\Events\ProductionOrderStarted;
 use Modules\MES\Jobs\BackflushMaterialsJob;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
@@ -24,6 +32,7 @@ final class ProductionOrderOperationService
     public function __construct(
         private ShiftVerificationService $shiftVerificationService,
         private QualityCheckPlanner $qualityCheckPlanner,
+        private WorkCenterKpiStore $kpiStore,
     ) {}
 
     /**
@@ -57,7 +66,8 @@ final class ProductionOrderOperationService
     }
 
     /**
-     * Begin an operation.
+     * Begin an operation. The first operation started on a released order moves
+     * the order itself to in progress.
      *
      * @throws DomainException when the operation is already started or finished.
      */
@@ -68,12 +78,32 @@ final class ProductionOrderOperationService
             new DomainException("Operation {$operation->id} cannot start from status {$operation->status->value}."),
         );
 
-        $operation->update([
-            'status' => ProductionOrderOperationStatus::InProgress->value,
-            'actual_start_at' => now(),
-        ]);
+        $order = $this->orderOf($operation);
+        $order_started = $operation->getConnection()->transaction(static function () use ($operation, $order): bool {
+            $operation->update([
+                'status' => ProductionOrderOperationStatus::InProgress->value,
+                'actual_start_at' => now(),
+            ]);
+
+            if ($order->status !== ProductionOrderStatus::Released) {
+                return false;
+            }
+
+            $order->status = ProductionOrderStatus::InProgress;
+            $order->actual_start_at = now();
+            $order->save();
+
+            return true;
+        });
 
         $this->shiftVerificationService->logOperatorAction($operation, OperatorLogAction::Started);
+
+        if ($order_started) {
+            ProductionOrderStarted::dispatch($order->company_id, $order->id);
+        }
+
+        OperationStarted::dispatch($order->company_id, $order->id, $operation->id, $operation->work_center_id);
+        $this->warnWhenOverloaded($operation);
 
         return $operation->refresh();
     }
@@ -82,8 +112,8 @@ final class ProductionOrderOperationService
      * Complete an operation, recording actual minutes and efficiency.
      *
      * Efficiency is standard minutes over actual minutes as a percentage,
-     * clamped to [0, 999.99]. Backflush (Task 8) and quality checks (Task 10)
-     * are dispatched by their own listeners on the completion event.
+     * clamped to [0, 999.99]. Backflush and quality checks are dispatched here;
+     * {@see OperationCompleted} is the hook for everything else.
      *
      * @throws DomainException when the operation is not in progress.
      */
@@ -108,6 +138,8 @@ final class ProductionOrderOperationService
         BackflushMaterialsJob::dispatch($operation->id);
         $this->qualityCheckPlanner->forOperation($operation);
 
+        OperationCompleted::dispatch($this->orderOf($operation)->company_id, $operation->production_order_id, $operation->id, $operation->work_center_id);
+
         return $operation->refresh();
     }
 
@@ -125,7 +157,36 @@ final class ProductionOrderOperationService
 
         $operation->update(['status' => ProductionOrderOperationStatus::Skipped->value]);
 
+        OperationSkipped::dispatch($this->orderOf($operation)->company_id, $operation->production_order_id, $operation->id, $operation->work_center_id);
+
         return $operation->refresh();
+    }
+
+    private function orderOf(ProductionOrderOperation $operation): ProductionOrder
+    {
+        return $operation->productionOrder ?? throw new LogicException("Operation {$operation->id} has no production order.");
+    }
+
+    /**
+     * Non-blocking capacity warning, read from the materialised KPIs of the day:
+     * nothing is recomputed live, and a day nobody materialised yet warns about nothing.
+     */
+    private function warnWhenOverloaded(ProductionOrderOperation $operation): void
+    {
+        $kpis = $this->kpiStore->get($operation->work_center_id, now());
+
+        if (! $kpis instanceof WorkCenterKpis || ! $kpis->overloaded) {
+            return;
+        }
+
+        CapacityOverloadDetected::dispatch(
+            $this->orderOf($operation)->company_id,
+            $operation->work_center_id,
+            $operation->production_order_id,
+            $operation->id,
+            $kpis->capacity_load,
+            $kpis->available_minutes,
+        );
     }
 
     /**

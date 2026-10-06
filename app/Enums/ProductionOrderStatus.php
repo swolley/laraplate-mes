@@ -39,10 +39,10 @@ enum ProductionOrderStatus: string
     }
 
     /**
-     * Whether the order can still be cancelled.
+     * Whether the order can still be cancelled: anything that has not ended.
      */
     public function canCancel(): bool
     {
-        return $this === self::Draft || $this === self::Released;
+        return $this === self::Draft || $this === self::Released || $this === self::InProgress;
     }
 }

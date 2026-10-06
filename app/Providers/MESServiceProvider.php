@@ -12,9 +12,12 @@ use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
+use Modules\MES\Events\CapacityOverloadDetected;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
+use Modules\MES\Listeners\NotifyCapacityOverload;
 use Modules\MES\Listeners\NotifyMaterialShortage;
+use Modules\MES\Console\MaterializeKpisCommand;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
@@ -22,10 +25,12 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 use Modules\MES\Policies\MesModelPolicy;
 use Modules\MES\Services\DomainActions\MesDomainActionRegistrar;
 use Modules\MES\Services\ErpStockMovementRecorder;
 use Modules\MES\Services\ErpStockReader;
+use Illuminate\Console\Scheduling\Schedule;
 use Nwidart\Modules\Facades\Module;
 use Override;
 
@@ -73,6 +78,19 @@ final class MESServiceProvider extends ModuleServiceProvider
 
         Event::listen(SalesOrderConfirmed::class, CreateProductionOrdersForSalesOrder::class);
         Event::listen(MaterialShortageDetected::class, NotifyMaterialShortage::class);
+        Event::listen(CapacityOverloadDetected::class, NotifyCapacityOverload::class);
+    }
+
+    #[Override]
+    protected function registerCommandSchedules(): void
+    {
+        $this->app->booted(function (): void {
+            $this->app->make(Schedule::class)
+                ->command(MaterializeKpisCommand::class)
+                ->hourly()
+                ->withoutOverlapping()
+                ->onOneServer();
+        });
     }
 
     /**
@@ -90,6 +108,7 @@ final class MESServiceProvider extends ModuleServiceProvider
             NonConformance::class,
             Downtime::class,
             LotNumber::class,
+            WorkCenter::class,
         ];
     }
 }

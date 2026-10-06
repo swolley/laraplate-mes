@@ -12,6 +12,7 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 use Override;
 
 /**
@@ -30,6 +31,7 @@ final class MESPermissions implements DeclaresPermissions
             ProductionOrder::class => ['release', 'complete', 'cancel', 'record_consumption'],
             ProductionOrderOperation::class => ['start', 'complete', 'skip'],
             QualityCheck::class => ['execute'],
+            WorkCenter::class => ['open_downtime'],
         ];
     }
 

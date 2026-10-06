@@ -59,7 +59,7 @@ it('reduces availability as unplanned downtime grows', function (): void {
         'company_id' => $company->id,
         'work_center_id' => $work_center->id,
         'cause' => DowntimeCause::Breakdown->value,
-        'started_at' => now(),
+        'started_at' => now()->subHours(2),
         'ended_at' => now(),
         'duration_minutes' => 120,
     ]);
@@ -84,4 +84,23 @@ it('computes and stores duration when a downtime is closed', function (): void {
     expect($closed->ended_at)->not->toBeNull()
         ->and((float) $closed->duration_minutes)->toBeGreaterThanOrEqual(0.0)
         ->and($service->isWorkCenterDown($work_center->id))->toBeFalse();
+});
+
+it('counts only the part of a downtime that falls inside the window', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
+    $from = now()->startOfDay();
+    $to = now()->endOfDay();
+
+    // Started 3 hours before the window, ended 1 hour into it: only 60 minutes count.
+    Downtime::factory()->create([
+        'company_id' => $company->id,
+        'work_center_id' => $work_center->id,
+        'cause' => DowntimeCause::Breakdown->value,
+        'started_at' => $from->copy()->subHours(3),
+        'ended_at' => $from->copy()->addHour(),
+        'duration_minutes' => 240,
+    ]);
+
+    expect(resolve(OeeCalculatorService::class)->availability($work_center->id, $from, $to, 480.0))->toBe(420.0 / 480.0);
 });

@@ -21,6 +21,7 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 use Modules\MES\Policies\MesModelPolicy;
 
 uses(RefreshDatabase::class);
@@ -61,6 +62,13 @@ it('lets a superadmin act only when the record state allows it', function (strin
     'resolve an open non-conformance, not a closed one' => ['resolve', fn () => NonConformance::factory()->create(['status' => NonConformanceStatus::Open->value]), fn () => NonConformance::factory()->create(['status' => NonConformanceStatus::Closed->value])],
     'close a resolved non-conformance, not an open one' => ['close', fn () => NonConformance::factory()->create(['status' => NonConformanceStatus::Resolved->value]), fn () => NonConformance::factory()->create(['status' => NonConformanceStatus::Open->value])],
     'close an open downtime, not a closed one' => ['close', fn () => Downtime::factory()->create(), fn () => Downtime::factory()->closed()->create()],
+    'open a downtime on a work center that is up, not one that is down' => ['openDowntime', fn () => WorkCenter::factory()->create(), function (): WorkCenter {
+        $work_center = WorkCenter::factory()->create();
+        Downtime::factory()->create(['work_center_id' => $work_center->id, 'company_id' => $work_center->company_id]);
+
+        return $work_center;
+    }],
+    'cancel an in-progress order, not a completed one' => ['cancel', fn () => ProductionOrder::factory()->create(['status' => ProductionOrderStatus::InProgress->value]), fn () => ProductionOrder::factory()->create(['status' => ProductionOrderStatus::Completed->value])],
     'execute a quality check, not another record' => ['execute', fn () => QualityCheck::factory()->create(), fn () => Bom::factory()->create()],
     'explode a bom, not another record' => ['explode', fn () => Bom::factory()->create(), fn () => QualityCheck::factory()->create()],
     'trace a lot forward, not another record' => ['forwardTrace', fn () => LotNumber::factory()->create(), fn () => Bom::factory()->create()],

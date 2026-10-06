@@ -122,7 +122,7 @@ it('never completes an order while any of its operations is in progress', functi
 
     expect(fn () => resolve(ProductionOrderService::class)->complete($order, 4.0))->toThrow(DomainException::class);
 
-    expect($order->fresh()->status)->toBe(ProductionOrderStatus::Released)
+    expect($order->fresh()->status)->toBe(ProductionOrderStatus::InProgress)
         ->and($order->operations()->where('status', ProductionOrderOperationStatus::InProgress->value)->count())->toBe(1);
 })->with([
     'single operation' => [1, 0],

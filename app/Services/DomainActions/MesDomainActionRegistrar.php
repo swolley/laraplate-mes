@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Illuminate\Support\Carbon;
 use Modules\Core\Models\User;
 use Modules\Core\Services\Crud\DomainActionRegistry;
+use Modules\MES\Enums\DowntimeCause;
 use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
@@ -17,6 +18,7 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 use Modules\MES\Services\BomExplosionService;
 use Modules\MES\Services\DowntimeService;
 use Modules\MES\Services\LotTracingService;
@@ -57,12 +59,27 @@ final class MesDomainActionRegistrar
         $registry->register(NonConformance::class, 'resolve', static fn (Model $record, array $payload, User $user): Model => resolve(NonConformanceService::class)->resolve($record, NonConformanceDisposition::from((string) $payload['disposition'])));
         $registry->register(NonConformance::class, 'close', static fn (Model $record, array $payload, User $user): Model => resolve(NonConformanceService::class)->close($record));
 
+        $registry->register(WorkCenter::class, 'open_downtime', static fn (Model $record, array $payload, User $user): Model => resolve(DowntimeService::class)->open(
+            self::workCenter($record),
+            DowntimeCause::from((string) $payload['cause']),
+            isset($payload['production_order_operation_id']) ? (int) $payload['production_order_operation_id'] : null,
+            $payload['notes'] ?? null,
+        ));
         $registry->register(Downtime::class, 'close', static fn (Model $record, array $payload, User $user): Model => resolve(DowntimeService::class)->close($record));
 
         $registry->register(Bom::class, 'explode', static fn (Model $record, array $payload, User $user): array => resolve(BomExplosionService::class)->explode(self::intValue($record->getAttribute('item_id'), 'item_id'), (float) ($payload['quantity'] ?? 1), Carbon::now()));
 
         $registry->register(LotNumber::class, 'forward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->forwardTrace(self::intValue($record->getKey(), 'key')));
         $registry->register(LotNumber::class, 'backward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->backwardTrace(self::intValue($record->getKey(), 'key')));
+    }
+
+    private static function workCenter(Model $record): WorkCenter
+    {
+        if (! $record instanceof WorkCenter) {
+            throw new InvalidArgumentException('Expected a work center record.');
+        }
+
+        return $record;
     }
 
     /**

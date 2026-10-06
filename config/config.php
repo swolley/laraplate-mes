@@ -54,10 +54,18 @@ return [
     | - stock_shortage: sent when a consumption cannot be fully covered by
     |   available stock. Recipients are resolved by role; channels follow the
     |   Laravel notification channel names (database, mail, ...).
+    | - capacity_overload: sent when an operation starts on a work center whose
+    |   materialised load for the day exceeds its available minutes. Same shape.
     |
     */
     'notifications' => [
         'stock_shortage' => [
+            'channels' => ['database'],
+            'recipients' => [
+                'roles' => ['admin', 'superadmin'],
+            ],
+        ],
+        'capacity_overload' => [
             'channels' => ['database'],
             'recipients' => [
                 'roles' => ['admin', 'superadmin'],

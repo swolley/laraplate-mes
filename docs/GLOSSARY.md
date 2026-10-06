@@ -81,9 +81,9 @@ Canonical English names for MES entities in this module. Use these terms in code
 |------|---------|
 | **Downtime** | Recorded work-center stop with a `DowntimeCause` (`breakdown`, `setup`, `changeover`, `material_shortage`, `quality`, `planned_maintenance`, `other`), opened and closed by `DowntimeService`, duration computed on close. An open downtime marks the work center down. |
 | **Unplanned downtime** | Every downtime except `planned_maintenance`; it lowers OEE availability and the capacity available minutes. |
-| **OEE** | Overall Equipment Effectiveness = Availability × Performance × Quality for a work center over a window, each factor and the result clamped to [0, 1] (`OeeCalculatorService`). Computed on request; not materialised and not shown in the panel yet. |
+| **OEE** | Overall Equipment Effectiveness = Availability × Performance × Quality for a work center over a window, each factor and the result clamped to [0, 1] (`OeeCalculatorService`). Materialised per work center and day by `mes:kpis:materialize` and shown in the work-center list; availability counts only the part of each unplanned downtime inside the window. |
 | **Capacity load** | `CapacityService::getCapacityLoad()`: standard minutes (setup + cycle × planned quantity) of the operations planned on a work center within a window. |
-| **Available minutes** | `CapacityService::availableMinutes()`: 480 default minutes per calendar day of the window, less the unplanned downtime overlapping it; never negative. `checkOverload()` compares the load against it. |
+| **Available minutes** | `CapacityService::availableMinutes()`: 480 default minutes per calendar day of the window, less every downtime overlapping it, planned maintenance included; never negative. `checkOverload()` compares the load against it. |
 | **Schedule** | `CapacityService::getSchedule()`: operations of a company's orders planned within a window, by work center and sequence. There is no stored schedule entity. |
 | **Shift** | Named daily time window of a company (start/end time). |
 | **ShiftInstance** | A shift on a given date for a work center (`starts_at`/`ends_at`); a missing one only raises a non-blocking warning. |

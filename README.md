@@ -94,13 +94,13 @@ single warehouse the module picks it automatically.
 The manufacturing domain is implemented and covered by the module test suite:
 
 -   Work centers with a weekly calendar, BOMs and routings with validity windows and DIFF versioning (lines and operations included)
--   Production orders numbered by ERP `DocumentNumberAllocator`, with immutable BOM/routing snapshots, release/complete/cancel; an order cannot complete while an operation is in progress
+-   Production orders numbered by ERP `DocumentNumberAllocator`, with immutable BOM/routing snapshots, release/complete/cancel. Starting the first operation moves a released order to `in_progress`; cancelling an order that has not completed ends its running and pending operations as skipped; an order cannot complete while an operation is in progress. Every transition emits a typed event (`ProductionOrderReleased/Started/Completed/Cancelled`, `OperationStarted/Completed/Skipped`, `DowntimeOpened/Closed`)
 -   Automatic draft orders from confirmed ERP sales orders (`SalesOrderConfirmed` listener)
 -   Operation execution (start/complete/skip) with efficiency, operator logs and non-blocking shift warnings
 -   Backflush and manual material consumption through the `StockMovementRecorder` contract, with partial consumption and a shortage notification when stock is short
 -   Lot and serial generation with forward/backward lot genealogy
 -   Quality plans, automatic quality checks, non-conformances with dispositions (rework spawns a linked order)
--   Downtime, OEE (A x P x Q, clamped to [0, 1]) and work-center capacity load, schedule and overload check (available minutes net of unplanned downtime)
+-   Downtime, OEE (A x P x Q, clamped to [0, 1]) and work-center capacity load, schedule and overload check (available minutes net of every downtime, planned maintenance included). A downtime is opened through the `open_downtime` action on its work center (one open downtime per work center). OEE and capacity are materialised per work center and day by `mes:kpis:materialize` (hourly, queued) into the cache and shown as an OEE column in the work-center list; starting an operation on a work center materialised as overloaded emits `CapacityOverloadDetected`, notified through `mes.notifications.capacity_overload`
 -   No custom routes: entities go through Core's generic CRUD, domain verbs through the domain-action registry (`MesDomainActionRegistrar`, `MesModelPolicy`, permissions seeded by `MESDatabaseSeeder`)
 -   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
 
@@ -110,12 +110,9 @@ Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_G
 
 Open items awaiting a decision (tracked in `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md`):
 
--   Typed domain events for production order and operation transitions
--   The production order state machine (`in_progress`, cancellation effects) and its transitions in the backoffice
--   Capacity: calendar-based available minutes, completion estimate, capacity warning on operation start
+-   Backoffice transitions (release, complete, cancel) on production orders
+-   Capacity: calendar-based available minutes, completion estimate
 -   Finished-goods stock-in and valuation on order completion
--   Opening a downtime as a domain action rather than a generic insert
--   Materialised KPIs (OEE, capacity) by job and cache, and where they are shown
 
 ## Scripts
 

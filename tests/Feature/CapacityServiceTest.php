@@ -122,7 +122,7 @@ it('subtracts the unplanned downtime overlapping the window from the available m
         'ended_at' => $from->copy()->addMinutes(30),
         'duration_minutes' => 120,
     ]);
-    // Planned maintenance is left out, as in OEE availability.
+    // Planned maintenance takes the work center out of service, so it reduces capacity (OEE availability does not count it as a loss).
     Downtime::factory()->create([
         'company_id' => $company->id,
         'work_center_id' => $work_center->id,
@@ -134,7 +134,7 @@ it('subtracts the unplanned downtime overlapping the window from the available m
     // Another work center does not count.
     Downtime::factory()->closed(200)->create(['company_id' => $company->id, 'cause' => DowntimeCause::Breakdown->value]);
 
-    expect(resolve(CapacityService::class)->availableMinutes($work_center->id, $from, $to))->toBe(480.0 - 90.0);
+    expect(resolve(CapacityService::class)->availableMinutes($work_center->id, $from, $to))->toBe(480.0 - 90.0 - 120.0);
 });
 
 it('never reports negative available minutes', function (): void {

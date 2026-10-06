@@ -14,6 +14,9 @@ use Modules\ERP\Models\Company;
 use Modules\ERP\Services\Accounting\DocumentNumberAllocator;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\ProductionOrderStatus;
+use Modules\MES\Events\ProductionOrderCancelled;
+use Modules\MES\Events\ProductionOrderCompleted;
+use Modules\MES\Events\ProductionOrderReleased;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\Routing;
@@ -91,12 +94,16 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be released from status {$order->status->value}."),
         );
 
-        return $order->getConnection()->transaction(function () use ($order): ProductionOrder {
+        $released = $order->getConnection()->transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Released->value]);
             $this->operationService->generateForOrder($order);
 
             return $order->refresh();
         });
+
+        ProductionOrderReleased::dispatch($released->company_id, $released->id);
+
+        return $released;
     }
 
     /**
@@ -119,7 +126,7 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be completed with an operation still in progress."),
         );
 
-        return $order->getConnection()->transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {
+        $completed = $order->getConnection()->transaction(function () use ($order, $quantity_produced, $lot_code): ProductionOrder {
             $order->update([
                 'quantity_produced' => $quantity_produced,
                 'status' => ProductionOrderStatus::Completed->value,
@@ -134,10 +141,15 @@ final class ProductionOrderService
 
             return $order->refresh();
         });
+
+        ProductionOrderCompleted::dispatch($completed->company_id, $completed->id, $quantity_produced);
+
+        return $completed;
     }
 
     /**
-     * Cancel a draft or released order.
+     * Cancel an order that has not completed. Its operations that did not
+     * complete (running or pending) are ended as skipped.
      *
      * @throws DomainException when the order can no longer be cancelled.
      */
@@ -148,11 +160,18 @@ final class ProductionOrderService
             new DomainException("Production order {$order->id} cannot be cancelled from status {$order->status->value}."),
         );
 
-        return $order->getConnection()->transaction(function () use ($order): ProductionOrder {
+        $cancelled = $order->getConnection()->transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Cancelled->value]);
+            $order->operations()
+                ->whereIn('status', [ProductionOrderOperationStatus::Planned->value, ProductionOrderOperationStatus::InProgress->value])
+                ->update(['status' => ProductionOrderOperationStatus::Skipped->value]);
 
             return $order->refresh();
         });
+
+        ProductionOrderCancelled::dispatch($cancelled->company_id, $cancelled->id);
+
+        return $cancelled;
     }
 
     /**

@@ -17,6 +17,8 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
+use Modules\MES\Services\DowntimeService;
 
 /**
  * Authorizes MES domain actions on the internal `/app` surface.
@@ -85,6 +87,11 @@ final class MesModelPolicy
 
             return $record instanceof Downtime && $record->ended_at === null;
         });
+    }
+
+    public function openDowntime(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'open_downtime', static fn (Model $record): bool => $record instanceof WorkCenter && ! resolve(DowntimeService::class)->isWorkCenterDown($record->id));
     }
 
     public function explode(User $user, Model $record): bool

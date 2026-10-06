@@ -155,5 +155,5 @@ it('refuses to complete an order while one of its operations is in progress', fu
     expect(fn () => $service->complete($order, 5.0))
         ->toThrow(DomainException::class, 'operation still in progress');
 
-    expect($order->fresh()->status)->toBe(ProductionOrderStatus::Released);
+    expect($order->fresh()->status)->toBe(ProductionOrderStatus::InProgress);
 });

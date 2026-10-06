@@ -10,6 +10,7 @@ use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 use Modules\MES\Services\DomainActions\MesDomainActionRegistrar;
 
 it('registers every MES domain action without collision', function (): void {
@@ -30,6 +31,7 @@ it('registers every MES domain action without collision', function (): void {
         [QualityCheck::class, 'execute'],
         [NonConformance::class, 'resolve'],
         [NonConformance::class, 'close'],
+        [WorkCenter::class, 'open_downtime'],
         [Downtime::class, 'close'],
         [Bom::class, 'explode'],
         [LotNumber::class, 'forward_trace'],
