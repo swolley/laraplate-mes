@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\MES\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\Core\Exceptions\ConfigurationException;
 use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
@@ -91,6 +94,10 @@ final class MESServiceProvider extends ModuleServiceProvider
         foreach ($this->policyModels() as $model) {
             Gate::policy($model, MesModelPolicy::class);
         }
+
+        // The throttle runs before the source is authenticated, so it counts by the token, which belongs to one source.
+        RateLimiter::for('mes-machine-ingest', static fn (Request $request): Limit => Limit::perMinute(config()->integer('mes.machine.rate_limit_per_minute'))
+            ->by(sha1((string) $request->bearerToken())));
 
         resolve(MesDomainActionRegistrar::class)->register(resolve(DomainActionRegistry::class));
 
