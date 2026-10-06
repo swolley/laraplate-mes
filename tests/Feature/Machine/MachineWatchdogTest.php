@@ -151,3 +151,46 @@ it('notifies a source and incident type at most once in five minutes', function 
 
     Notification::assertSentToTimes($user, MachineIncidentNotification::class, 1);
 });
+
+it('opens one bridge_down incident per active mqtt source when the heartbeat is stale, and not again', function (): void {
+    Illuminate\Support\Facades\Cache::put(Modules\MES\Machine\Mqtt\MachineBridge::HEARTBEAT_KEY, now()->subSeconds(120)->getTimestamp(), 600);
+    $a = MachineSource::factory()->mqtt()->create();
+    $b = MachineSource::factory()->mqtt()->create();
+    MachineSource::factory()->create();
+    MachineSource::factory()->mqtt()->inactive()->create();
+    $watchdog = resolve(MachineWatchdog::class);
+
+    expect($watchdog->sweep())->toBe(2)
+        ->and($watchdog->sweep())->toBe(0);
+
+    $incidents = MachineIncident::query()->where('type', MachineIncidentType::BridgeDown->value)->get();
+    expect($incidents->pluck('source_id')->sort()->values()->all())->toBe([$a->id, $b->id])
+        ->and($incidents->first()->detail)->toBe(['heartbeat_age_seconds' => 120]);
+});
+
+it('opens bridge_down when there is no heartbeat at all', function (): void {
+    MachineSource::factory()->mqtt()->create();
+
+    resolve(MachineWatchdog::class)->sweep();
+
+    expect(MachineIncident::query()->where('type', MachineIncidentType::BridgeDown->value)->sole()->detail)->toBe(['heartbeat_age_seconds' => null]);
+});
+
+it('resolves bridge_down when the heartbeat is fresh again', function (): void {
+    $source = MachineSource::factory()->mqtt()->create();
+    $watchdog = resolve(MachineWatchdog::class);
+    $watchdog->sweep();
+
+    Illuminate\Support\Facades\Cache::put(Modules\MES\Machine\Mqtt\MachineBridge::HEARTBEAT_KEY, now()->subSeconds(5)->getTimestamp(), 600);
+    $watchdog->sweep();
+
+    expect(MachineIncident::query()->where('source_id', $source->id)->where('type', MachineIncidentType::BridgeDown->value)->sole()->resolved_at)->not->toBeNull();
+});
+
+it('records nothing about the bridge while no mqtt source is active', function (): void {
+    MachineSource::factory()->create();
+
+    resolve(MachineWatchdog::class)->sweep();
+
+    expect(MachineIncident::query()->where('type', MachineIncidentType::BridgeDown->value)->count())->toBe(0);
+});

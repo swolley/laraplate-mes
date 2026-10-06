@@ -6,22 +6,27 @@ namespace Modules\MES\Machine;
 
 use Carbon\CarbonImmutable;
 use Modules\MES\Enums\MachineIncidentType;
+use Illuminate\Support\Facades\Cache;
 use Modules\MES\Enums\MachineMessageStatus;
+use Modules\MES\Enums\MachineTransport;
 use Modules\MES\Jobs\ProcessMachineMessageJob;
+use Modules\MES\Machine\Mqtt\MachineBridge;
 use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineIncident;
 use Modules\MES\Models\MachineMessage;
 use Modules\MES\Models\MachineSource;
 
 /**
- * Notices devices that stopped sending. A device silent for longer than its source's
- * `heartbeat_timeout_seconds` opens one `device_silent` incident, which closes when the device is
- * heard again. It also queues again the messages left pending. The synthetic `Offline` state interval belongs to the state step, and a stopped bridge
- * to the MQTT step.
+ * Notices what stopped sending. A device silent for longer than its source's `heartbeat_timeout_seconds`
+ * opens one `device_silent` incident, which closes when it is heard again; a stopped MQTT bridge opens
+ * `bridge_down` (see {@see self::checkBridge()}). It also queues again the messages left pending. The
+ * synthetic `Offline` state interval belongs to the state step.
  */
 final class MachineWatchdog
 {
     private const int STALE_PENDING_MINUTES = 5;
+
+    private const int BRIDGE_STALE_SECONDS = 60;
 
     public function __construct(
         private readonly MachineIncidentRecorder $incidents,
@@ -71,6 +76,46 @@ final class MachineWatchdog
         }
 
         $this->requeueStalePending($now);
+
+        return $opened + $this->checkBridge($now);
+    }
+
+    /**
+     * The bridge writes a heartbeat every few seconds. A heartbeat older than a minute, or none, means
+     * the bridge is down: one `bridge_down` incident per active mqtt source (incidents belong to a
+     * source), closed when the heartbeat is fresh again. Nothing while no mqtt source is active.
+     *
+     * @return int how many incidents were opened
+     */
+    private function checkBridge(CarbonImmutable $now): int
+    {
+        $sources = MachineSource::query()->where('transport', MachineTransport::Mqtt->value)->where('is_active', true)->get();
+
+        if ($sources->isEmpty()) {
+            return 0;
+        }
+
+        $heartbeat = Cache::get(MachineBridge::HEARTBEAT_KEY);
+        $age = is_numeric($heartbeat) ? max(0, $now->getTimestamp() - (int) $heartbeat) : null;
+        $is_down = $age === null || $age > self::BRIDGE_STALE_SECONDS;
+        $open = MachineIncident::query()
+            ->withoutGlobalScopes()
+            ->unresolved()
+            ->where('type', MachineIncidentType::BridgeDown->value)
+            ->pluck('source_id')
+            ->all();
+        $opened = 0;
+
+        foreach ($sources as $source) {
+            $has_incident = in_array($source->id, $open, true);
+
+            if ($is_down && ! $has_incident) {
+                $this->incidents->record($source, MachineIncidentType::BridgeDown, ['heartbeat_age_seconds' => $age], null, $now);
+                $opened++;
+            } elseif (! $is_down && $has_incident) {
+                $this->incidents->resolve($source, MachineIncidentType::BridgeDown);
+            }
+        }
 
         return $opened;
     }
