@@ -81,6 +81,8 @@ final class MachineSource extends Model
     public function getRules(): array
     {
         $rules = parent::getRules();
+        // Only a canonical source has a topic to derive; any other normaliser needs its topic given.
+        $topic_required = Rule::requiredIf(fn (): bool => $this->transport === MachineTransport::Mqtt && $this->normalizer !== 'canonical');
         $unique = $this->company_id === null ? [] : [
             Rule::unique(MESTables::MachineSources->value, 'code')->where('company_id', $this->company_id)->ignore($this->getKey()),
         ];
@@ -91,7 +93,7 @@ final class MachineSource extends Model
             'name' => ['required', 'string', 'max:255'],
             'normalizer' => ['sometimes', 'string', 'max:64'],
             'transport' => ['sometimes', 'string', MachineTransport::validationRule()],
-            'mqtt_topic' => ['nullable', 'string', 'max:255'],
+            'mqtt_topic' => [$topic_required, 'nullable', 'string', 'max:255'],
             'normalizer_options' => ['nullable', 'array'],
             'heartbeat_timeout_seconds' => ['sometimes', 'integer', 'min:1'],
             'is_active' => ['sometimes', 'boolean'],
@@ -102,13 +104,28 @@ final class MachineSource extends Model
             'name' => ['sometimes', 'string', 'max:255'],
             'normalizer' => ['sometimes', 'string', 'max:64'],
             'transport' => ['sometimes', 'string', MachineTransport::validationRule()],
-            'mqtt_topic' => ['nullable', 'string', 'max:255'],
+            'mqtt_topic' => [$topic_required, 'nullable', 'string', 'max:255'],
             'normalizer_options' => ['nullable', 'array'],
             'heartbeat_timeout_seconds' => ['sometimes', 'integer', 'min:1'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
         return $rules;
+    }
+
+    /**
+     * The topic this source's messages arrive on: the configured one, or for a canonical source
+     * `{topic_prefix}/laraplate-machine/1/{code}`. Empty when there is none to derive.
+     */
+    public function effectiveMqttTopic(): string
+    {
+        if (is_string($this->mqtt_topic) && $this->mqtt_topic !== '') {
+            return $this->mqtt_topic;
+        }
+
+        return $this->normalizer === 'canonical'
+            ? config()->string('mes.machine.mqtt.topic_prefix') . '/laraplate-machine/1/' . $this->code
+            : '';
     }
 
     /**
