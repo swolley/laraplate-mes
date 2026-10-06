@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Modules\ERP\Support\Decimal;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Data\StockMovementData;
@@ -17,6 +18,7 @@ use Modules\MES\Enums\MESTables;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Models\MaterialConsumption;
 use Modules\MES\Models\ProductionOrderOperation;
+use Modules\MES\Services\ComponentReservationService;
 
 /**
  * Backflushes the components tied to a completed operation.
@@ -53,6 +55,7 @@ final class BackflushMaterialsJob implements ShouldQueue
         $last_sequence = (int) ProductionOrderOperation::query()
             ->where('production_order_id', $order->id)
             ->max('sequence');
+        $reservations = app(ComponentReservationService::class);
 
         foreach ($order->bom_snapshot['lines'] ?? [] as $line) {
             if (($line['consumption_method'] ?? null) !== ConsumptionMethod::Backflush->value) {
@@ -67,7 +70,7 @@ final class BackflushMaterialsJob implements ShouldQueue
                 continue;
             }
 
-            $this->consume($recorder, $reader, $order, $operation, $line, $basis);
+            $this->consume($recorder, $reader, $reservations, $order, $operation, $line, $basis);
         }
     }
 
@@ -99,6 +102,7 @@ final class BackflushMaterialsJob implements ShouldQueue
     private function consume(
         StockMovementRecorder $recorder,
         StockReader $reader,
+        ComponentReservationService $reservations,
         \Modules\MES\Models\ProductionOrder $order,
         ProductionOrderOperation $operation,
         array $line,
@@ -125,6 +129,12 @@ final class BackflushMaterialsJob implements ShouldQueue
         ]);
 
         $this->recordConsumedStock($recorder, $order, $item_id, $consumed);
+
+        $line_id = $line['bom_line_id'] ?? null;
+
+        if ($line_id !== null) {
+            $reservations->consumeForLine($order, (int) $line_id, Decimal::format((string) $consumed));
+        }
 
         if ($short) {
             event(new MaterialShortageDetected(
