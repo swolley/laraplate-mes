@@ -1,0 +1,7 @@
+{
+  "samples_path": "points",
+  "device": "d",
+  "signal": "s",
+  "timestamp": "t",
+  "value": "v"
+}

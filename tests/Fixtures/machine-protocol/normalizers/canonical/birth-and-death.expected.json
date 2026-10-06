@@ -1,0 +1,28 @@
+{
+  "samples": [],
+  "notices": [
+    {
+      "device": "press-07",
+      "type": "birth",
+      "ts": "2026-10-05T08:15:02.120Z",
+      "signals": [
+        {
+          "signal": "state",
+          "data_type": "string",
+          "unit": null
+        },
+        {
+          "signal": "temp",
+          "data_type": "number",
+          "unit": "C"
+        }
+      ]
+    },
+    {
+      "device": "press-08",
+      "type": "death",
+      "ts": "2026-10-05T08:15:02.120Z",
+      "signals": []
+    }
+  ]
+}

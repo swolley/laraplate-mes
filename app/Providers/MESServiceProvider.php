@@ -19,6 +19,9 @@ use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
 use Modules\MES\Listeners\NotifyCapacityOverload;
 use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Console\MaterializeKpisCommand;
+use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
+use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
+use Modules\MES\Machine\Normalizers\NormalizerRegistry;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
@@ -60,6 +63,14 @@ final class MESServiceProvider extends ModuleServiceProvider
             StockMovementRecorder::class,
             ErpStockMovementRecorder::class,
         );
+
+        $this->app->singleton(NormalizerRegistry::class, static function (): NormalizerRegistry {
+            $registry = new NormalizerRegistry();
+            $registry->register(new CanonicalNormalizer());
+            $registry->register(new MappedJsonNormalizer());
+
+            return $registry;
+        });
 
         $this->app->singleton(
             ProductionCostReader::class,

@@ -1,0 +1,13 @@
+{
+  "samples": [
+    {
+      "device": "p1",
+      "signal": "b",
+      "ts": "2026-10-05T08:00:01.000Z",
+      "value": "RUN",
+      "quality": "good",
+      "context": {}
+    }
+  ],
+  "notices": []
+}

@@ -1,0 +1,21 @@
+{
+  "samples": [
+    {
+      "device": "p1",
+      "signal": "a",
+      "ts": "2026-10-05T08:00:00.000Z",
+      "value": 1,
+      "quality": "good",
+      "context": {}
+    },
+    {
+      "device": "p1",
+      "signal": "b",
+      "ts": "2026-10-05T08:00:01.000Z",
+      "value": 2,
+      "quality": "bad",
+      "context": {}
+    }
+  ],
+  "notices": []
+}

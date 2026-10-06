@@ -1,0 +1,7 @@
+{
+  "device": "machine",
+  "signal": "tag",
+  "timestamp": "time",
+  "value": "val",
+  "timestamp_format": "unix_ms"
+}

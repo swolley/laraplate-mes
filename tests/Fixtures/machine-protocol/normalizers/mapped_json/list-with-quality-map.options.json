@@ -1,0 +1,12 @@
+{
+  "samples_path": "data.points",
+  "device": "d",
+  "signal": "s",
+  "timestamp": "t",
+  "value": "v",
+  "quality": "q",
+  "quality_map": {
+    "192": "good",
+    "0": "bad"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "samples": [
+    {
+      "device": "press-07",
+      "signal": "temp",
+      "ts": "2026-09-21T14:13:20.123Z",
+      "value": 21.5,
+      "quality": "good",
+      "context": {}
+    }
+  ],
+  "notices": []
+}

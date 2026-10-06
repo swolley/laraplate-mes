@@ -1,0 +1,32 @@
+{
+  "samples": [
+    {
+      "device": "press-07",
+      "signal": "state",
+      "ts": "2026-10-05T08:15:01.900Z",
+      "value": "EXECUTE",
+      "quality": "good",
+      "context": {}
+    },
+    {
+      "device": "press-07",
+      "signal": "good_count",
+      "ts": "2026-10-05T08:15:01.950Z",
+      "value": 15230,
+      "quality": "good",
+      "context": {}
+    },
+    {
+      "device": "press-07",
+      "signal": "bore_d",
+      "ts": "2026-10-05T08:15:02.010Z",
+      "value": 12.004,
+      "quality": "good",
+      "context": {
+        "serial": "SN123",
+        "order_ref": "PO-2026-0042"
+      }
+    }
+  ],
+  "notices": []
+}
