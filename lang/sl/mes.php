@@ -1,0 +1,82 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'actions' => [
+        'cancel' => 'Storniraj',
+        'complete' => 'Zaključi',
+        'completeOperation' => 'Zaključi operacijo',
+        'completeOrder' => 'Zaključi delovni nalog',
+        'release' => 'Sprosti',
+        'skip' => 'Preskoči',
+        'start' => 'Začni',
+    ],
+    'entities' => [
+        'operation' => 'Operacija',
+        'operations' => 'Operacije',
+        'productionOrder' => 'Delovni nalog',
+        'productionOrders' => 'Delovni nalogi',
+        'workCenter' => 'Delovno mesto',
+        'workCenters' => 'Delovna mesta',
+    ],
+    'fields' => [
+        'actualMinutes' => 'Dejanske minute',
+        'actualStartAt' => 'Dejanski začetek',
+        'capacityPerHour' => 'Zmogljivost/h',
+        'cycleTimeMinutes' => 'Cikel (min)',
+        'description' => 'Opis',
+        'efficiency' => 'Učinkovitost',
+        'isActive' => 'Aktivno',
+        'item' => 'Artikel',
+        'lotCode' => 'Koda lota',
+        'number' => 'Številka',
+        'plannedStartAt' => 'Načrtovani začetek',
+        'productionOrder' => 'Nalog',
+        'quantityPlanned' => 'Načrtovana količina',
+        'quantityProduced' => 'Proizvedena količina',
+        'sequence' => 'Zaporedje',
+        'setupTimeMinutes' => 'Priprava (min)',
+        'status' => 'Stanje',
+        'type' => 'Vrsta',
+        'workCenter' => 'Delovno mesto',
+    ],
+    'messages' => [
+        'actionNotAllowed' => 'Dejanje ni dovoljeno.',
+        'confirmCancelOrder' => 'Želite stornirati ta delovni nalog?',
+        'confirmSkipOperation' => 'Želite preskočiti to operacijo?',
+        'operationCompleteFailed' => 'Operacije ni bilo mogoče zaključiti.',
+        'operationSkipped' => 'Operacija preskočena.',
+        'operationStarted' => 'Operacija začeta.',
+        'operationTransitionNotAllowed' => 'Prehod za to operacijo ni dovoljen.',
+        'orderCancelled' => 'Nalog storniran.',
+        'orderCompleteFailed' => 'Naloga ni bilo mogoče zaključiti.',
+        'orderReleased' => 'Nalog sproščen.',
+        'orderTransitionNotAllowed' => 'Prehod za ta nalog ni dovoljen.',
+        'quantityMustBePositive' => 'Vnesite količino, večjo od nič.',
+    ],
+    'status' => [
+        'operation' => [
+            'completed' => 'Zaključena',
+            'in_progress' => 'V teku',
+            'planned' => 'Načrtovana',
+            'ready' => 'Pripravljena',
+            'skipped' => 'Preskočena',
+        ],
+        'order' => [
+            'cancelled' => 'Storniran',
+            'completed' => 'Zaključen',
+            'draft' => 'Osnutek',
+            'in_progress' => 'V teku',
+            'released' => 'Sproščen',
+        ],
+    ],
+    'types' => [
+        'workCenter' => [
+            'cell' => 'Celica',
+            'line' => 'Linija',
+            'machine' => 'Stroj',
+            'manual_station' => 'Ročno delovno mesto',
+        ],
+    ],
+];

@@ -1,0 +1,82 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'actions' => [
+        'cancel' => 'Stornieren',
+        'complete' => 'Abschließen',
+        'completeOperation' => 'Arbeitsgang abschließen',
+        'completeOrder' => 'Fertigungsauftrag abschließen',
+        'release' => 'Freigeben',
+        'skip' => 'Überspringen',
+        'start' => 'Starten',
+    ],
+    'entities' => [
+        'operation' => 'Arbeitsgang',
+        'operations' => 'Arbeitsgänge',
+        'productionOrder' => 'Fertigungsauftrag',
+        'productionOrders' => 'Fertigungsaufträge',
+        'workCenter' => 'Arbeitsplatz',
+        'workCenters' => 'Arbeitsplätze',
+    ],
+    'fields' => [
+        'actualMinutes' => 'Ist-Minuten',
+        'actualStartAt' => 'Ist-Start',
+        'capacityPerHour' => 'Kapazität/h',
+        'cycleTimeMinutes' => 'Zykluszeit (min)',
+        'description' => 'Beschreibung',
+        'efficiency' => 'Effizienz',
+        'isActive' => 'Aktiv',
+        'item' => 'Artikel',
+        'lotCode' => 'Chargencode',
+        'number' => 'Nummer',
+        'plannedStartAt' => 'Geplanter Start',
+        'productionOrder' => 'Auftrag',
+        'quantityPlanned' => 'Geplante Menge',
+        'quantityProduced' => 'Produzierte Menge',
+        'sequence' => 'Reihenfolge',
+        'setupTimeMinutes' => 'Rüstzeit (min)',
+        'status' => 'Status',
+        'type' => 'Typ',
+        'workCenter' => 'Arbeitsplatz',
+    ],
+    'messages' => [
+        'actionNotAllowed' => 'Aktion nicht erlaubt.',
+        'confirmCancelOrder' => 'Diesen Fertigungsauftrag stornieren?',
+        'confirmSkipOperation' => 'Diesen Arbeitsgang überspringen?',
+        'operationCompleteFailed' => 'Der Arbeitsgang konnte nicht abgeschlossen werden.',
+        'operationSkipped' => 'Arbeitsgang übersprungen.',
+        'operationStarted' => 'Arbeitsgang gestartet.',
+        'operationTransitionNotAllowed' => 'Statuswechsel für diesen Arbeitsgang nicht erlaubt.',
+        'orderCancelled' => 'Auftrag storniert.',
+        'orderCompleteFailed' => 'Der Auftrag konnte nicht abgeschlossen werden.',
+        'orderReleased' => 'Auftrag freigegeben.',
+        'orderTransitionNotAllowed' => 'Statuswechsel für diesen Auftrag nicht erlaubt.',
+        'quantityMustBePositive' => 'Geben Sie eine Menge größer als null ein.',
+    ],
+    'status' => [
+        'operation' => [
+            'completed' => 'Abgeschlossen',
+            'in_progress' => 'In Bearbeitung',
+            'planned' => 'Geplant',
+            'ready' => 'Bereit',
+            'skipped' => 'Übersprungen',
+        ],
+        'order' => [
+            'cancelled' => 'Storniert',
+            'completed' => 'Abgeschlossen',
+            'draft' => 'Entwurf',
+            'in_progress' => 'In Bearbeitung',
+            'released' => 'Freigegeben',
+        ],
+    ],
+    'types' => [
+        'workCenter' => [
+            'cell' => 'Zelle',
+            'line' => 'Linie',
+            'machine' => 'Maschine',
+            'manual_station' => 'Handarbeitsplatz',
+        ],
+    ],
+];

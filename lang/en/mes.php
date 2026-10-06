@@ -1,0 +1,82 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'actions' => [
+        'cancel' => 'Cancel',
+        'complete' => 'Complete',
+        'completeOperation' => 'Complete operation',
+        'completeOrder' => 'Complete production order',
+        'release' => 'Release',
+        'skip' => 'Skip',
+        'start' => 'Start',
+    ],
+    'entities' => [
+        'operation' => 'Operation',
+        'operations' => 'Operations',
+        'productionOrder' => 'Production order',
+        'productionOrders' => 'Production orders',
+        'workCenter' => 'Work center',
+        'workCenters' => 'Work centers',
+    ],
+    'fields' => [
+        'actualMinutes' => 'Actual minutes',
+        'actualStartAt' => 'Actual start',
+        'capacityPerHour' => 'Capacity/h',
+        'cycleTimeMinutes' => 'Cycle (min)',
+        'description' => 'Description',
+        'efficiency' => 'Efficiency',
+        'isActive' => 'Active',
+        'item' => 'Item',
+        'lotCode' => 'Lot code',
+        'number' => 'Number',
+        'plannedStartAt' => 'Planned start',
+        'productionOrder' => 'Order',
+        'quantityPlanned' => 'Planned quantity',
+        'quantityProduced' => 'Produced quantity',
+        'sequence' => 'Sequence',
+        'setupTimeMinutes' => 'Setup (min)',
+        'status' => 'Status',
+        'type' => 'Type',
+        'workCenter' => 'Work center',
+    ],
+    'messages' => [
+        'actionNotAllowed' => 'Action not allowed.',
+        'confirmCancelOrder' => 'Cancel this production order?',
+        'confirmSkipOperation' => 'Skip this operation?',
+        'operationCompleteFailed' => 'Could not complete the operation.',
+        'operationSkipped' => 'Operation skipped.',
+        'operationStarted' => 'Operation started.',
+        'operationTransitionNotAllowed' => 'Transition not allowed for this operation.',
+        'orderCancelled' => 'Order cancelled.',
+        'orderCompleteFailed' => 'Could not complete the order.',
+        'orderReleased' => 'Order released.',
+        'orderTransitionNotAllowed' => 'Transition not allowed for this order.',
+        'quantityMustBePositive' => 'Enter a quantity greater than zero.',
+    ],
+    'status' => [
+        'operation' => [
+            'completed' => 'Completed',
+            'in_progress' => 'In progress',
+            'planned' => 'Planned',
+            'ready' => 'Ready',
+            'skipped' => 'Skipped',
+        ],
+        'order' => [
+            'cancelled' => 'Cancelled',
+            'completed' => 'Completed',
+            'draft' => 'Draft',
+            'in_progress' => 'In progress',
+            'released' => 'Released',
+        ],
+    ],
+    'types' => [
+        'workCenter' => [
+            'cell' => 'Cell',
+            'line' => 'Line',
+            'machine' => 'Machine',
+            'manual_station' => 'Manual station',
+        ],
+    ],
+];

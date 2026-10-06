@@ -1,0 +1,82 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'actions' => [
+        'cancel' => 'Anular',
+        'complete' => 'Completar',
+        'completeOperation' => 'Completar operación',
+        'completeOrder' => 'Completar orden de producción',
+        'release' => 'Liberar',
+        'skip' => 'Omitir',
+        'start' => 'Iniciar',
+    ],
+    'entities' => [
+        'operation' => 'Operación',
+        'operations' => 'Operaciones',
+        'productionOrder' => 'Orden de producción',
+        'productionOrders' => 'Órdenes de producción',
+        'workCenter' => 'Puesto de trabajo',
+        'workCenters' => 'Puestos de trabajo',
+    ],
+    'fields' => [
+        'actualMinutes' => 'Minutos reales',
+        'actualStartAt' => 'Inicio real',
+        'capacityPerHour' => 'Capacidad/h',
+        'cycleTimeMinutes' => 'Ciclo (min)',
+        'description' => 'Descripción',
+        'efficiency' => 'Eficiencia',
+        'isActive' => 'Activo',
+        'item' => 'Artículo',
+        'lotCode' => 'Código de lote',
+        'number' => 'Número',
+        'plannedStartAt' => 'Inicio previsto',
+        'productionOrder' => 'Orden',
+        'quantityPlanned' => 'Cantidad prevista',
+        'quantityProduced' => 'Cantidad producida',
+        'sequence' => 'Secuencia',
+        'setupTimeMinutes' => 'Preparación (min)',
+        'status' => 'Estado',
+        'type' => 'Tipo',
+        'workCenter' => 'Puesto de trabajo',
+    ],
+    'messages' => [
+        'actionNotAllowed' => 'Acción no permitida.',
+        'confirmCancelOrder' => '¿Anular esta orden de producción?',
+        'confirmSkipOperation' => '¿Omitir esta operación?',
+        'operationCompleteFailed' => 'No se pudo completar la operación.',
+        'operationSkipped' => 'Operación omitida.',
+        'operationStarted' => 'Operación iniciada.',
+        'operationTransitionNotAllowed' => 'Transición no permitida para esta operación.',
+        'orderCancelled' => 'Orden anulada.',
+        'orderCompleteFailed' => 'No se pudo completar la orden.',
+        'orderReleased' => 'Orden liberada.',
+        'orderTransitionNotAllowed' => 'Transición no permitida para esta orden.',
+        'quantityMustBePositive' => 'Introduce una cantidad mayor que cero.',
+    ],
+    'status' => [
+        'operation' => [
+            'completed' => 'Completada',
+            'in_progress' => 'En curso',
+            'planned' => 'Planificada',
+            'ready' => 'Lista',
+            'skipped' => 'Omitida',
+        ],
+        'order' => [
+            'cancelled' => 'Anulada',
+            'completed' => 'Completada',
+            'draft' => 'Borrador',
+            'in_progress' => 'En curso',
+            'released' => 'Liberada',
+        ],
+    ],
+    'types' => [
+        'workCenter' => [
+            'cell' => 'Célula',
+            'line' => 'Línea',
+            'machine' => 'Máquina',
+            'manual_station' => 'Puesto manual',
+        ],
+    ],
+];
