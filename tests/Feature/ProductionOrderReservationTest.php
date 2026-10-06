@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Modules\ERP\Enums\StockReservationState;
 use Modules\ERP\Models\StockReservation;
 use Modules\ERP\Services\Inventory\StockMovementService;
@@ -386,4 +387,102 @@ it('consumes only its own reservation at backflush when two orders share a BOM',
     // A's reservation is closed; B's is left intact (no oldest-first cross-eating).
     expect((float) lineReservedQuantity($line_a))->toBe(0.0)
         ->and((float) lineReservedQuantity($line_b))->toBe(10.0);
+});
+
+it('consumes the order own reserved stock at backflush without a false shortage', function (): void {
+    Event::fake([MaterialShortageDetected::class]);
+
+    // on_hand 20, requirement 2 * 10 = 20: the order reserves ALL of it at release.
+    // The reader then shows 0 available; the backflush must still consume its own 20.
+    $ctx = reservableOrder(on_hand: 20);
+    resolve(ProductionOrderService::class)->release($ctx['order']);
+
+    expect((float) lineReservedQuantity($ctx['line_id']))->toBe(20.0)
+        ->and(readerAvailable($ctx['component']->id, $ctx['warehouse']->id, $ctx['company']->id))->toBe(0.0);
+
+    $operation = backflushOperation($ctx['order']->refresh());
+
+    (new BackflushMaterialsJob($operation->id))->handle(
+        resolve(StockMovementRecorder::class),
+        resolve(StockReader::class),
+    );
+
+    $consumption = MaterialConsumption::query()->where('item_id', $ctx['component']->id)->first();
+
+    expect((float) $consumption->quantity_consumed)->toBe(20.0)
+        ->and($consumption->stock_shortage)->toBeFalse()
+        ->and((float) lineReservedQuantity($ctx['line_id']))->toBe(0.0);
+
+    Event::assertNotDispatched(MaterialShortageDetected::class);
+});
+
+it('releases leftover component holds when the order completes', function (): void {
+    $ctx = sharedBomItem(per_unit: 2.0, on_hand: 100);
+
+    $service = resolve(ProductionOrderService::class);
+    $order = orderFromSharedBom($ctx, 10.0);
+    $service->release($order);
+
+    $line = materialLineId($order);
+    expect((float) lineReservedQuantity($line))->toBe(20.0);
+
+    // Complete without backflushing: the 20 held would otherwise stay hard forever
+    // on an order that can no longer be cancelled.
+    $service->complete($order->refresh(), 10.0);
+
+    expect((float) lineReservedQuantity($line))->toBe(0.0)
+        ->and(readerAvailable($ctx['component']->id, $ctx['warehouse']->id, $ctx['company']->id))->toBe(100.0);
+});
+
+it('leaves the order released and logs when a component reservation fails', function (): void {
+    Log::spy();
+
+    $company = MesTestHelpers::makeCompany();
+    $component = MesTestHelpers::makeItem($company->id);
+    $stock_warehouse = MesTestHelpers::makeWarehouse($company->id);
+    $foreign_warehouse = MesTestHelpers::makeWarehouse(MesTestHelpers::makeCompany()->id);
+
+    app(StockMovementService::class)->recordInbound(
+        company_id: $company->id,
+        item_id: $component->id,
+        warehouse_id: $stock_warehouse->id,
+        quantity: 100,
+        unit_cost: 1,
+    );
+
+    // The order points at a warehouse that is not the company's: the stock exists
+    // (reserve is reached) but reserve() raises a ValidationException for the line.
+    $order = ProductionOrder::factory()->create([
+        'company_id' => $company->id,
+        'warehouse_id' => $foreign_warehouse->id,
+        'quantity_planned' => 10,
+        'quantity_produced' => null,
+        'status' => ProductionOrderStatus::Draft->value,
+        'bom_snapshot' => [
+            'id' => 1,
+            'version' => 'v1',
+            'lines' => [
+                [
+                    'bom_line_id' => 55,
+                    'material_line_id' => 8001,
+                    'item_id' => $component->id,
+                    'quantity' => 2.0,
+                    'uom' => 'pcs',
+                    'consumption_method' => ConsumptionMethod::Backflush->value,
+                    'routing_operation_id' => null,
+                ],
+            ],
+        ],
+        'routing_snapshot' => ['id' => null, 'version' => null, 'operations' => []],
+    ]);
+
+    $released = resolve(ProductionOrderService::class)->release($order);
+
+    expect($released->status)->toBe(ProductionOrderStatus::Released)
+        ->and(StockReservation::query()
+            ->where('source_type', RESERVATION_SOURCE)
+            ->where('source_id', 8001)
+            ->count())->toBe(0);
+
+    Log::shouldHaveReceived('warning');
 });

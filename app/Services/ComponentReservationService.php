@@ -6,7 +6,11 @@ namespace Modules\MES\Services;
 
 use function Modules\ERP\Helpers\with_company;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Modules\ERP\Enums\StockReservationState;
+use Modules\ERP\Exceptions\InsufficientStockException;
 use Modules\ERP\Services\Inventory\StockReservationService;
 use Modules\ERP\Support\Decimal;
 use Modules\MES\Models\ProductionOrder;
@@ -36,8 +40,10 @@ final readonly class ComponentReservationService
      * Best-effort hold of each BOM component at release: for every snapshot line
      * with an item, reserve `min(required, company available)` as a hard
      * reservation pinned to the order's warehouse. The quantity is pre-clamped to
-     * the current availability so {@see StockReservationService::reserve()} never
-     * throws and a short component never blocks the release.
+     * the current availability so {@see StockReservationService::reserve()} does
+     * not raise `InsufficientStockException`; a lost race or a lock timeout from
+     * the service is caught and logged per line so one component can never abort
+     * the release transition. A short component simply reserves what exists.
      */
     public function reserveForOrder(ProductionOrder $order): void
     {
@@ -61,15 +67,26 @@ final readonly class ComponentReservationService
                     continue;
                 }
 
-                $this->reservations->reserve(
-                    $company_id,
-                    (int) $item_id,
-                    $quantity,
-                    StockReservationState::Hard,
-                    self::SOURCE_TYPE,
-                    (int) $line_id,
-                    $warehouse_id,
-                );
+                try {
+                    $this->reservations->reserve(
+                        $company_id,
+                        (int) $item_id,
+                        $quantity,
+                        StockReservationState::Hard,
+                        self::SOURCE_TYPE,
+                        (int) $line_id,
+                        $warehouse_id,
+                    );
+                } catch (InsufficientStockException|LockTimeoutException|ValidationException $exception) {
+                    Log::warning('MES component reservation failed at release; the component is left unreserved.', [
+                        'company_id' => $company_id,
+                        'production_order_id' => (int) $order->id,
+                        'item_id' => (int) $item_id,
+                        'material_line_id' => (int) $line_id,
+                        'quantity' => $quantity,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
             }
         });
     }
@@ -91,6 +108,22 @@ final readonly class ComponentReservationService
                 $this->reservations->release(self::SOURCE_TYPE, (int) $line_id);
             }
         });
+    }
+
+    /**
+     * The quantity this order still holds as a hard reservation for the line.
+     * The backflush adds it back to {@see ErpStockReader}
+     * availability (which subtracts every warehouse-pinned hold, this order's
+     * included) so the order is never blocked from consuming the very stock it
+     * reserved for itself; the effective consumable stays `on hand − other
+     * orders' holds`.
+     */
+    public function reservedForLine(ProductionOrder $order, int $lineId): string
+    {
+        return (string) with_company(
+            (int) $order->company_id,
+            fn (): string => $this->reservations->reservedQuantity(self::SOURCE_TYPE, $lineId),
+        );
     }
 
     /**

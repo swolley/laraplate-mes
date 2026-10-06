@@ -110,8 +110,16 @@ final class BackflushMaterialsJob implements ShouldQueue
     ): void {
         $planned = (float) $line['quantity'] * $basis;
         $item_id = (int) $line['item_id'];
+        $line_id = $line['material_line_id'] ?? null;
+
+        // The reader subtracts every warehouse-pinned hold, this order's own
+        // included. Add this order's own hold for the line back, so the order can
+        // consume the stock it reserved for itself; the ceiling stays
+        // `on hand − other orders' holds`.
         $available = $reader->availableQuantity($item_id, (int) $order->warehouse_id, (int) $order->company_id);
-        $consumed = max(0.0, min($planned, $available));
+        $own_hold = $line_id === null ? 0.0 : (float) $reservations->reservedForLine($order, (int) $line_id);
+        $consumable = $available + $own_hold;
+        $consumed = max(0.0, min($planned, $consumable));
         $short = $consumed < $planned;
 
         MaterialConsumption::query()->create([
@@ -130,8 +138,6 @@ final class BackflushMaterialsJob implements ShouldQueue
 
         $this->recordConsumedStock($recorder, $order, $item_id, $consumed);
 
-        $line_id = $line['material_line_id'] ?? null;
-
         if ($line_id !== null) {
             $reservations->consumeForLine($order, (int) $line_id, Decimal::format((string) $consumed));
         }
@@ -144,7 +150,7 @@ final class BackflushMaterialsJob implements ShouldQueue
                 production_order_id: (int) $order->id,
                 production_order_operation_id: (int) $operation->id,
                 required_quantity: $planned,
-                available_quantity: $available,
+                available_quantity: $consumable,
                 is_backflush: true,
             ));
         }

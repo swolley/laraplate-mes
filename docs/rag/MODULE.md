@@ -139,14 +139,22 @@ through `ComponentReservationService`; ERP only sees the opaque source alias
   `hard` reservation of `min(requirement, company-wide available)` pinned to the order's warehouse.
   It is best effort: a short component reserves what exists (nothing when none is left) and never
   blocks the release; there is no early shortage event, the existing `MaterialShortageDetected`
-  still fires at backflush.
-- **Release at cancel.** `ProductionOrderCancelled` runs `ReleaseComponentsForProductionOrder`, which
-  releases the live hold of every snapshot line (idempotent; consumed quantity is terminal).
-- **Consume at backflush.** `BackflushMaterialsJob` keeps its path unchanged (consume the available
-  quantity, post the stock-out, record `quantity_consumed`/`variance`, flag `stock_shortage`, emit
-  `MaterialShortageDetected`) and then, for the line, closes `min(quantity consumed, quantity still
-  hard-reserved)` through `consumeForLine()`. Only the reserved part is closed: a line that never
-  reserved is a no-op, and stock beyond the reservation is consumed physically as before. The
+  still fires at backflush. A per-line `reserve()` error (a lost availability race, a lock timeout,
+  or a validation failure) is caught and logged with context (company, order, item, line); it never
+  propagates out of the release transition, and the other lines still reserve.
+- **Release at cancel or completion.** `ProductionOrderCancelled` runs
+  `ReleaseComponentsForProductionOrder` and `ProductionOrderCompleted` runs
+  `ReleaseComponentsAfterCompletion`; both release the live hold of every snapshot line (idempotent;
+  consumed quantity is terminal). Releasing on completion is what keeps a completed order — which can
+  no longer be cancelled — from leaking its backflush shortfall and its manual-consumption holds.
+- **Consume at backflush.** `BackflushMaterialsJob` keeps its path (post the stock-out, record
+  `quantity_consumed`/`variance`, flag `stock_shortage`, emit `MaterialShortageDetected`) and then,
+  for the line, closes `min(quantity consumed, quantity still hard-reserved)` through
+  `consumeForLine()`. The consumable is sized as the reader's availability **plus this order's own
+  hard hold for the line**: `ErpStockReader` subtracts every warehouse-pinned hold, this order's
+  included, so adding its own hold back lets the order consume the stock it reserved for itself while
+  the ceiling stays `on hand − other orders' holds`. Only the reserved part is closed: a line that
+  never reserved is a no-op, and stock beyond the reservation is consumed physically as before. The
   reservation close is not in the same transaction as the stock-out.
 - **Per-warehouse availability.** `ErpStockReader::availableQuantity()` is the on-hand `StockLevel`
   of the `(item, warehouse)` minus the soft/hard reservations pinned to that same warehouse. A
@@ -166,17 +174,9 @@ Known limitations:
   would run into the id range of the next order.
 - Availability is read two ways: the reserve clamp uses the company-wide ERP availability, while the
   hold is pinned to the order's warehouse and `ErpStockReader` reads that warehouse alone.
-- `ErpStockReader` subtracts the order's own warehouse-pinned hold. When the warehouse on-hand is not
-  greater than what the order holds, backflush sees less than is physically there for that order, so it
-  consumes less (down to nothing) and reports a shortage even though the stock is held for it.
-- Nothing releases a hold when an order completes, and a manual consumption does not close a
-  reservation: a manual-consumption line is reserved at release but consumed only outside the
-  reservation, and whatever a completed order did not backflush (for example because
-  `quantity_produced` is lower than `quantity_planned`) stays `hard`, since a completed order can no
-  longer be cancelled.
-- `reserveForOrder()` pre-clamps to availability but does not catch a lost race or a lock timeout from
-  `reserve()`; such an exception would surface from the release call after the order is already
-  released.
+- The backflush closes the line's reservation in a separate transaction from the stock-out movement,
+  so a crash between the two can leave the stock posted while the hold is still open until the next
+  release/cancel/completion of the order.
 
 ## Services
 
