@@ -27,7 +27,7 @@ final class WorkCenterKpiMaterializer
         $to = $from->copy()->endOfDay();
         $id = $work_center->id;
 
-        $planned = $this->capacityService->plannedMinutes($from, $to);
+        $planned = $this->capacityService->plannedMinutes($id, $from, $to);
         $availability = $this->oeeCalculator->availability($id, $from, $to, $planned);
         $performance = $this->oeeCalculator->performance($id, $from, $to);
         $quality = $this->oeeCalculator->quality($id, $from, $to);

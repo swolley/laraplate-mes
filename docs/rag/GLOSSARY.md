@@ -28,7 +28,7 @@ Canonical English names for MES entities in this module. Use these terms in code
 | ------------------------- | ---------------------------------------------------------------------------------------- |
 | **WorkCenter**            | Physical production resource (machine, cell, line, manual station) with capacity and calendar. `code` is unique per company (database index and validation rule). |
 | **WorkCenterType**        | Enum: `machine`, `cell`, `line`, `manual_station`.                                       |
-| **WorkCenterCalendar**    | Weekly availability slot for a `WorkCenter` (`day_of_week` 0 = Monday to 6 = Sunday, start/end time), edited inline in the work-center form. Capacity calculations do not read it yet. |
+| **WorkCenterCalendar**    | Weekly availability slot for a `WorkCenter` (`day_of_week` 0 = Monday to 6 = Sunday, start/end time), edited inline in the work-center form. `CapacityService` reads it for available minutes and planning (`WorkCalendar`); with no slot at all a work center works 08:00 to 16:00 every day. |
 | **capacity_per_hour**     | Decimal capacity on `WorkCenter`; paired with `capacity_uom`.                            |
 | **scopeActive()**         | Query scope returning only `is_active` work centers.                                     |
 
@@ -100,7 +100,7 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **Unplanned downtime** | Every downtime except `planned_maintenance`; it lowers OEE availability and the capacity available minutes. |
 | **OEE** | Overall Equipment Effectiveness = Availability × Performance × Quality for a work center over a window, each factor and the result clamped to [0, 1] (`OeeCalculatorService`). Materialised per work center and day by `mes:kpis:materialize` and shown in the work-center list; availability counts only the part of each unplanned downtime inside the window. |
 | **Capacity load** | `CapacityService::getCapacityLoad()`: standard minutes (setup + cycle × planned quantity) of the operations planned on a work center within a window. |
-| **Available minutes** | `CapacityService::availableMinutes()`: 480 default minutes per calendar day of the window, less every downtime overlapping it, planned maintenance included; never negative. `checkOverload()` compares the load against it. |
+| **Available minutes** | `CapacityService::availableMinutes()`: working minutes of the work center calendar in the window (08:00 to 16:00 every day when it has none), less every downtime overlapping it, planned maintenance included; never negative. `checkOverload()` compares the load against it. |
 | **Schedule** | `CapacityService::getSchedule()`: operations of a company's orders planned within a window, by work center and sequence. There is no stored schedule entity. |
 | **Shift**               | Named daily time window of a company (start/end time). |
 | **ShiftInstance** | A shift on a given date for a work center (`starts_at`/`ends_at`); a missing one only raises a non-blocking warning. |

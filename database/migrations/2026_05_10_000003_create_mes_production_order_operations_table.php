@@ -32,6 +32,8 @@ return new class extends Migration
             $table->integer('setup_time_minutes')->default(0);
             $table->decimal('cycle_time_minutes', 10, 4)->default(0);
             $table->boolean('is_parallel')->default(false);
+            $table->dateTime('planned_start_at')->nullable();
+            $table->dateTime('planned_end_at')->nullable();
             $table->dateTime('actual_start_at')->nullable();
             $table->dateTime('actual_end_at')->nullable();
             $table->decimal('actual_minutes', 12, 4)->nullable();

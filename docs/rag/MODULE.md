@@ -143,17 +143,29 @@ OEE of today.
 ## Capacity and downtime
 
 `CapacityService::getCapacityLoad()` sums the standard minutes (setup + cycle ×
-planned quantity) of the operations planned on a work center in a window.
-`availableMinutes()` is 480 default minutes per calendar day of the window less
-every downtime overlapping it (`DowntimeService::outOfServiceMinutesWithin()`:
+planned quantity) of the operations planned on a work center in a window. An
+operation with planned dates counts in proportion to its overlap with the window; one
+without dates counts whole when its order overlaps it.
+`availableMinutes()` is the working minutes of the work center calendar in the window
+(`WorkCalendar`: `WorkCenterCalendar` slots by `day_of_week`, several per day; a work
+center with no slot works 08:00 to 16:00 every day) less every downtime overlapping it (`DowntimeService::outOfServiceMinutesWithin()`:
 planned maintenance included, because the work center is out of service either way;
 each downtime is clipped to the window and an open one runs until now), never negative.
 OEE availability keeps excluding planned maintenance
 (`unplannedMinutesWithin()`) and clips downtimes to the window the same way.
 `checkOverload(work_center, from, to, ?available)` compares the load with the
-available minutes, or with an explicit budget when one is passed. The
-work-center calendar is not read yet, and `estimateCompletionDate()` returns the
-order's `planned_end_at`. Starting an operation on a work center whose materialised
+available minutes, or with an explicit budget when one is passed.
+
+Planning is forward and infinite-capacity. `scheduleOperations(order)` (called by
+`ProductionOrderService::release()`) writes `planned_start_at` / `planned_end_at` on each
+planned operation: it starts when the previous one ends (a parallel one with it), at the
+first working instant of its own work center, and lasts its standard minutes of working
+time; it never looks at what else is planned on that work center.
+`estimateCompletionDate()` plans the operations still to do from now (or from the planned
+start while that is ahead) and returns the end of the last one; with nothing left it
+returns the last actual end, or the order's `planned_end_at` when it has no operation.
+`rescheduleOperation(operation, work_center, ?planned_start_at)` moves the operation and,
+given a date, plans it again from there on the new calendar. Starting an operation on a work center whose materialised
 KPIs flag an overload emits `CapacityOverloadDetected` (non-blocking, nothing is
 recomputed live), notified to the roles in `mes.notifications.capacity_overload`.
 

@@ -11,6 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\WorkCenterCalendarFactory;
 use Override;
 
+/**
+ * @property int $id
+ * @property int $work_center_id
+ * @property int $day_of_week 0 = Monday to 6 = Sunday
+ * @property string $start_time
+ * @property string $end_time
+ */
 final class WorkCenterCalendar extends Model
 {
     use HasFactory;

@@ -24,7 +24,8 @@ use Modules\MES\Models\Routing;
 /**
  * Orchestrates the production order lifecycle: allocation of the document
  * number, immutable freezing of the effective BOM and routing snapshots, and
- * the draft -> released -> completed / cancelled state transitions.
+ * the draft -> released -> completed / cancelled state transitions. Releasing
+ * also plans the generated operations on their work center calendars.
  */
 final class ProductionOrderService
 {
@@ -35,6 +36,7 @@ final class ProductionOrderService
         private ProductionOrderOperationService $operationService,
         private LotTracingService $lotTracingService,
         private QualityCheckPlanner $qualityCheckPlanner,
+        private CapacityService $capacityService,
     ) {}
 
     /**
@@ -97,6 +99,7 @@ final class ProductionOrderService
         $released = $order->getConnection()->transaction(function () use ($order): ProductionOrder {
             $order->update(['status' => ProductionOrderStatus::Released->value]);
             $this->operationService->generateForOrder($order);
+            $this->capacityService->scheduleOperations($order);
 
             return $order->refresh();
         });

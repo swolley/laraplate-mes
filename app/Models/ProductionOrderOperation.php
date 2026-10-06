@@ -23,6 +23,8 @@ use Override;
  * @property int $setup_time_minutes
  * @property string $cycle_time_minutes
  * @property bool $is_parallel
+ * @property \Illuminate\Support\Carbon|null $planned_start_at
+ * @property \Illuminate\Support\Carbon|null $planned_end_at
  * @property \Illuminate\Support\Carbon|null $actual_start_at
  * @property \Illuminate\Support\Carbon|null $actual_end_at
  * @property string|null $actual_minutes
@@ -54,6 +56,8 @@ final class ProductionOrderOperation extends Model
         'setup_time_minutes',
         'cycle_time_minutes',
         'is_parallel',
+        'planned_start_at',
+        'planned_end_at',
         'actual_start_at',
         'actual_end_at',
         'actual_minutes',
@@ -103,6 +107,8 @@ final class ProductionOrderOperation extends Model
             'setup_time_minutes' => 'int',
             'cycle_time_minutes' => 'decimal:4',
             'is_parallel' => 'boolean',
+            'planned_start_at' => 'datetime',
+            'planned_end_at' => 'datetime',
             'actual_start_at' => 'datetime',
             'actual_end_at' => 'datetime',
             'actual_minutes' => 'decimal:4',

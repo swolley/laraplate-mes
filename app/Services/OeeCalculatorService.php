@@ -6,7 +6,6 @@ namespace Modules\MES\Services;
 
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Models\ProductionOrderOperation;
@@ -20,10 +19,9 @@ use Modules\MES\Models\QualityCheck;
  */
 final class OeeCalculatorService
 {
-    private const float DEFAULT_DAILY_MINUTES = 480.0;
-
     public function __construct(
         private DowntimeService $downtimeService,
+        private CapacityService $capacityService,
     ) {}
 
     /**
@@ -31,7 +29,7 @@ final class OeeCalculatorService
      */
     public function calculate(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, ?float $planned_minutes = null): float
     {
-        $planned = $planned_minutes ?? $this->plannedMinutes($from, $to);
+        $planned = $planned_minutes ?? $this->capacityService->plannedMinutes($work_center_id, $from, $to);
 
         return $this->compose(
             $this->availability($work_center_id, $from, $to, $planned),
@@ -106,13 +104,6 @@ final class OeeCalculatorService
             ->where('status', ProductionOrderOperationStatus::Completed->value)
             ->whereBetween('actual_end_at', [$from, $to])
             ->with('productionOrder');
-    }
-
-    private function plannedMinutes(DateTimeInterface $from, DateTimeInterface $to): float
-    {
-        $days = max(1, Carbon::parse($from)->startOfDay()->diffInDays(Carbon::parse($to)->startOfDay()) + 1);
-
-        return self::DEFAULT_DAILY_MINUTES * $days;
     }
 
     private function clamp(float $value): float
