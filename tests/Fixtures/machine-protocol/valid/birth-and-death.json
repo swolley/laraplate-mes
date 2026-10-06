@@ -1,0 +1,27 @@
+{
+  "protocol": "laraplate-machine/1",
+  "message_id": "m-2",
+  "source_seq": 1,
+  "sent_at": "2026-10-05T08:15:02.120Z",
+  "devices": [
+    {
+      "device": "press-07",
+      "type": "birth",
+      "signals": [
+        {
+          "signal": "state",
+          "data_type": "string"
+        },
+        {
+          "signal": "temp",
+          "data_type": "number",
+          "unit": "C"
+        }
+      ]
+    },
+    {
+      "device": "press-08",
+      "type": "death"
+    }
+  ]
+}
