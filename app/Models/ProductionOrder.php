@@ -20,6 +20,11 @@ use Modules\MES\Database\Factories\ProductionOrderFactory;
 use Modules\MES\Enums\ProductionOrderStatus;
 use Override;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $number
+ */
 final class ProductionOrder extends Model
 {
     use BelongsToCompany;
