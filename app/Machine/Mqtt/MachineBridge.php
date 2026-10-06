@@ -7,6 +7,7 @@ namespace Modules\MES\Machine\Mqtt;
 use Closure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use PDOException;
 use Throwable;
 
 /**
@@ -26,6 +27,14 @@ final class MachineBridge
 
     private const int MAX_BACKOFF_SECONDS = 60;
 
+    private const int HEALTHY_AFTER_SECONDS = 30;
+
+    /**
+     * How long a store that fails because the database is down is retried before the message is given
+     * up: php-mqtt acknowledges a QoS 1 message before the handler runs, so the broker will not send it again.
+     */
+    private const array STORE_RETRY_SECONDS = [1, 2, 4, 8, 16, 30];
+
     private bool $stopped = false;
 
     private int $last_heartbeat = 0;
@@ -39,6 +48,8 @@ final class MachineBridge
 
     private bool $healthy = false;
 
+    private int $connected_since = 0;
+
     private readonly Closure $sleep;
 
     private readonly ?Closure $after_message;
@@ -50,7 +61,7 @@ final class MachineBridge
     public function __construct(
         private readonly MachineMessageSubscriber $subscriber,
         private readonly MqttMessageRouter $router,
-        private readonly MqttIngest $ingest,
+        private readonly MqttMessageHandler $handler,
         ?callable $sleep = null,
         ?callable $after_message = null,
     ) {
@@ -78,6 +89,7 @@ final class MachineBridge
                 $this->topics = $this->router->subscriptions();
                 $this->subscriber->subscribe($this->topics);
                 $this->last_reload = now()->getTimestamp();
+                $this->connected_since = $this->last_reload;
                 $this->heartbeat(force: true);
 
                 while (! $this->stopped && ($should_continue === null || $should_continue())) {
@@ -90,10 +102,11 @@ final class MachineBridge
                 Log::warning('Machine bridge lost the broker connection.', ['reason' => $lost->getMessage()]);
                 $this->subscriber->disconnect();
 
-                if ($this->healthy) {
+                if ($this->healthy || now()->getTimestamp() - $this->connected_since >= self::HEALTHY_AFTER_SECONDS) {
                     $backoff = 1;
-                    $this->healthy = false;
                 }
+
+                $this->healthy = false;
 
                 if (! $this->stopped) {
                     ($this->sleep)($backoff);
@@ -108,12 +121,28 @@ final class MachineBridge
 
     private function handle(MqttMessage $message): void
     {
-        try {
-            $this->ingest->handle($message);
-            $this->healthy = true;
-        } catch (Throwable $throwable) {
-            // Never the payload: only where it came from and what went wrong.
-            Log::error('Machine bridge could not handle a message.', ['topic' => $message->topic, 'exception' => $throwable::class, 'reason' => $throwable->getMessage()]);
+        $retries = self::STORE_RETRY_SECONDS;
+
+        while (true) {
+            try {
+                $this->handler->handle($message);
+                $this->healthy = true;
+
+                break;
+            } catch (Throwable $throwable) {
+                $database_down = $throwable instanceof PDOException; // a Laravel QueryException is one
+
+                if ($database_down && $retries !== [] && ! $this->stopped) {
+                    ($this->sleep)((int) array_shift($retries));
+
+                    continue;
+                }
+
+                // Never the payload, nor the exception message (a query error carries its bindings): only where it came from and what failed.
+                Log::error('Machine bridge could not handle a message.', ['topic' => $message->topic, 'exception' => $throwable::class]);
+
+                break;
+            }
         }
 
         if ($this->after_message instanceof Closure) {
@@ -135,8 +164,13 @@ final class MachineBridge
             $topics = $this->router->subscriptions();
 
             if ($topics !== $this->topics) {
-                $this->topics = $topics;
-                $this->subscriber->subscribe($topics);
+                try {
+                    $this->subscriber->subscribe($topics);
+                    $this->topics = $topics;
+                } catch (Throwable $throwable) {
+                    // Hook failures are swallowed by the client: keep the old topics, try again at the next reload.
+                    Log::warning('Machine bridge could not update its subscriptions.', ['exception' => $throwable::class]);
+                }
             }
         }
 

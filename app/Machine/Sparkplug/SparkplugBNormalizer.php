@@ -26,6 +26,8 @@ use Modules\MES\Models\MachineSource;
  */
 final class SparkplugBNormalizer implements MachineMessageNormalizer
 {
+    private const int MAX_TIMESTAMP_MS = 253402300799999;
+
     public function __construct(
         private readonly SparkplugPayloadDecoder $decoder,
         private readonly SparkplugAliasStore $aliases,
@@ -40,20 +42,25 @@ final class SparkplugBNormalizer implements MachineMessageNormalizer
     {
         ['topic' => $topic, 'payload' => $bytes] = MqttPayloadEnvelope::unwrap($payload);
 
+        // The topic goes into the id as a hash: topics can be long, and the id has to fit its column.
+        $prefix = 'sparkplug:' . sha1($topic);
+
         if (! SparkplugTopic::parse($topic) instanceof SparkplugTopic) {
-            return new MessageMeta("sparkplug:ignored:{$topic}:" . sha1($bytes));
+            return new MessageMeta("{$prefix}:ignored:" . sha1($bytes));
         }
 
         try {
             $decoded = $this->decoder->decode($bytes);
+            $sent_at = $decoded->timestamp_ms === null ? null : $this->time($decoded->timestamp_ms);
         } catch (UnreadableMachinePayload) {
             // Stored all the same: the job marks it failed, and it can be reprocessed.
-            return new MessageMeta("sparkplug:{$topic}:unreadable:" . sha1($bytes));
+            return new MessageMeta("{$prefix}:unreadable:" . sha1($bytes));
         }
 
+        // A message with neither a sequence nor a time (a bare NDEATH) is told apart by its content.
         return new MessageMeta(
-            message_id: "sparkplug:{$topic}:" . ($decoded->seq ?? '-') . ':' . ($decoded->timestamp_ms ?? '-'),
-            sent_at: $decoded->timestamp_ms === null ? null : CarbonImmutable::createFromTimestampMsUTC($decoded->timestamp_ms),
+            message_id: "{$prefix}:" . ($decoded->seq ?? '-') . ':' . ($decoded->timestamp_ms ?? sha1($bytes)),
+            sent_at: $sent_at,
         );
     }
 
@@ -67,7 +74,7 @@ final class SparkplugBNormalizer implements MachineMessageNormalizer
         }
 
         $decoded = $this->decoder->decode($bytes);
-        $fallback = $decoded->timestamp_ms === null ? CarbonImmutable::now() : CarbonImmutable::createFromTimestampMsUTC($decoded->timestamp_ms);
+        $fallback = $decoded->timestamp_ms === null ? CarbonImmutable::now() : $this->time($decoded->timestamp_ms);
 
         return match ($parsed->type) {
             'NBIRTH', 'DBIRTH' => $this->birth($source, $parsed, $decoded, $fallback),
@@ -100,7 +107,7 @@ final class SparkplugBNormalizer implements MachineMessageNormalizer
             }
         }
 
-        $this->aliases->remember($source, $device, $aliases);
+        $this->aliases->remember($source, $device, $aliases, $fallback);
 
         return new NormalizedMessage(
             $this->samples($source, $topic, $payload, $fallback, $aliases),
@@ -145,11 +152,23 @@ final class SparkplugBNormalizer implements MachineMessageNormalizer
                 continue;
             }
 
-            $ts = $metric->timestamp_ms === null ? $fallback : CarbonImmutable::createFromTimestampMsUTC($metric->timestamp_ms);
+            $ts = $metric->timestamp_ms === null ? $fallback : $this->time($metric->timestamp_ms);
             $samples[] = new NormalizedSample($device, $name, $ts, $metric->value);
         }
 
         return $samples;
+    }
+
+    /**
+     * @throws UnreadableMachinePayload when no date can hold the time (negative, or past the year 9999)
+     */
+    private function time(int $milliseconds): CarbonImmutable
+    {
+        if ($milliseconds < 0 || $milliseconds > self::MAX_TIMESTAMP_MS) {
+            throw new UnreadableMachinePayload('A Sparkplug timestamp is outside the range of dates.');
+        }
+
+        return CarbonImmutable::createFromTimestampMsUTC($milliseconds);
     }
 
     private static function isControl(string $name): bool

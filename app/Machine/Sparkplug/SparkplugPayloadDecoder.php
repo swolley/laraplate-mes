@@ -136,15 +136,18 @@ final class SparkplugPayloadDecoder
     {
         $int = $raw[10] ?? null;
         $long = $raw[11] ?? null;
+        // Encoders differ in which integer field a narrow type travels in (Tahu Java uses the wide one for
+        // unsigned 32-bit values): take whichever is present, and convert by the datatype.
+        $narrow = is_int($int) ? $int : (is_int($long) ? $long : null);
 
         return match ($datatype) {
-            self::DATATYPE_INT8 => is_int($int) ? $this->signed($int, 8) : $this->wide($long),
-            self::DATATYPE_INT16 => is_int($int) ? $this->signed($int, 16) : $this->wide($long),
-            self::DATATYPE_INT32 => is_int($int) ? $this->signed($int, 32) : $this->wide($long),
+            self::DATATYPE_INT8 => $narrow === null ? null : $this->signed($narrow, 8),
+            self::DATATYPE_INT16 => $narrow === null ? null : $this->signed($narrow, 16),
+            self::DATATYPE_INT32 => $narrow === null ? null : $this->signed($narrow, 32),
             self::DATATYPE_INT64 => $this->wide($long ?? $int),
-            self::DATATYPE_UINT8 => is_int($int) ? $int & 0xFF : null,
-            self::DATATYPE_UINT16 => is_int($int) ? $int & 0xFFFF : null,
-            self::DATATYPE_UINT32 => is_int($int) ? $int & 0xFFFFFFFF : null,
+            self::DATATYPE_UINT8 => $narrow === null ? null : $narrow & 0xFF,
+            self::DATATYPE_UINT16 => $narrow === null ? null : $narrow & 0xFFFF,
+            self::DATATYPE_UINT32 => $narrow === null ? null : $narrow & 0xFFFFFFFF,
             self::DATATYPE_UINT64 => is_int($long) ? ($long >= 0 ? $long : sprintf('%u', $long)) : (is_int($int) ? $int & 0xFFFFFFFF : null),
             self::DATATYPE_DATETIME => $this->wide($long),
             self::DATATYPE_FLOAT => is_float($raw[12] ?? null) ? $raw[12] : null,

@@ -146,7 +146,7 @@ it('derives a stable message id from the topic, the sequence and the time, and n
     $other_time = $normalizer->meta($source, sparkplugStored('spBv1.0/plant/DDATA/node1/dev2', 'signed-ints'));
     $other_topic = $normalizer->meta($source, sparkplugStored('spBv1.0/plant/DDATA/node1/dev3', 'data-alias-only'));
 
-    expect($a->message_id)->toBe('sparkplug:spBv1.0/plant/DDATA/node1/dev2:1:1790000005000')
+    expect($a->message_id)->toBe('sparkplug:' . sha1('spBv1.0/plant/DDATA/node1/dev2') . ':1:1790000005000')
         ->and($a->message_id)->toBe($b->message_id)
         ->and($other_time->message_id)->not->toBe($a->message_id)
         ->and($other_topic->message_id)->not->toBe($a->message_id)
@@ -196,4 +196,62 @@ it('runs through the whole pipeline: the birth declares the signals, the data fo
 
 it('ships the sparkplug_b normaliser by default', function (): void {
     expect(resolve(NormalizerRegistry::class)->keys())->toContain('sparkplug_b');
+});
+
+it('keeps every message id within the column, whatever the topic length and the payload', function (): void {
+    $source = sparkplugSource();
+    $normalizer = resolve(NormalizerRegistry::class)->for($source);
+    $topic = 'spBv1.0/plant/DDATA/' . str_repeat('n', 90) . '/' . str_repeat('d', 90);
+
+    $ids = [
+        $normalizer->meta($source, sparkplugStored($topic, 'data-alias-only'))->message_id,
+        $normalizer->meta($source, sparkplugStored($topic, 'birth', 20))->message_id,
+        $normalizer->meta($source, sparkplugStored('spBv1.0/plant/STATE/' . str_repeat('h', 120), 'birth'))->message_id,
+    ];
+
+    foreach ($ids as $id) {
+        expect(strlen($id))->toBeLessThanOrEqual(128);
+    }
+
+    expect($ids[0])->not->toBe($ids[1]);
+});
+
+it('stores, and fails in the job, a payload whose timestamp no date can hold', function (): void {
+    Queue::fake();
+    $source = sparkplugSource();
+    $normalizer = resolve(NormalizerRegistry::class)->for($source);
+    $stored = MqttPayloadEnvelope::wrap('spBv1.0/plant/DDATA/node1/dev2', "\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01");
+
+    expect($normalizer->meta($source, $stored)->message_id)->not->toBe('')
+        ->and(fn () => $normalizer->normalize($source, $stored))->toThrow(UnreadableMachinePayload::class);
+
+    $message = resolve(MachineMessageInbox::class)->accept($source, $stored, MachineTransport::Mqtt)->message;
+    app()->call([new ProcessMachineMessageJob($message->id, $source->id), 'handle']);
+
+    expect($message->fresh()->status)->toBe(MachineMessageStatus::Failed);
+});
+
+it('reads unsigned integers however the encoder carried them, and restores signed ones from the wide field', function (): void {
+    $message = normalizeSparkplug(sparkplugSource(), 'spBv1.0/plant/DDATA/node1/dev2', 'uint-in-long');
+
+    expect(sampleSummary($message))->toBe([['node1/dev2', 'u32', 4000000000], ['node1/dev2', 'u8', 200], ['node1/dev2', 'i32', -70000]]);
+});
+
+it('gives deaths without a time or a sequence an id of their own', function (): void {
+    $source = sparkplugSource();
+    $normalizer = resolve(NormalizerRegistry::class)->for($source);
+
+    $first = $normalizer->meta($source, sparkplugStored('spBv1.0/plant/NDEATH/node1', 'bdseq-1'))->message_id;
+    $second = $normalizer->meta($source, sparkplugStored('spBv1.0/plant/NDEATH/node1', 'bdseq-2'))->message_id;
+
+    expect($first)->not->toBe($second);
+});
+
+it('does not let an older birth replace the aliases of a newer one', function (): void {
+    $source = sparkplugSource();
+    normalizeSparkplug($source, 'spBv1.0/plant/DBIRTH/node1/dev2', 'birth-new');
+
+    normalizeSparkplug($source, 'spBv1.0/plant/DBIRTH/node1/dev2', 'birth');
+
+    expect(SparkplugAlias::query()->where('device_external_id', 'node1/dev2')->pluck('name', 'alias')->all())->toBe([1 => 'temp2']);
 });

@@ -140,6 +140,21 @@ The bridge writes a heartbeat every few seconds; when it stops for more than a m
 `SIGTERM` (and `SIGINT`): it finishes the message it holds, stores it, and exits. When the broker connection
 drops it reconnects with backoff (1, 2, 4 ... 60 seconds) and subscribes again.
 
+Things to know when running it:
+
+- **One bridge per client id.** Two bridges with the same `MES_MACHINE_MQTT_CLIENT_ID` take each other's session over
+  in an endless loop; run exactly one, or give each its own id (and its own sources).
+- **A shared cache.** The heartbeat lives in the application cache: the bridge and the scheduler must see the same
+  store (Redis, database, file). With a per-process store (`array`) every mqtt source gets a permanent false
+  `bridge_down`.
+- **The broker acknowledges first.** The MQTT library acknowledges a QoS 1 message before it hands it over, so a
+  message the database cannot store right then will not come back from the broker. The bridge retries a failing
+  store for about a minute (1, 2, 4, 8, 16, 30 seconds) before giving that message up with a log line (topic and
+  kind of failure, never the payload).
+- **Topics must not overlap.** A source's topic filter must be valid MQTT and cannot overlap the topic of any other
+  source, in any company and whether active or not (the default topic of a canonical source includes its code, so two
+  companies cannot both have a source `gw-1`). The model refuses the second.
+
 Run it under systemd or supervisor, and give the machine queue its worker as above:
 
 ```ini

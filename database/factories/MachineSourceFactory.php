@@ -45,6 +45,6 @@ final class MachineSourceFactory extends Factory
 
     public function mqtt(): static
     {
-        return $this->state(['transport' => MachineTransport::Mqtt->value, 'mqtt_topic' => 'plant/laraplate-machine/1/gw']);
+        return $this->state(['transport' => MachineTransport::Mqtt->value, 'mqtt_topic' => null]);
     }
 }

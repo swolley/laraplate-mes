@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Tests\Support;
 
+use Illuminate\Support\Carbon;
 use Modules\MES\Machine\Mqtt\MachineMessageSubscriber;
 use Modules\MES\Machine\Mqtt\MqttConnectionLost;
 use Modules\MES\Machine\Mqtt\MqttConnectionSettings;
@@ -29,18 +30,31 @@ final class FakeMachineMessageSubscriber implements MachineMessageSubscriber
     private array $queue = [];
 
     /**
-     * @var list<MqttConnectionLost>
+     * @var list<array{MqttConnectionLost, int}>
      */
     private array $failures = [];
+
+    private int $subscribe_failures = 0;
 
     public function push(MqttMessage $message): void
     {
         $this->queue[] = $message;
     }
 
-    public function failNextLoopWith(MqttConnectionLost $failure): void
+    /**
+     * The next `loop()` throws this after `$connected_for` seconds of (test) time.
+     */
+    public function failNextLoopWith(MqttConnectionLost $failure, int $connected_for = 0): void
     {
-        $this->failures[] = $failure;
+        $this->failures[] = [$failure, $connected_for];
+    }
+
+    /**
+     * The next `$times` calls of `subscribe()` throw.
+     */
+    public function failSubscribeTimes(int $times): void
+    {
+        $this->subscribe_failures = $times;
     }
 
     public function connect(MqttConnectionSettings $settings): void
@@ -50,13 +64,22 @@ final class FakeMachineMessageSubscriber implements MachineMessageSubscriber
 
     public function subscribe(array $topics): void
     {
+        if ($this->subscribe_failures > 0) {
+            $this->subscribe_failures--;
+
+            throw new MqttConnectionLost('subscribe refused');
+        }
+
         $this->subscriptions[] = $topics;
     }
 
     public function loop(callable $on_message, callable $should_continue): void
     {
         if ($this->failures !== []) {
-            throw array_shift($this->failures);
+            [$failure, $connected_for] = array_shift($this->failures);
+            Carbon::setTestNow(now()->addSeconds($connected_for));
+
+            throw $failure;
         }
 
         while ($should_continue()) {

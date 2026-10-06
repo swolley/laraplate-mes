@@ -1,0 +1,16 @@
+{
+  "timestamp_ms": 1790000010000,
+  "seq": 0,
+  "metrics": [
+    {
+      "name": "temp2",
+      "alias": 1,
+      "timestamp_ms": 1790000010000,
+      "datatype": 10,
+      "is_null": false,
+      "is_historical": false,
+      "value": 30.5,
+      "supported": true
+    }
+  ]
+}

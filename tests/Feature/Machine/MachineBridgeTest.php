@@ -17,6 +17,7 @@ use Modules\MES\Machine\Mqtt\MqttMessageRouter;
 use Modules\MES\Models\MachineMessage;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Tests\Support\FakeMachineMessageSubscriber;
+use Modules\MES\Tests\Support\FlakyMessageHandler;
 use Modules\MES\Tests\Support\MesTestHelpers;
 
 uses(RefreshDatabase::class);
@@ -40,9 +41,9 @@ function bridgeEnvelope(string $id): string
     ], JSON_THROW_ON_ERROR);
 }
 
-function makeBridge(FakeMachineMessageSubscriber $subscriber, ?callable $sleep = null, ?callable $after = null): MachineBridge
+function makeBridge(FakeMachineMessageSubscriber $subscriber, ?callable $sleep = null, ?callable $after = null, ?Modules\MES\Machine\Mqtt\MqttMessageHandler $handler = null): MachineBridge
 {
-    return new MachineBridge($subscriber, resolve(MqttMessageRouter::class), resolve(MqttIngest::class), $sleep, $after);
+    return new MachineBridge($subscriber, resolve(MqttMessageRouter::class), $handler ?? resolve(MqttIngest::class), $sleep, $after);
 }
 
 /**
@@ -155,4 +156,95 @@ it('finishes the message it holds when asked to stop, and handles no later one',
 
 it('registers the bridge command', function (): void {
     expect(array_keys(Artisan::all()))->toContain('mes:machine-bridge');
+});
+
+it('retries a store that fails because the database is down, then goes on', function (): void {
+    $subscriber = new FakeMachineMessageSubscriber();
+    $subscriber->push(new MqttMessage('a/b', 'x'));
+    $subscriber->push(new MqttMessage('a/c', 'y'));
+    $handler = new FlakyMessageHandler(2);
+    $sleeps = [];
+
+    makeBridge($subscriber, static function (int $seconds) use (&$sleeps): void {
+        $sleeps[] = $seconds;
+    }, null, $handler)->run(MqttConnectionSettings::fromConfig(), checks(6));
+
+    expect($handler->handled)->toBe(['a/b', 'a/c'])
+        ->and($sleeps)->toBe([1, 2]);
+});
+
+it('gives up on a store that keeps failing after about a minute, and handles the next message', function (): void {
+    $subscriber = new FakeMachineMessageSubscriber();
+    $subscriber->push(new MqttMessage('a/b', 'x'));
+    $subscriber->push(new MqttMessage('a/c', 'y'));
+    $handler = new FlakyMessageHandler(7);
+    $sleeps = [];
+
+    makeBridge($subscriber, static function (int $seconds) use (&$sleeps): void {
+        $sleeps[] = $seconds;
+    }, null, $handler)->run(MqttConnectionSettings::fromConfig(), checks(6));
+
+    expect($sleeps)->toBe([1, 2, 4, 8, 16, 30])
+        ->and($handler->handled)->toBe(['a/c']);
+});
+
+it('does not wait on a failure that is not the database', function (): void {
+    $subscriber = new FakeMachineMessageSubscriber();
+    $subscriber->push(new MqttMessage('a/b', 'x'));
+    $handler = new FlakyMessageHandler(1, database: false);
+    $sleeps = [];
+
+    makeBridge($subscriber, static function (int $seconds) use (&$sleeps): void {
+        $sleeps[] = $seconds;
+    }, null, $handler)->run(MqttConnectionSettings::fromConfig(), checks(4));
+
+    expect($sleeps)->toBe([])
+        ->and($handler->attempts)->toBe(1);
+});
+
+it('logs the topic and the kind of failure, never the message or its payload', function (): void {
+    $subscriber = new FakeMachineMessageSubscriber();
+    $subscriber->push(new MqttMessage('a/b', 'secret-payload'));
+    $log = Log::spy();
+
+    makeBridge($subscriber, static fn (int $seconds) => null, null, new FlakyMessageHandler(10, database: false))->run(MqttConnectionSettings::fromConfig(), checks(4));
+
+    $log->shouldHaveReceived('error')->once()->withArgs(static fn (string $message, array $context = []): bool => ! str_contains($message . json_encode($context), 'secret-payload')
+        && ! str_contains($message . json_encode($context), 'a bug')
+        && ($context['topic'] ?? null) === 'a/b');
+});
+
+it('starts the backoff over when the connection had held for a while', function (): void {
+    MachineSource::factory()->mqtt()->create(['code' => 'gw-1', 'mqtt_topic' => null]);
+    $subscriber = new FakeMachineMessageSubscriber();
+    $subscriber->failNextLoopWith(new MqttConnectionLost('blip'), 40);
+    $subscriber->failNextLoopWith(new MqttConnectionLost('blip'), 40);
+    $subscriber->failNextLoopWith(new MqttConnectionLost('blip'), 40);
+    $sleeps = [];
+
+    makeBridge($subscriber, static function (int $seconds) use (&$sleeps): void {
+        $sleeps[] = $seconds;
+    })->run(MqttConnectionSettings::fromConfig(), checks(8));
+
+    expect(array_slice($sleeps, 0, 3))->toBe([1, 1, 1]);
+});
+
+it('keeps the old topics and tries again at the next reload when subscribing the new ones fails', function (): void {
+    MachineSource::factory()->mqtt()->create(['code' => 'a', 'mqtt_topic' => null]);
+    $subscriber = new FakeMachineMessageSubscriber();
+
+    makeBridge($subscriber)->run(MqttConnectionSettings::fromConfig(), checks(7, static function (int $count) use ($subscriber): void {
+        if ($count === 2) {
+            MachineSource::factory()->mqtt()->create(['code' => 'b', 'mqtt_topic' => null]);
+            $subscriber->failSubscribeTimes(1);
+            Carbon::setTestNow(now()->addSeconds(61));
+        }
+
+        if ($count === 4) {
+            Carbon::setTestNow(now()->addSeconds(61));
+        }
+    }));
+
+    expect($subscriber->subscriptions)->toHaveCount(2)
+        ->and($subscriber->subscriptions[1])->toEqualCanonicalizing(['laraplate/laraplate-machine/1/a', 'laraplate/laraplate-machine/1/b']);
 });

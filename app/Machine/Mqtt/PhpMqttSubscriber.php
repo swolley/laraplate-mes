@@ -6,7 +6,6 @@ namespace Modules\MES\Machine\Mqtt;
 
 use Closure;
 use PhpMqtt\Client\ConnectionSettings;
-use PhpMqtt\Client\Exceptions\MqttClientException;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
 
@@ -14,6 +13,11 @@ use Throwable;
  * {@see MachineMessageSubscriber} over php-mqtt/client: MQTT 3.1.1, QoS 1, a persistent session
  * under a stable client id (so messages published while the bridge is down wait on the broker).
  * Reconnecting is the bridge's job, with backoff, so the client does not reconnect by itself.
+ *
+ * Messages are taken from the client's message-received hook, not from per-subscription callbacks:
+ * the library only activates a subscription when its SUBACK arrives, and the broker sends the messages
+ * queued for a persistent session right after CONNACK, before it answers the subscription. A callback
+ * would miss them, after the library had already acknowledged them.
  */
 final class PhpMqttSubscriber implements MachineMessageSubscriber
 {
@@ -27,6 +31,16 @@ final class PhpMqttSubscriber implements MachineMessageSubscriber
     private array $topics = [];
 
     private ?Closure $sink = null;
+
+    private readonly ?Closure $client_factory;
+
+    /**
+     * @param  (callable(MqttConnectionSettings): MqttClient)|null  $client_factory  builds the client; a test supplies its own
+     */
+    public function __construct(?callable $client_factory = null)
+    {
+        $this->client_factory = $client_factory === null ? null : $client_factory(...);
+    }
 
     public function connectionSettings(MqttConnectionSettings $settings): ConnectionSettings
     {
@@ -44,7 +58,14 @@ final class PhpMqttSubscriber implements MachineMessageSubscriber
         $this->disconnect();
 
         try {
-            $client = new MqttClient($settings->host, $settings->port, $settings->client_id, MqttClient::MQTT_3_1_1);
+            $client = $this->client_factory instanceof Closure
+                ? ($this->client_factory)($settings)
+                : new MqttClient($settings->host, $settings->port, $settings->client_id, MqttClient::MQTT_3_1_1);
+            $client->registerMessageReceivedEventHandler(function (MqttClient $client, string $topic, string $message, int $qos): void {
+                if ($this->sink instanceof Closure) {
+                    ($this->sink)(new MqttMessage($topic, $message, $qos));
+                }
+            });
             $client->connect($this->connectionSettings($settings), false);
         } catch (Throwable $throwable) {
             throw new MqttConnectionLost("Could not connect to the MQTT broker at {$settings->host}:{$settings->port}: " . $throwable::class, 0, $throwable);
@@ -64,14 +85,10 @@ final class PhpMqttSubscriber implements MachineMessageSubscriber
             }
 
             foreach (array_diff($topics, $this->topics) as $added) {
-                $client->subscribe($added, function (string $topic, string $message): void {
-                    if ($this->sink instanceof Closure) {
-                        ($this->sink)(new MqttMessage($topic, $message, MqttClient::QOS_AT_LEAST_ONCE));
-                    }
-                }, MqttClient::QOS_AT_LEAST_ONCE);
+                $client->subscribe($added, null, MqttClient::QOS_AT_LEAST_ONCE);
             }
-        } catch (MqttClientException $exception) {
-            throw new MqttConnectionLost('The MQTT subscription failed: ' . $exception::class, 0, $exception);
+        } catch (Throwable $throwable) {
+            throw new MqttConnectionLost('The MQTT subscription failed: ' . $throwable::class, 0, $throwable);
         }
 
         $this->topics = $topics;
@@ -90,8 +107,9 @@ final class PhpMqttSubscriber implements MachineMessageSubscriber
 
         try {
             $client->loop(true);
-        } catch (MqttClientException $exception) {
-            throw new MqttConnectionLost('The MQTT connection failed: ' . $exception::class, 0, $exception);
+        } catch (Throwable $throwable) {
+            // A dropped socket also surfaces as a PHP warning turned into an exception: all of it is a lost connection.
+            throw new MqttConnectionLost('The MQTT connection failed: ' . $throwable::class, 0, $throwable);
         } finally {
             $client->unregisterLoopEventHandler($check);
             $this->sink = null;

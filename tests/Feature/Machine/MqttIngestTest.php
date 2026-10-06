@@ -64,7 +64,8 @@ it('a redelivered message is stored once', function (): void {
 it('drops a topic of no source, of an inactive source, or of two sources', function (): void {
     MachineSource::factory()->mqtt()->inactive()->create(['code' => 'off', 'mqtt_topic' => null]);
     MachineSource::factory()->mqtt()->create(['code' => 'a', 'mqtt_topic' => 'plant/shared/#']);
-    MachineSource::factory()->mqtt()->create(['code' => 'b', 'mqtt_topic' => 'plant/shared/+/x']);
+    // The model refuses overlapping topics, so the second is written around its rules: the router still has to cope with data that got in some other way.
+    MachineSource::withoutEvents(static fn () => MachineSource::factory()->mqtt()->create(['code' => 'b', 'mqtt_topic' => 'plant/shared/+/x']));
     $ingest = resolve(MqttIngest::class);
 
     expect($ingest->handle(new MqttMessage('nobody/listens', mqttEnvelope())))->toBeNull()
@@ -133,6 +134,52 @@ it('stores a mapped_json payload as received', function (): void {
 
     expect(MachineMessage::query()->sole()->payload)->toBe('{"d":"a","s":"b","t":"2026-10-05T08:00:00Z","v":1}');
 });
+
+it('refuses a topic filter that is not valid MQTT', function (string $filter): void {
+    expect(fn () => MachineSource::factory()->mqtt()->create(['normalizer' => 'mapped_json', 'mqtt_topic' => $filter]))->toThrow(ValidationException::class);
+})->with(['a/#/b', 'a+', 'a/b#', 'a/+b', '#a']);
+
+it('accepts valid topic filters', function (string $filter): void {
+    expect(MachineSource::factory()->mqtt()->create(['normalizer' => 'mapped_json', 'mqtt_topic' => $filter, 'code' => 'v' . md5($filter)])->exists)->toBeTrue();
+})->with(['a/+/c', 'a/#', 'spBv1.0/plant/#', 'plant/nodered', '+/status']);
+
+it('refuses a topic that overlaps the topic of another source, in any company and whatever its state', function (): void {
+    MachineSource::factory()->mqtt()->inactive()->create(['code' => 'a', 'normalizer' => 'mapped_json', 'mqtt_topic' => 'plant/shared/#']);
+    $other_company = MesTestHelpers::makeCompany();
+
+    expect(fn () => MachineSource::factory()->mqtt()->create(['company_id' => $other_company->id, 'code' => 'b', 'normalizer' => 'mapped_json', 'mqtt_topic' => 'plant/+/x']))->toThrow(ValidationException::class);
+    expect(MachineSource::factory()->mqtt()->create(['company_id' => $other_company->id, 'code' => 'c', 'normalizer' => 'mapped_json', 'mqtt_topic' => 'plant/other/x'])->exists)->toBeTrue();
+});
+
+it('refuses two canonical sources with the same code in different companies, which would share a topic', function (): void {
+    MachineSource::factory()->mqtt()->create(['code' => 'gw-1', 'mqtt_topic' => null]);
+    $other_company = MesTestHelpers::makeCompany();
+
+    expect(fn () => MachineSource::factory()->mqtt()->create(['company_id' => $other_company->id, 'code' => 'gw-1', 'mqtt_topic' => null]))->toThrow(ValidationException::class);
+});
+
+it('lets a source be edited without clashing with itself', function (): void {
+    $source = MachineSource::factory()->mqtt()->create(['code' => 'gw-1', 'mqtt_topic' => null]);
+
+    $source->update(['name' => 'Renamed']);
+
+    expect($source->fresh()->name)->toBe('Renamed');
+});
+
+it('overlaps topic filters level by level', function (string $a, string $b, bool $overlap): void {
+    expect(MqttMessageRouter::overlaps($a, $b))->toBe($overlap)
+        ->and(MqttMessageRouter::overlaps($b, $a))->toBe($overlap);
+})->with([
+    'same' => ['a/b', 'a/b', true],
+    'hash and a child' => ['a/#', 'a/b/c', true],
+    'hash and its parent' => ['a/#', 'a', true],
+    'plus and a name' => ['a/+/c', 'a/b/c', true],
+    'plus and a hash' => ['a/+/c', 'a/#', true],
+    'different names' => ['a/b', 'a/c', false],
+    'different depth' => ['a/b', 'a/b/c', false],
+    'plus at another depth' => ['a/+', 'a/b/c', false],
+    'two hashes apart' => ['a/#', 'b/#', false],
+]);
 
 it('requires a topic for a non-canonical mqtt source', function (): void {
     expect(fn () => MachineSource::factory()->mqtt()->create(['normalizer' => 'sparkplug_b', 'mqtt_topic' => null]))->toThrow(ValidationException::class);

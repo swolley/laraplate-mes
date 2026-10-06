@@ -24,6 +24,8 @@ use Modules\MES\Models\MachineSource;
  */
 final class MachineMessageInbox
 {
+    private const int MESSAGE_ID_LENGTH = 128;
+
     public function __construct(
         private readonly NormalizerRegistry $registry,
         private readonly IdempotentWriter $writer,
@@ -35,7 +37,7 @@ final class MachineMessageInbox
      */
     public function accept(MachineSource $source, string $payload, MachineTransport $transport): InboxResult
     {
-        $meta = $this->registry->for($source)->meta($source, $payload);
+        $meta = $this->fitMessageId($this->registry->for($source)->meta($source, $payload));
         $received_at = now();
 
         $inserted = $this->writer->insert(new MachineMessage()->getConnection(), MESTables::MachineMessages->value, [
@@ -69,6 +71,16 @@ final class MachineMessageInbox
         ProcessMachineMessageJob::dispatch($message->id, $source->id);
 
         return new InboxResult(false, $message);
+    }
+
+    /**
+     * An id longer than the column is replaced by a hash of itself, the same each time, so a resend still collapses.
+     */
+    private function fitMessageId(MessageMeta $meta): MessageMeta
+    {
+        return mb_strlen($meta->message_id) <= self::MESSAGE_ID_LENGTH
+            ? $meta
+            : new MessageMeta('sha1:' . sha1($meta->message_id), $meta->source_seq, $meta->sent_at);
     }
 
     private function checkSequence(MachineSource $source, MessageMeta $meta): void

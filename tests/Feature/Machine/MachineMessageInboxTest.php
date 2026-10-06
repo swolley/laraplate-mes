@@ -135,6 +135,19 @@ it('keeps one clock skew incident open while the skew lasts', function (): void 
         ->and(MachineIncident::query()->count())->toBe(1);
 });
 
+it('keeps a message id longer than the column working: stored once under a shortened id', function (): void {
+    $source = MachineSource::factory()->create(['normalizer' => 'stub']);
+    resolve(NormalizerRegistry::class)->register(new StubNormalizer('stub', static fn (string $payload): MessageMeta => new MessageMeta(str_repeat('x', 200))));
+    $inbox = resolve(MachineMessageInbox::class);
+
+    $first = $inbox->accept($source, '{"a":1}', MachineTransport::Http);
+    $second = $inbox->accept($source, '{"a":1}', MachineTransport::Http);
+
+    expect(strlen($first->message->message_id))->toBeLessThanOrEqual(128)
+        ->and($second->duplicate)->toBeTrue()
+        ->and(MachineMessage::query()->count())->toBe(1);
+});
+
 it('records an incident once while it stays open, and resolves it', function (): void {
     Event::fake([MachineIncidentRecorded::class]);
     $source = MachineSource::factory()->create();

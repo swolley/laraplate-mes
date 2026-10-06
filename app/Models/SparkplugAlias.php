@@ -20,6 +20,7 @@ use Override;
  * @property string $device_external_id
  * @property int $alias
  * @property string $name
+ * @property \Illuminate\Support\Carbon $declared_at
  */
 final class SparkplugAlias extends Model
 {
@@ -42,6 +43,7 @@ final class SparkplugAlias extends Model
         'device_external_id',
         'alias',
         'name',
+        'declared_at',
     ];
 
     /**
@@ -60,6 +62,7 @@ final class SparkplugAlias extends Model
     {
         return [
             'alias' => 'integer',
+            'declared_at' => 'datetime',
         ];
     }
 }

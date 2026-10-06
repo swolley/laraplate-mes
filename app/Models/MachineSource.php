@@ -13,7 +13,9 @@ use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Database\Factories\MachineSourceFactory;
 use Modules\MES\Enums\MESTables;
+use Illuminate\Validation\ValidationException;
 use Modules\MES\Enums\MachineTransport;
+use Modules\MES\Machine\Mqtt\MqttMessageRouter;
 use Override;
 
 /**
@@ -111,6 +113,44 @@ final class MachineSource extends Model
         ]);
 
         return $rules;
+    }
+
+    #[Override]
+    protected static function booted(): void
+    {
+        static::saving(static function (self $source): void {
+            $source->assertTopicIsUsable();
+        });
+    }
+
+    /**
+     * An mqtt source needs a valid topic filter that no other source can also match, in any company and
+     * whatever the other's state: the topic is what tells the sources apart, and an overlap would send one
+     * company's machines to another's source, or to nobody.
+     *
+     * @throws ValidationException
+     */
+    private function assertTopicIsUsable(): void
+    {
+        if ($this->transport !== MachineTransport::Mqtt) {
+            return;
+        }
+
+        $topic = $this->effectiveMqttTopic();
+
+        if ($topic === '') {
+            return;
+        }
+
+        if (! MqttMessageRouter::isValidFilter($topic)) {
+            throw ValidationException::withMessages(['mqtt_topic' => ['The topic is not a valid MQTT topic filter.']]);
+        }
+
+        foreach (self::query()->withoutGlobalScopes()->where('transport', MachineTransport::Mqtt->value)->whereNull('deleted_at')->get() as $other) {
+            if ($other->getKey() !== $this->getKey() && MqttMessageRouter::overlaps($topic, $other->effectiveMqttTopic())) {
+                throw ValidationException::withMessages(['mqtt_topic' => ["The topic overlaps the one of the source {$other->code}."]]);
+            }
+        }
     }
 
     /**

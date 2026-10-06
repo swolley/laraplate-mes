@@ -33,6 +33,8 @@ use Modules\MES\Listeners\ReleaseComponentsAfterCompletion;
 use Modules\MES\Listeners\ReleaseComponentsForProductionOrder;
 use Modules\MES\Listeners\ReserveComponentsForProductionOrder;
 use Modules\MES\Machine\Mqtt\MachineMessageSubscriber;
+use Modules\MES\Machine\Mqtt\MqttIngest;
+use Modules\MES\Machine\Mqtt\MqttMessageHandler;
 use Modules\MES\Machine\Mqtt\PhpMqttSubscriber;
 use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
 use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
@@ -86,6 +88,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         );
 
         $this->app->bind(MachineMessageSubscriber::class, PhpMqttSubscriber::class);
+        $this->app->bind(MqttMessageHandler::class, MqttIngest::class);
 
         $this->app->singleton(NormalizerRegistry::class, static function (): NormalizerRegistry {
             $registry = new NormalizerRegistry();

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('device_external_id', 160);
             $table->unsignedBigInteger('alias');
             $table->string('name', 255);
+            $table->dateTime('declared_at');
             MigrateUtils::timestamps($table, hasCreateUpdate: true);
 
             $table->unique(['source_id', 'device_external_id', 'alias'], "{$table_name}_source_device_alias_UN");

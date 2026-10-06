@@ -1,0 +1,16 @@
+{
+  "timestamp_ms": null,
+  "seq": null,
+  "metrics": [
+    {
+      "name": "bdSeq",
+      "alias": null,
+      "timestamp_ms": null,
+      "datatype": 8,
+      "is_null": false,
+      "is_historical": false,
+      "value": 1,
+      "supported": true
+    }
+  ]
+}

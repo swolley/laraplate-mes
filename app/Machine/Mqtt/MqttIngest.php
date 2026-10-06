@@ -21,7 +21,7 @@ use Modules\MES\Models\MachineSource;
  * stored is dropped: an unknown, inactive or ambiguous topic is only logged (once a minute), an
  * unreadable canonical envelope opens a `message_failed` incident naming the topic.
  */
-final class MqttIngest
+final class MqttIngest implements MqttMessageHandler
 {
     public function __construct(
         private readonly MqttMessageRouter $router,

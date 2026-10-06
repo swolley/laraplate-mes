@@ -34,6 +34,7 @@ final class SparkplugAliasFactory extends Factory
             'device_external_id' => 'node1/dev2',
             'alias' => fake()->unique()->numberBetween(1, 100000),
             'name' => fake()->unique()->word(),
+            'declared_at' => now(),
         ];
     }
 }

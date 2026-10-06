@@ -1,0 +1,36 @@
+{
+  "timestamp_ms": 1790000020000,
+  "seq": 4,
+  "metrics": [
+    {
+      "name": "u32",
+      "alias": null,
+      "timestamp_ms": 1790000020000,
+      "datatype": 7,
+      "is_null": false,
+      "is_historical": false,
+      "value": 4000000000,
+      "supported": true
+    },
+    {
+      "name": "u8",
+      "alias": null,
+      "timestamp_ms": 1790000020000,
+      "datatype": 5,
+      "is_null": false,
+      "is_historical": false,
+      "value": 200,
+      "supported": true
+    },
+    {
+      "name": "i32",
+      "alias": null,
+      "timestamp_ms": 1790000020000,
+      "datatype": 3,
+      "is_null": false,
+      "is_historical": false,
+      "value": -70000,
+      "supported": true
+    }
+  ]
+}
