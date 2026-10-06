@@ -35,6 +35,7 @@ use Modules\MES\Listeners\ReserveComponentsForProductionOrder;
 use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
 use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
 use Modules\MES\Machine\Normalizers\NormalizerRegistry;
+use Modules\MES\Machine\Sparkplug\SparkplugBNormalizer;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
@@ -86,6 +87,7 @@ final class MESServiceProvider extends ModuleServiceProvider
             $registry = new NormalizerRegistry();
             $registry->register(new CanonicalNormalizer());
             $registry->register(new MappedJsonNormalizer());
+            $registry->register(resolve(SparkplugBNormalizer::class));
 
             return $registry;
         });

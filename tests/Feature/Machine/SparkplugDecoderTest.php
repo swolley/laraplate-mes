@@ -44,8 +44,8 @@ function describePayload(SparkplugPayload $payload): array
     ];
 }
 
-it('ships the four fixtures, encoded by protoc from the Eclipse Tahu schema', function (): void {
-    expect(array_keys(sparkplugBinaries()))->toBe(['birth', 'data-alias-only', 'signed-ints', 'unsupported-and-null']);
+it('ships the fixtures, encoded by protoc from the Eclipse Tahu schema', function (): void {
+    expect(array_keys(sparkplugBinaries()))->toBe(['birth', 'data-alias-only', 'seq-0', 'seq-255', 'signed-ints', 'unsupported-and-null']);
 });
 
 it('decodes every fixture to its expected structure', function (string $base): void {
