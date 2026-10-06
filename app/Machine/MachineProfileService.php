@@ -43,15 +43,22 @@ final class MachineProfileService
                     continue;
                 }
 
-                MachineSignal::query()->create([
-                    'company_id' => $device->company_id,
-                    'device_id' => $device->id,
-                    'key' => $signal['key'],
+                $values = [
                     'role' => $signal['role'],
                     'data_type' => $signal['data_type'],
                     'unit' => $signal['unit'] ?? null,
                     'config' => $this->configFor($signal, $definition),
-                ]);
+                ];
+                $deleted = MachineSignal::query()->onlyTrashed()->where('device_id', $device->id)->where('key', $signal['key'])->first();
+
+                if ($deleted instanceof MachineSignal) {
+                    $deleted->restore();
+                    $deleted->update($values);
+
+                    continue;
+                }
+
+                MachineSignal::query()->create([...$values, 'company_id' => $device->company_id, 'device_id' => $device->id, 'key' => $signal['key']]);
             }
 
             $device->update(['machine_profile_id' => $profile->id, 'profile_version' => $profile->version]);
@@ -114,7 +121,7 @@ final class MachineProfileService
             'definition.alarm_map.*' => ['string', Rule::in(DowntimeCause::values())],
             'definition.default_causes' => ['sometimes', 'array'],
             'definition.default_causes.*' => ['string', Rule::in(DowntimeCause::values())],
-            'definition.signals.*.key' => ['required', 'string', 'max:128', 'distinct'],
+            'definition.signals.*.key' => ['required', 'string', 'max:160', 'distinct'],
             'definition.signals.*.role' => ['required', 'string', Rule::in(array_values(array_diff(SignalRole::values(), [SignalRole::Measurement->value])))],
             'definition.signals.*.data_type' => ['required', Rule::in(['number', 'boolean', 'string'])],
             'definition.signals.*.unit' => ['nullable', 'string', 'max:16'],

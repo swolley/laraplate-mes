@@ -68,14 +68,14 @@ final class MachineSignal extends Model
         $rules['create'] = array_merge($rules['create'], [
             'company_id' => ['required', 'integer', 'exists:' . ERPTables::Companies->value . ',id'],
             'device_id' => ['required', 'integer', 'exists:' . MESTables::MachineDevices->value . ',id'],
-            'key' => ['required', 'string', 'max:128', ...$unique],
+            'key' => ['required', 'string', 'max:160', ...$unique],
             'role' => ['required', 'string', SignalRole::validationRule()],
             'data_type' => ['required', 'string', 'in:number,boolean,string'],
             'unit' => ['nullable', 'string', 'max:16'],
         ], $role_rules);
 
         $rules['update'] = array_merge($rules['update'], [
-            'key' => ['sometimes', 'string', 'max:128', ...$unique],
+            'key' => ['sometimes', 'string', 'max:160', ...$unique],
             'role' => ['sometimes', 'string', SignalRole::validationRule()],
             'data_type' => ['sometimes', 'string', 'in:number,boolean,string'],
             'unit' => ['nullable', 'string', 'max:16'],

@@ -77,7 +77,7 @@ final class MachineMessageProcessor
                 $state = $this->state($target, $sample);
 
                 if (! $state instanceof MachineState) {
-                    $unmapped[] = $this->entry($sample->device, "{$sample->signal}#" . $this->text($sample->value), $sample->value, $sample->ts);
+                    $unmapped[] = $this->entry($sample->device, mb_substr("{$sample->signal}#" . $this->text($sample->value), 0, 160), $sample->value, $sample->ts);
 
                     continue;
                 }
@@ -85,7 +85,8 @@ final class MachineMessageProcessor
                 $alarm_code = $this->text($sample->value);
             }
 
-            $attribution = $this->attributor->attribute($target, $sample, $references[$target->device->id]['order'] ?? null, $references[$target->device->id]['operation'] ?? null);
+            [$order_reference, $operation_reference] = $this->referenceAt($references[$target->device->id] ?? [], $sample->ts);
+            $attribution = $this->attributor->attribute($target, $sample, $order_reference, $operation_reference);
             $groups[$target->device->id][$this->eventFor($target->signal->role)][] = new ResolvedSample($target->device, $target->signal, $sample, $attribution->production_order_operation_id, $state, $alarm_code);
         }
 
@@ -117,10 +118,10 @@ final class MachineMessageProcessor
     }
 
     /**
-     * The latest order and operation reference values of each device in the message.
+     * The reference values of each device in the message, with the time each came into force.
      *
      * @param  list<array{ResolvedSignal, NormalizedSample}>  $resolved  in time order
-     * @return array<int, array<string, string>>
+     * @return array<int, list<array{ts: CarbonImmutable, kind: string, value: string}>>
      */
     private function references(array $resolved): array
     {
@@ -132,13 +133,40 @@ final class MachineMessageProcessor
             }
 
             if ($target->signal->role === SignalRole::OrderReference) {
-                $references[$target->device->id]['order'] = $this->text($sample->value);
+                $references[$target->device->id][] = ['ts' => $sample->ts, 'kind' => 'order', 'value' => $this->text($sample->value)];
             } elseif ($target->signal->role === SignalRole::OperationReference) {
-                $references[$target->device->id]['operation'] = $this->text($sample->value);
+                $references[$target->device->id][] = ['ts' => $sample->ts, 'kind' => 'operation', 'value' => $this->text($sample->value)];
             }
         }
 
         return $references;
+    }
+
+    /**
+     * The order and operation references in force at a sample time: the latest reference sample not
+     * after it. A sample older than every reference of its device has none.
+     *
+     * @param  list<array{ts: CarbonImmutable, kind: string, value: string}>  $references  in time order
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function referenceAt(array $references, CarbonImmutable $ts): array
+    {
+        $order = null;
+        $operation = null;
+
+        foreach ($references as $reference) {
+            if ($reference['ts'] > $ts) {
+                break;
+            }
+
+            if ($reference['kind'] === 'order') {
+                $order = $reference['value'];
+            } else {
+                $operation = $reference['value'];
+            }
+        }
+
+        return [$order, $operation];
     }
 
     /**

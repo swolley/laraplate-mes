@@ -169,3 +169,14 @@ it('attributes a prepared message from memory, with the same answers and no furt
     expect($answers)->toBe([$first->id, null, $second->id])
         ->and($queries)->toBe([]);
 });
+
+it('attributes nothing to a future sample, even when an operation is still running', function (): void {
+    $ctx = attributionTarget();
+    $running = operationOn($ctx, now()->subHour()->toDateTimeString());
+    $future = new NormalizedSample('d', 's', now()->addDay()->toImmutable(), 1);
+    $attributor = resolve(OperationAttributor::class);
+
+    expect($attributor->attribute($ctx['target'], $future)->production_order_operation_id)->toBeNull()
+        ->and($attributor->attribute($ctx['target'], new NormalizedSample('d', 's', now()->addDay()->toImmutable(), 1, context: ['operation_ref' => (string) $running->id]))->production_order_operation_id)->toBeNull()
+        ->and($attributor->attribute($ctx['target'], new NormalizedSample('d', 's', now()->toImmutable(), 1))->production_order_operation_id)->toBe($running->id);
+});

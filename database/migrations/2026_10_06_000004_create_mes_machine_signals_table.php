@@ -21,7 +21,7 @@ return new class extends Migration
             $table->foreignId('device_id')
                 ->constrained(MESTables::MachineDevices->value, 'id', "{$table_name}_device_id_FK")
                 ->cascadeOnDelete();
-            $table->string('key', 128);
+            $table->string('key', 160);
             $table->string('role', 32);
             $table->string('data_type', 16)->default('number');
             $table->string('unit', 16)->nullable();

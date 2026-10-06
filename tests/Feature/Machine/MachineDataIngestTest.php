@@ -170,3 +170,21 @@ it('lets a source hold one token at a time', function (): void {
     expect($service->revoke($source))->toBe(1);
     ingest(ingestEnvelope('c'), $second)->assertUnauthorized();
 });
+
+it('limits failed authentications per address', function (): void {
+    for ($i = 0; $i < 30; $i++) {
+        ingest(ingestEnvelope(), "999|random-{$i}")->assertUnauthorized();
+    }
+
+    ingest(ingestEnvelope(), '999|random-last')->assertStatus(429)->assertHeader('Retry-After');
+    Illuminate\Support\Facades\RateLimiter::clear('mes:machine:auth-failures:127.0.0.1');
+});
+
+it('refuses too many samples before validating the envelope', function (): void {
+    [, $token] = sourceWithToken();
+    config(['mes.machine.max_samples' => 2]);
+    $envelope = ingestEnvelope('big', 3);
+    $envelope['protocol'] = 'laraplate-machine/9';
+
+    ingest($envelope, $token)->assertStatus(413);
+});

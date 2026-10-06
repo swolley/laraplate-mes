@@ -43,6 +43,7 @@ final class UnmappedSignalRecorder
             ->withoutGlobalScopes()
             ->where('source_id', $source->id)
             ->whereIn('device_external_id', array_values(array_unique(array_column($latest, 'device'))))
+            ->whereIn('signal_key', array_values(array_unique(array_column($latest, 'key'))))
             ->get()
             ->keyBy(static fn (UnmappedSignal $row): string => $row->device_external_id . "\0" . $row->signal_key);
 
@@ -69,7 +70,7 @@ final class UnmappedSignalRecorder
                 'device_external_id' => $entry['device'],
                 'signal_key' => $entry['key'],
                 'last_value' => $value,
-                'last_seen_at' => $seen_at,
+                'last_seen_at' => $seen_at->setTimezone(config()->string('app.timezone')),
                 'seen_count' => $seen_count,
             ];
         }

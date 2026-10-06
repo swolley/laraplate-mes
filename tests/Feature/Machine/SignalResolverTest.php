@@ -113,3 +113,45 @@ it('records many unmapped signals in a bounded number of queries', function (): 
     expect($queries)->toBeLessThanOrEqual(2)
         ->and(UnmappedSignal::query()->count())->toBe(100);
 });
+
+it('keeps the sample time as the same instant, and never moves the last value backwards', function (): void {
+    $source = MachineSource::factory()->create();
+    $recorder = resolve(UnmappedSignalRecorder::class);
+    $newer = Carbon\CarbonImmutable::parse('2026-07-01 10:00:00', 'UTC');
+
+    $recorder->record($source, 'd', 'k', 'new', $newer, true);
+    expect(UnmappedSignal::query()->sole()->last_seen_at->getTimestamp())->toBe($newer->getTimestamp());
+
+    $recorder->record($source, 'd', 'k', 'old', $newer->subMinutes(30), true);
+
+    $row = UnmappedSignal::query()->sole();
+    expect($row->last_value)->toBe('new')
+        ->and($row->last_seen_at->getTimestamp())->toBe($newer->getTimestamp());
+});
+
+it('forgets the map after the surrounding transaction commits, not before', function (): void {
+    $signal = MachineSignal::factory()->create(['key' => 'k']);
+    $device = $signal->device;
+    $source = $device->source;
+    resolve(SignalResolver::class)->resolve($source, $device->external_id, 'k');
+
+    DB::transaction(function () use ($device, $source): void {
+        MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 'late']);
+        // A job running before the commit caches the map it can see.
+        new SignalResolver()->resolve($source, $device->external_id, 'late');
+    });
+
+    expect(resolve(SignalResolver::class)->resolve($source, $device->external_id, 'late'))->not->toBeNull();
+});
+
+it('forgets the old source map when a device moves to another source', function (): void {
+    $signal = MachineSignal::factory()->create(['key' => 'k']);
+    $device = $signal->device;
+    $old_source = $device->source;
+    $new_source = MachineSource::factory()->create();
+    expect(resolve(SignalResolver::class)->resolve($old_source, $device->external_id, 'k'))->not->toBeNull();
+
+    $device->update(['source_id' => $new_source->id]);
+
+    expect(resolve(SignalResolver::class)->resolve($old_source, $device->external_id, 'k'))->toBeNull();
+});

@@ -8,6 +8,7 @@ use function user_class;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Modules\MES\Events\MachineIncidentRecorded;
 use Modules\MES\Models\MachineIncident;
@@ -38,6 +39,11 @@ final class NotifyMachineIncident implements ShouldQueue
         $roles = config('mes.notifications.machine_incident.recipients.roles', []);
 
         if (! $incident instanceof MachineIncident || $roles === []) {
+            return;
+        }
+
+        // A burst of the same kind from one source is one notification, not one per incident.
+        if (! Cache::add("mes:machine:incident-notified:{$incident->source_id}:{$incident->type->value}", true, 300)) {
             return;
         }
 

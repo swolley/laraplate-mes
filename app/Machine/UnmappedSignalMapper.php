@@ -49,16 +49,24 @@ final class UnmappedSignalMapper
                 ]);
             }
 
-            $signal = MachineSignal::query()->create([
-                'company_id' => $device->company_id,
-                'device_id' => $device->id,
-                'key' => $unmapped->signal_key,
+            $values = [
                 'role' => Arr::string($attributes, 'role'),
                 'data_type' => isset($attributes['data_type']) ? Arr::string($attributes, 'data_type') : 'number',
                 'unit' => isset($attributes['unit']) ? Arr::string($attributes, 'unit') : null,
                 'config' => is_array($attributes['config'] ?? null) ? $attributes['config'] : null,
                 'quality_plan_characteristic_id' => is_numeric($attributes['quality_plan_characteristic_id'] ?? null) ? (int) $attributes['quality_plan_characteristic_id'] : null,
-            ]);
+            ];
+
+            // A signal the device had deleted comes back, with the values given now.
+            $deleted = MachineSignal::query()->onlyTrashed()->where('device_id', $device->id)->where('key', $unmapped->signal_key)->first();
+
+            if ($deleted instanceof MachineSignal) {
+                $deleted->restore();
+                $deleted->update($values);
+                $signal = $deleted;
+            } else {
+                $signal = MachineSignal::query()->create([...$values, 'company_id' => $device->company_id, 'device_id' => $device->id, 'key' => $unmapped->signal_key]);
+            }
 
             $unmapped->delete();
 

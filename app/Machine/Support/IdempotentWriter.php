@@ -9,13 +9,13 @@ use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Writes a row only when its unique keys are free, on every supported driver. MySQL, MariaDB,
- * PostgreSQL, SQLite and SQL Server have insert-or-ignore; any other driver (Oracle) inserts and
- * treats a unique-key violation as "already stored". The violation is not caught on the others:
- * on PostgreSQL it would abort the surrounding transaction.
+ * PostgreSQL and SQLite have insert-or-ignore (Laravel's SQL Server grammar does not); any other
+ * driver (SQL Server, Oracle) inserts and treats a unique-key violation as "already stored". The
+ * violation is not caught on the first group: on PostgreSQL it would abort the surrounding transaction.
  */
 final class IdempotentWriter
 {
-    private const array INSERT_OR_IGNORE_DRIVERS = ['mysql', 'mariadb', 'pgsql', 'sqlite', 'sqlsrv'];
+    private const array INSERT_OR_IGNORE_DRIVERS = ['mysql', 'mariadb', 'pgsql', 'sqlite'];
 
     /**
      * @param  array<string, mixed>  $row

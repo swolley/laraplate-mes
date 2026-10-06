@@ -6,18 +6,23 @@ namespace Modules\MES\Machine;
 
 use Carbon\CarbonImmutable;
 use Modules\MES\Enums\MachineIncidentType;
+use Modules\MES\Enums\MachineMessageStatus;
+use Modules\MES\Jobs\ProcessMachineMessageJob;
 use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineIncident;
+use Modules\MES\Models\MachineMessage;
 use Modules\MES\Models\MachineSource;
 
 /**
  * Notices devices that stopped sending. A device silent for longer than its source's
  * `heartbeat_timeout_seconds` opens one `device_silent` incident, which closes when the device is
- * heard again. The synthetic `Offline` state interval belongs to the state step, and a stopped bridge
+ * heard again. It also queues again the messages left pending. The synthetic `Offline` state interval belongs to the state step, and a stopped bridge
  * to the MQTT step.
  */
 final class MachineWatchdog
 {
+    private const int STALE_PENDING_MINUTES = 5;
+
     public function __construct(
         private readonly MachineIncidentRecorder $incidents,
     ) {}
@@ -65,6 +70,22 @@ final class MachineWatchdog
             }
         }
 
+        $this->requeueStalePending($now);
+
         return $opened;
+    }
+
+    /**
+     * A message still pending a few minutes after it arrived lost its job (the queue was down when it
+     * was stored, or the worker died): queue it again. Processing is idempotent, so a job that is in
+     * fact still waiting does no harm.
+     */
+    private function requeueStalePending(CarbonImmutable $now): void
+    {
+        MachineMessage::query()
+            ->withoutGlobalScopes()
+            ->where('status', MachineMessageStatus::Pending->value)
+            ->where('received_at', '<', $now->subMinutes(self::STALE_PENDING_MINUTES))
+            ->each(static fn (MachineMessage $message) => ProcessMachineMessageJob::dispatch($message->id, $message->source_id));
     }
 }

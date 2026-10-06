@@ -119,7 +119,20 @@ it('records a clock skew incident but still accepts the message', function (): v
     $incident = MachineIncident::query()->sole();
     expect($incident->type)->toBe(MachineIncidentType::ClockSkew)
         ->and($incident->detail)->toHaveKeys(['sent_at', 'received_at', 'skew_seconds'])
+        ->and($incident->resolved_at)->not->toBeNull()
         ->and(MachineMessage::query()->count())->toBe(2);
+});
+
+it('keeps one clock skew incident open while the skew lasts', function (): void {
+    $source = MachineSource::factory()->create();
+    $inbox = resolve(MachineMessageInbox::class);
+
+    foreach (['a', 'b', 'c'] as $id) {
+        $inbox->accept($source, inboxPayload($id, null, now()->addMinutes(5)->toIso8601ZuluString('millisecond')), MachineTransport::Http);
+    }
+
+    expect(MachineIncident::query()->where('type', MachineIncidentType::ClockSkew->value)->whereNull('resolved_at')->count())->toBe(1)
+        ->and(MachineIncident::query()->count())->toBe(1);
 });
 
 it('records an incident once while it stays open, and resolves it', function (): void {

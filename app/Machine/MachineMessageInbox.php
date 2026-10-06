@@ -98,11 +98,16 @@ final class MachineMessageInbox
         $skew = (int) round(abs(now()->diffInSeconds($meta->sent_at, false)));
 
         if ($skew > config()->integer('mes.machine.clock_skew_seconds')) {
-            $this->incidents->record($source, MachineIncidentType::ClockSkew, [
+            // One open incident while the skew lasts, not one per message.
+            $this->incidents->recordOnce($source, MachineIncidentType::ClockSkew, [
                 'sent_at' => $meta->sent_at->toIso8601ZuluString('millisecond'),
                 'received_at' => now()->toIso8601ZuluString('millisecond'),
                 'skew_seconds' => $skew,
             ]);
+
+            return;
         }
+
+        $this->incidents->resolve($source, MachineIncidentType::ClockSkew);
     }
 }

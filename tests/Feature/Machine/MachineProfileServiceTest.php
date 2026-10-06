@@ -110,3 +110,15 @@ it('exports a profile and imports it back into another company', function (): vo
         ->and($imported->version)->toBe('1.0');
     expect(fn () => $service->import($other->id, $service->export($profile)))->toThrow(ValidationException::class);
 });
+
+it('brings back a signal the device had deleted when its profile is applied again', function (): void {
+    $profile = MachineProfile::factory()->create(['definition' => profileDefinition()]);
+    $device = MachineDevice::factory()->create();
+    $service = resolve(MachineProfileService::class);
+    $service->apply($device, $profile);
+    $device->signals()->where('key', 'parts')->first()->delete();
+
+    $service->apply($device->fresh(), $profile);
+
+    expect($device->signals()->pluck('key')->sort()->values()->all())->toBe(['alarm', 'exec', 'parts']);
+});

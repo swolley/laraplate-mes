@@ -122,3 +122,32 @@ it('schedules the watchdog every minute and the inbox pruning daily', function (
         ->and($prune?->expression)->toBe('0 0 * * *')
         ->and(MachineMessage::class)->toContain('MachineMessage');
 });
+
+it('queues again a message left pending, and leaves a fresh one alone', function (): void {
+    Illuminate\Support\Facades\Queue::fake();
+    $stale = MachineMessage::factory()->create(['received_at' => '2026-10-05 11:50:00']);
+    MachineMessage::factory()->create(['received_at' => '2026-10-05 11:59:00']);
+    MachineMessage::factory()->processed()->create(['received_at' => '2026-10-05 11:00:00']);
+
+    resolve(MachineWatchdog::class)->sweep();
+
+    Illuminate\Support\Facades\Queue::assertPushed(Modules\MES\Jobs\ProcessMachineMessageJob::class, 1);
+    Illuminate\Support\Facades\Queue::assertPushed(Modules\MES\Jobs\ProcessMachineMessageJob::class, static fn ($job): bool => $job->machine_message_id === $stale->id);
+});
+
+it('notifies a source and incident type at most once in five minutes', function (): void {
+    Notification::fake();
+    config(['mes.notifications.machine_incident.recipients.roles' => ['plant_admin']]);
+    $user = user_class()::factory()->create();
+    $user->assignRole(Role::findOrCreate('plant_admin', 'web'));
+    $source = MachineSource::factory()->create();
+    $recorder = resolve(MachineIncidentRecorder::class);
+    $listener = new NotifyMachineIncident();
+
+    foreach (range(1, 3) as $ignored) {
+        $incident = $recorder->record($source, MachineIncidentType::MessageFailed, ['n' => $ignored]);
+        $listener->handle(new MachineIncidentRecorded((int) $incident->company_id, $incident->id));
+    }
+
+    Notification::assertSentToTimes($user, MachineIncidentNotification::class, 1);
+});

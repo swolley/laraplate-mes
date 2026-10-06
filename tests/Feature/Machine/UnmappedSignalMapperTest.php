@@ -75,3 +75,17 @@ it('makes the signal resolvable at once', function (): void {
 
     expect(resolve(SignalResolver::class)->resolve($device->source, 'press-07', 'spindle'))->not->toBeNull();
 });
+
+it('restores a deleted signal of the same key when it is mapped again', function (): void {
+    $device = MachineDevice::factory()->create(['external_id' => 'press-07']);
+    $old = Modules\MES\Models\MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 'spindle', 'role' => SignalRole::ProcessValue->value, 'config' => null]);
+    $old->delete();
+    $unmapped = UnmappedSignal::factory()->create(['source_id' => $device->source_id, 'device_external_id' => 'press-07', 'signal_key' => 'spindle']);
+
+    $signal = resolve(UnmappedSignalMapper::class)->map($unmapped, ['role' => SignalRole::ProcessValue->value, 'data_type' => 'number', 'unit' => 'rpm']);
+
+    expect($signal->id)->toBe($old->id)
+        ->and($signal->trashed())->toBeFalse()
+        ->and($signal->unit)->toBe('rpm')
+        ->and(UnmappedSignal::query()->count())->toBe(0);
+});

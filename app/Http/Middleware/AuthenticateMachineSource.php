@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\PersonalAccessToken;
 use Modules\MES\Enums\MachineIncidentType;
 use Modules\MES\Machine\MachineIncidentRecorder;
@@ -17,13 +18,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Authenticates a machine source by the bearer token it was issued. The token identifies the source;
- * an unknown token is `401`, a token that is not a source's, lacks the ingest ability or belongs to an
- * inactive source is `403`. Failures are logged without the token, and a source's failures become one
+ * an unknown token, or one that is not a source's, is `401`; one that lacks the ingest ability or
+ * belongs to an inactive source is `403`; more than 30 failed attempts a minute from one address is `429`. Failures are logged without the token, and a source's failures become one
  * incident per five minutes, so a misconfigured agent cannot flood either.
  */
 final class AuthenticateMachineSource
 {
     public const string REQUEST_ATTRIBUTE = 'machine_source';
+
+    private const int MAX_FAILURES_PER_MINUTE = 30;
 
     public function __construct(
         private readonly MachineIncidentRecorder $incidents,
@@ -31,11 +34,18 @@ final class AuthenticateMachineSource
 
     public function handle(Request $request, Closure $next): Response
     {
+        $address_key = 'mes:machine:auth-failures:' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($address_key, self::MAX_FAILURES_PER_MINUTE)) {
+            return response()->json(['message' => 'Too many failed attempts.'], 429, ['Retry-After' => (string) RateLimiter::availableIn($address_key)]);
+        }
+
         $plain = $request->bearerToken();
         $token = is_string($plain) && $plain !== '' ? PersonalAccessToken::findToken($plain) : null;
         $source = $token?->tokenable;
 
         if ($token === null || ! $source instanceof MachineSource) {
+            RateLimiter::hit($address_key, 60);
             $this->logUnknownToken($request);
 
             return response()->json(['message' => 'Unauthenticated.'], 401);

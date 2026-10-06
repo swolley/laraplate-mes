@@ -243,7 +243,7 @@ it('serialises its processing per source and runs on the machine queue', functio
     $job = new ProcessMachineMessageJob(1, 42);
 
     expect($job->queue)->toBe('mes-machine')
-        ->and($job->tries)->toBe(3)
+        ->and($job->tries)->toBe(0)
         ->and($job->middleware())->toHaveCount(1)
         ->and($job->middleware()[0])->toBeInstanceOf(Illuminate\Queue\Middleware\WithoutOverlapping::class);
 });
@@ -273,4 +273,61 @@ it('a 5000-sample message uses the same number of queries as a 50-sample one', f
     DB::disableQueryLog();
 
     expect($large_queries)->toBe($small_queries);
+});
+
+it('does not fail a message for being released while another message of the source runs', function (): void {
+    $job = new ProcessMachineMessageJob(1, 42);
+
+    expect($job->tries)->toBe(0)
+        ->and($job->maxExceptions)->toBe(3)
+        ->and($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(30)->getTimestamp());
+});
+
+it('attributes each sample by the reference in force at its own time', function (): void {
+    $ctx = pipelineSetup();
+    $company = $ctx['device']->company_id;
+    $work_center = $ctx['device']->work_center_id;
+    $order_a = ProductionOrder::factory()->create(['company_id' => $company, 'number' => 'PO-A']);
+    $order_b = ProductionOrder::factory()->create(['company_id' => $company, 'number' => 'PO-B']);
+    $op_a = ProductionOrderOperation::factory()->create(['production_order_id' => $order_a->id, 'work_center_id' => $work_center, 'actual_start_at' => now()->subHours(5), 'actual_end_at' => now()->subHours(3)]);
+    $op_b = ProductionOrderOperation::factory()->create(['production_order_id' => $order_b->id, 'work_center_id' => $work_center, 'actual_start_at' => now()->subHours(3)]);
+    $at = static fn (int $minutes_ago): string => now()->subMinutes($minutes_ago)->toIso8601ZuluString('millisecond');
+
+    runJob(storeMessage($ctx['source'], [
+        sampleRow('order_ref', 'PO-A', $at(300)),
+        sampleRow('temp', 1, $at(270)),
+        sampleRow('order_ref', 'PO-B', $at(170)),
+        sampleRow('temp', 2, $at(150)),
+    ]));
+
+    Event::assertDispatched(ProcessValuesSampled::class, static fn (ProcessValuesSampled $event): bool => array_map(static fn ($s): ?int => $s->production_order_operation_id, $event->samples) === [$op_a->id, $op_b->id]);
+});
+
+it('counts an unmapped signal once even when the first attempt fails after recording it', function (): void {
+    $ctx = pipelineSetup();
+    $message = storeMessage($ctx['source'], [sampleRow('mystery', 5), sampleRow('temp', 1)]);
+    Event::fake([MachineStateObserved::class, PartsCounted::class, ProbeMeasured::class]);
+    $fail = true;
+    Event::listen(ProcessValuesSampled::class, static function () use (&$fail): void {
+        if ($fail) {
+            $fail = false;
+
+            throw new RuntimeException('first attempt breaks');
+        }
+    });
+    $job = new ProcessMachineMessageJob($message->id, $message->source_id);
+
+    expect(fn () => app()->call([$job, 'handle']))->toThrow(RuntimeException::class);
+    app()->call([$job, 'handle']);
+
+    expect(UnmappedSignal::query()->sole()->seen_count)->toBe(1)
+        ->and($message->fresh()->status)->toBe(MachineMessageStatus::Processed);
+});
+
+it('keeps the key of an unmapped raw state value within the column', function (): void {
+    $ctx = pipelineSetup();
+
+    runJob(storeMessage($ctx['source'], [sampleRow('state', str_repeat('X', 400))]));
+
+    expect(mb_strlen(UnmappedSignal::query()->sole()->signal_key))->toBeLessThanOrEqual(160);
 });

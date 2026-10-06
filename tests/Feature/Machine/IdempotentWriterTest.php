@@ -55,3 +55,14 @@ it('lets other errors through on a driver without insert-or-ignore', function ()
 
     expect(fn () => new IdempotentWriter()->insert($connection, 't', ['a' => 1]))->toThrow(RuntimeException::class, 'disk full');
 });
+
+it('does not use insert-or-ignore on SQL Server, whose grammar lacks it', function (): void {
+    $builder = Mockery::mock(Builder::class);
+    $builder->shouldReceive('insert')->once()->andThrow(new UniqueConstraintViolationException('sqlsrv', 'insert', [], new Exception('2627')));
+    $builder->shouldNotReceive('insertOrIgnore');
+    $connection = Mockery::mock(Connection::class);
+    $connection->shouldReceive('getDriverName')->andReturn('sqlsrv');
+    $connection->shouldReceive('table')->with('t')->andReturn($builder);
+
+    expect(new IdempotentWriter()->insert($connection, 't', ['a' => 1]))->toBeFalse();
+});

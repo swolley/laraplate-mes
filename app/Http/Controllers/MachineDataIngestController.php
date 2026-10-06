@@ -48,14 +48,14 @@ final class MachineDataIngestController extends Controller
             return response()->json(['message' => 'The envelope is invalid.', 'errors' => ['body' => ['The body is not a JSON object.']]], 422);
         }
 
+        if ($validator->sampleCount($envelope) > config()->integer('mes.machine.max_samples')) {
+            return response()->json(['message' => 'Too many samples; split the batch.'], 413);
+        }
+
         $errors = $validator->validate($envelope);
 
         if ($errors !== []) {
             return response()->json(['message' => 'The envelope is invalid.', 'errors' => $errors], 422);
-        }
-
-        if ($validator->sampleCount($envelope) > config()->integer('mes.machine.max_samples')) {
-            return response()->json(['message' => 'Too many samples; split the batch.'], 413);
         }
 
         $result = $inbox->accept($source, $body, MachineTransport::Http);

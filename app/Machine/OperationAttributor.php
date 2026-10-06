@@ -76,6 +76,11 @@ final class OperationAttributor
         $order_ref = $sample->context['order_ref'] ?? $order_reference;
         $ts = $sample->ts->setTimezone(config()->string('app.timezone'));
 
+        // Nothing has happened yet at a time that has not come: a sender clock far ahead attributes to none.
+        if ($ts > CarbonImmutable::now()->addSeconds(config()->integer('mes.machine.clock_skew_seconds'))) {
+            return Attribution::none();
+        }
+
         if ($operation_ref !== null || $order_ref !== null) {
             $id = $this->explicit($target, $ts, $order_ref, $operation_ref);
 

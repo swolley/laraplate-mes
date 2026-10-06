@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Jobs;
 
+use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,8 @@ use Throwable;
 /**
  * Processes one stored machine message. Messages of a source are processed one at a time, in the
  * order they were queued, which is the order the agent sent them. Running it again leaves the data
- * as one run would; `$reprocess` also keeps the unmapped counters from growing.
+ * as one run would; `$reprocess` also keeps the unmapped counters from growing. Order is kept per
+ * source by the overlap guard only while one worker serves the queue: a released message goes to the back.
  */
 final class ProcessMachineMessageJob implements ShouldQueue
 {
@@ -32,7 +34,13 @@ final class ProcessMachineMessageJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    /**
+     * Unlimited attempts, because being released while another message of the source runs (the
+     * overlap guard) counts as an attempt: the budget is exceptions, not releases.
+     */
+    public int $tries = 0;
+
+    public int $maxExceptions = 3;
 
     public function __construct(
         public int $machine_message_id,
@@ -49,6 +57,11 @@ final class ProcessMachineMessageJob implements ShouldQueue
     public function middleware(): array
     {
         return [new WithoutOverlapping((string) $this->source_id)->releaseAfter(30)->expireAfter(300)];
+    }
+
+    public function retryUntil(): DateTimeInterface
+    {
+        return now()->addHours(2);
     }
 
     /**
@@ -78,7 +91,8 @@ final class ProcessMachineMessageJob implements ShouldQueue
             return;
         }
 
-        $processor->process($source, $normalized, $message->received_at, ! $this->reprocess);
+        // Unmapped counters grow on the first attempt of a first processing only: a retry after a late failure must not count again.
+        $processor->process($source, $normalized, $message->received_at, ! $this->reprocess && $message->attempts === 1);
 
         $message->update(['status' => MachineMessageStatus::Processed->value, 'processed_at' => now(), 'error' => null]);
     }
