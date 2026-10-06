@@ -105,5 +105,20 @@ return [
         'clock_skew_seconds' => (int) env('MES_MACHINE_CLOCK_SKEW_SECONDS', 30),
         'inbox_retention_days' => (int) env('MES_MACHINE_INBOX_RETENTION_DAYS', 7),
         'rate_limit_per_minute' => (int) env('MES_MACHINE_RATE_LIMIT_PER_MINUTE', 600),
+
+        /*
+        | The MQTT broker the bridge (`mes:machine-bridge`) connects to: one per installation, provided
+        | by the customer. The session is persistent (QoS 1), so messages published while the bridge is
+        | down wait on the broker. `topic_prefix` starts the topic of canonical sources.
+        */
+        'mqtt' => [
+            'host' => env('MES_MACHINE_MQTT_HOST', '127.0.0.1'),
+            'port' => (int) env('MES_MACHINE_MQTT_PORT', 1883),
+            'username' => env('MES_MACHINE_MQTT_USERNAME'),
+            'password' => env('MES_MACHINE_MQTT_PASSWORD'),
+            'tls' => (bool) env('MES_MACHINE_MQTT_TLS', false),
+            'client_id' => env('MES_MACHINE_MQTT_CLIENT_ID', 'laraplate-mes-bridge'),
+            'topic_prefix' => env('MES_MACHINE_MQTT_TOPIC_PREFIX', 'laraplate'),
+        ],
     ],
 ];

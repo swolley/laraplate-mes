@@ -250,7 +250,7 @@ final class ProductionOrderService
         }
 
         $snapshot['lines'] = $lines;
-        $order->update(['bom_snapshot' => $snapshot]);
+        $order->forceFill(['bom_snapshot' => $snapshot])->save();
 
         return $order;
     }

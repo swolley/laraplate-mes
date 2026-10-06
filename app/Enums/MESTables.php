@@ -38,4 +38,5 @@ enum MESTables: string
     case UnmappedSignals = 'mes_unmapped_signals';
     case MachineMessages = 'mes_machine_messages';
     case MachineIncidents = 'mes_machine_incidents';
+    case SparkplugAliases = 'mes_sparkplug_aliases';
 }
