@@ -32,6 +32,8 @@ use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Listeners\ReleaseComponentsAfterCompletion;
 use Modules\MES\Listeners\ReleaseComponentsForProductionOrder;
 use Modules\MES\Listeners\ReserveComponentsForProductionOrder;
+use Modules\MES\Machine\Mqtt\MachineMessageSubscriber;
+use Modules\MES\Machine\Mqtt\PhpMqttSubscriber;
 use Modules\MES\Machine\Normalizers\CanonicalNormalizer;
 use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
 use Modules\MES\Machine\Normalizers\NormalizerRegistry;
@@ -82,6 +84,8 @@ final class MESServiceProvider extends ModuleServiceProvider
             StockMovementRecorder::class,
             ErpStockMovementRecorder::class,
         );
+
+        $this->app->bind(MachineMessageSubscriber::class, PhpMqttSubscriber::class);
 
         $this->app->singleton(NormalizerRegistry::class, static function (): NormalizerRegistry {
             $registry = new NormalizerRegistry();

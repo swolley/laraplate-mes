@@ -88,11 +88,20 @@ MES_MACHINE_MAX_BODY_KB=1024
 MES_MACHINE_CLOCK_SKEW_SECONDS=30
 MES_MACHINE_INBOX_RETENTION_DAYS=7
 MES_MACHINE_RATE_LIMIT_PER_MINUTE=600
+
+# MQTT broker of the bridge (`php artisan mes:machine-bridge`), one per installation
+MES_MACHINE_MQTT_HOST=127.0.0.1
+MES_MACHINE_MQTT_PORT=1883
+MES_MACHINE_MQTT_USERNAME=
+MES_MACHINE_MQTT_PASSWORD=
+MES_MACHINE_MQTT_TLS=false
+MES_MACHINE_MQTT_CLIENT_ID=laraplate-mes-bridge
+MES_MACHINE_MQTT_TOPIC_PREFIX=laraplate
 ```
 
 The machine variables set the config keys `mes.machine.queue`, `mes.machine.max_samples`,
 `mes.machine.max_body_kb`, `mes.machine.clock_skew_seconds`, `mes.machine.inbox_retention_days` and
-`mes.machine.rate_limit_per_minute`. The machine queue (`mes-machine`) needs its own Horizon supervisor;
+`mes.machine.rate_limit_per_minute`; the MQTT ones set `mes.machine.mqtt.host`, `.port`, `.username`, `.password`, `.tls`, `.client_id` and `.topic_prefix`. The machine queue (`mes-machine`) needs its own Horizon supervisor;
 incident notifications go to the roles under `mes.notifications.machine_incident`.
 
 The receiving warehouse for auto-created production orders is resolved per company.
