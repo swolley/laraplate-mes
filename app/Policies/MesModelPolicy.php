@@ -13,6 +13,8 @@ use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
@@ -87,6 +89,26 @@ final class MesModelPolicy
 
             return $record instanceof Downtime && $record->ended_at === null;
         });
+    }
+
+    public function reprocess(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'reprocess', static fn (Model $record): bool => $record instanceof MachineMessage);
+    }
+
+    public function issueToken(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'issue_token', static fn (Model $record): bool => $record instanceof MachineSource && $record->is_active);
+    }
+
+    public function revokeToken(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'revoke_token', static fn (Model $record): bool => $record instanceof MachineSource);
+    }
+
+    public function reprocessRange(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'reprocess_range', static fn (Model $record): bool => $record instanceof MachineSource);
     }
 
     public function openDowntime(User $user, Model $record): bool

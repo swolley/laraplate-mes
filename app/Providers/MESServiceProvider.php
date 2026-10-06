@@ -27,6 +27,8 @@ use Modules\MES\Machine\Normalizers\MappedJsonNormalizer;
 use Modules\MES\Machine\Normalizers\NormalizerRegistry;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\MachineDevice;
+use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\MachineSignal;
 use Modules\MES\Observers\MachineConfigurationObserver;
 use Modules\MES\Models\Downtime;
@@ -140,6 +142,8 @@ final class MESServiceProvider extends ModuleServiceProvider
             Downtime::class,
             LotNumber::class,
             WorkCenter::class,
+            MachineMessage::class,
+            MachineSource::class,
         ];
     }
 }
