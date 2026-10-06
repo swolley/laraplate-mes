@@ -8,7 +8,9 @@ use Modules\Core\Authorization\Contracts\DeclaresPermissions;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
@@ -29,7 +31,9 @@ final class MESPermissions implements DeclaresPermissions
             Bom::class => ['explode'],
             Downtime::class => ['close'],
             LotNumber::class => ['forward_trace', 'backward_trace'],
+            MachineDevice::class => ['apply_profile'],
             MachineMessage::class => ['reprocess'],
+            MachineProfile::class => ['export'],
             MachineSource::class => ['issue_token', 'revoke_token', 'reprocess_range'],
             NonConformance::class => ['resolve', 'close'],
             ProductionOrder::class => ['release', 'complete', 'cancel', 'record_consumption'],

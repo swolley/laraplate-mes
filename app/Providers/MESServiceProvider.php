@@ -31,6 +31,7 @@ use Modules\MES\Machine\Normalizers\NormalizerRegistry;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\MachineSignal;
 use Modules\MES\Observers\MachineConfigurationObserver;
@@ -159,6 +160,8 @@ final class MESServiceProvider extends ModuleServiceProvider
             WorkCenter::class,
             MachineMessage::class,
             MachineSource::class,
+            MachineDevice::class,
+            MachineProfile::class,
         ];
     }
 }

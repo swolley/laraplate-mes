@@ -63,7 +63,7 @@ final class MachineSignal extends Model
         $unique = $this->device_id === null ? [] : [
             Rule::unique(MESTables::MachineSignals->value, 'key')->where('device_id', $this->device_id)->ignore($this->getKey()),
         ];
-        $role_rules = $this->roleRules();
+        $role_rules = self::rulesForRole($this->role);
 
         $rules['create'] = array_merge($rules['create'], [
             'company_id' => ['required', 'integer', 'exists:' . ERPTables::Companies->value . ',id'],
@@ -125,11 +125,11 @@ final class MachineSignal extends Model
      *
      * @return array<string, array<int, mixed>>
      */
-    private function roleRules(): array
+    public static function rulesForRole(?SignalRole $role): array
     {
         $characteristic = ['nullable', 'integer', 'exists:' . MESTables::QualityPlanCharacteristics->value . ',id'];
 
-        return match ($this->role) {
+        return match ($role) {
             SignalRole::State => [
                 'config' => ['required', 'array'],
                 'config.map' => ['required', 'array', 'min:1'],

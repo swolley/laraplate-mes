@@ -14,9 +14,12 @@ use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Machine\MachineMessageReprocessor;
+use Modules\MES\Machine\MachineProfileService;
 use Modules\MES\Machine\MachineSourceTokenService;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
@@ -70,6 +73,8 @@ final class MesDomainActionRegistrar
             $payload['notes'] ?? null,
         ));
         $registry->register(MachineMessage::class, 'reprocess', static fn (Model $record, array $payload, User $user): Model => resolve(MachineMessageReprocessor::class)->reprocess(self::machineMessage($record)));
+        $registry->register(MachineDevice::class, 'apply_profile', static fn (Model $record, array $payload, User $user): Model => resolve(MachineProfileService::class)->apply(self::machineDevice($record), MachineProfile::query()->findOrFail((int) $payload['profile_id'])));
+        $registry->register(MachineProfile::class, 'export', static fn (Model $record, array $payload, User $user): array => ['json' => resolve(MachineProfileService::class)->export(self::machineProfile($record))]);
         $registry->register(MachineSource::class, 'issue_token', static fn (Model $record, array $payload, User $user): array => ['token' => resolve(MachineSourceTokenService::class)->issue(self::machineSource($record))]);
         $registry->register(MachineSource::class, 'revoke_token', static fn (Model $record, array $payload, User $user): array => ['revoked' => resolve(MachineSourceTokenService::class)->revoke(self::machineSource($record))]);
         $registry->register(MachineSource::class, 'reprocess_range', static fn (Model $record, array $payload, User $user): array => ['reprocessed' => resolve(MachineMessageReprocessor::class)->reprocessRange(self::machineSource($record), Carbon::parse((string) $payload['from']), Carbon::parse((string) $payload['to']))]);
@@ -79,6 +84,24 @@ final class MesDomainActionRegistrar
 
         $registry->register(LotNumber::class, 'forward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->forwardTrace(self::intValue($record->getKey(), 'key')));
         $registry->register(LotNumber::class, 'backward_trace', static fn (Model $record, array $payload, User $user): array => resolve(LotTracingService::class)->backwardTrace(self::intValue($record->getKey(), 'key')));
+    }
+
+    private static function machineDevice(Model $record): MachineDevice
+    {
+        if (! $record instanceof MachineDevice) {
+            throw new InvalidArgumentException('Expected a machine device record.');
+        }
+
+        return $record;
+    }
+
+    private static function machineProfile(Model $record): MachineProfile
+    {
+        if (! $record instanceof MachineProfile) {
+            throw new InvalidArgumentException('Expected a machine profile record.');
+        }
+
+        return $record;
     }
 
     private static function machineMessage(Model $record): MachineMessage

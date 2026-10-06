@@ -6,7 +6,9 @@ use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
@@ -35,6 +37,8 @@ it('registers every MES domain action without collision', function (): void {
         [NonConformance::class, 'close'],
         [WorkCenter::class, 'open_downtime'],
         [MachineMessage::class, 'reprocess'],
+        [MachineDevice::class, 'apply_profile'],
+        [MachineProfile::class, 'export'],
         [MachineSource::class, 'issue_token'],
         [MachineSource::class, 'revoke_token'],
         [MachineSource::class, 'reprocess_range'],

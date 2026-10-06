@@ -13,7 +13,9 @@ use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Models\Bom;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSource;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\ProductionOrder;
@@ -109,6 +111,16 @@ final class MesModelPolicy
     public function reprocessRange(User $user, Model $record): bool
     {
         return $this->allowsDomainAction($user, $record, 'reprocess_range', static fn (Model $record): bool => $record instanceof MachineSource);
+    }
+
+    public function applyProfile(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'apply_profile', static fn (Model $record): bool => $record instanceof MachineDevice);
+    }
+
+    public function export(User $user, Model $record): bool
+    {
+        return $this->allowsDomainAction($user, $record, 'export', static fn (Model $record): bool => $record instanceof MachineProfile);
     }
 
     public function openDowntime(User $user, Model $record): bool
