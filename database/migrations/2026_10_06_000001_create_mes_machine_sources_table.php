@@ -30,7 +30,7 @@ return new class extends Migration
             $table->unsignedBigInteger('last_seq')->nullable();
             $table->boolean('is_active')->default(true);
 
-            MigrateUtils::timestamps($table, hasCreateUpdate: true);
+            MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['company_id', 'code'], "{$table_name}_company_code_UN");
         });

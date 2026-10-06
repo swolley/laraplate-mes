@@ -31,7 +31,7 @@ return new class extends Migration
                 ->references('id')->on(MESTables::QualityPlanCharacteristics->value)
                 ->nullOnDelete();
 
-            MigrateUtils::timestamps($table, hasCreateUpdate: true);
+            MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['device_id', 'key'], "{$table_name}_device_key_UN");
             MigrateUtils::prefixIndex($table, 'company_id');

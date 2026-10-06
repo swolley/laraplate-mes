@@ -40,11 +40,11 @@ final class MachineSourceFactory extends Factory
 
     public function inactive(): static
     {
-        return $this->state(static fn (): array => ['is_active' => false]);
+        return $this->state(['is_active' => false]);
     }
 
     public function mqtt(): static
     {
-        return $this->state(static fn (): array => ['transport' => MachineTransport::Mqtt->value, 'mqtt_topic' => 'plant/laraplate-machine/1/gw']);
+        return $this->state(['transport' => MachineTransport::Mqtt->value, 'mqtt_topic' => 'plant/laraplate-machine/1/gw']);
     }
 }

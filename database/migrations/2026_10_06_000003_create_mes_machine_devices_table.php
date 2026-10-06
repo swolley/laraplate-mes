@@ -33,7 +33,7 @@ return new class extends Migration
             $table->dateTime('last_seen_at')->nullable();
             $table->boolean('is_active')->default(true);
 
-            MigrateUtils::timestamps($table, hasCreateUpdate: true);
+            MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['source_id', 'external_id'], "{$table_name}_source_external_UN");
             MigrateUtils::prefixIndex($table, 'company_id');

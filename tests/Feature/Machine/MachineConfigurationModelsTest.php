@@ -100,3 +100,15 @@ it('lets a source issue a Sanctum token', function (): void {
     expect($token)->not->toBe('')
         ->and($source->tokens()->count())->toBe(1);
 });
+
+it('queries and soft deletes the configuration models through Eloquent', function (): void {
+    $signal = MachineSignal::factory()->create();
+
+    expect(MachineSource::query()->count())->toBe(1)
+        ->and(MachineDevice::query()->count())->toBe(1)
+        ->and(MachineSignal::query()->count())->toBe(1);
+
+    $signal->delete();
+
+    expect(MachineSignal::query()->count())->toBe(0);
+});

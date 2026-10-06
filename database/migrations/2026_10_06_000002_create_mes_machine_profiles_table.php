@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('version', 32);
             $table->json('definition');
 
-            MigrateUtils::timestamps($table, hasCreateUpdate: true);
+            MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['company_id', 'vendor', 'model', 'version'], "{$table_name}_company_vendor_model_version_UN");
         });
