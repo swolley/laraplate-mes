@@ -65,6 +65,7 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **MaterialConsumption**           | Record of actual component usage on an order operation, backflushed or recorded manually, with planned and consumed quantity, `variance` and the `stock_shortage` flag. |
 | **StockMovementRecorder**         | MES contract for inbound/outbound stock postings; MES calls it without knowing FIFO/costing internals. |
 | **ErpStockMovementRecorder** | MES adapter implementing `StockMovementRecorder` over the ERP stock service, bound in `MESServiceProvider`. |
+| **ProductionCostReader** | Read-side contract (`ErpProductionCostReader`) returning the cost of the stock-outs posted against a production order; the unit cost of the finished-goods receipt comes from it. |
 | **StockReader**                   | Read-side contract (`ErpStockReader` over ERP `StockLevel`) letting MES check on-hand availability before consuming. |
 | **MaterialShortageDetected**      | Event emitted when a consumption cannot be fully covered: the available quantity is consumed, the shortfall is flagged (`stock_shortage`, negative `variance`), and `NotifyMaterialShortage` sends a notification. |
 | **SalesOrderProductionPlanner**   | Creates production orders for the manufactured lines of a confirmed sales order (ERP event `SalesOrderConfirmed`). |

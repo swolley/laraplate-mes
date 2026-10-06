@@ -22,12 +22,16 @@ final readonly class StockMovementData
          * @var string 'in'|'out'
          */
         public string $direction,
-        public int $quantity,
+        public int|float $quantity,
         /**
          * @var string e.g. 'mes_production_orders'
          */
         public string $source_type,
         public int $source_id,
         public DateTimeInterface $occurred_at,
+        /**
+         * Value of one unit of an inbound movement; outbound movements are valued by the ERP.
+         */
+        public int|float|null $unit_cost = null,
     ) {}
 }

@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\ERP\Services\Inventory\StockMovementService;
 use Modules\MES\Data\StockMovementData;
+use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Services\ErpStockMovementRecorder;
+
+uses(RefreshDatabase::class);
 
 describe('ErpStockMovementRecorder', function (): void {
     beforeEach(function (): void {
@@ -27,7 +31,7 @@ describe('ErpStockMovementRecorder', function (): void {
         $this->stockMovementService
             ->shouldReceive('recordInbound')
             ->once()
-            ->with(1, 10, 20, 5, 0);
+            ->with(1, 10, 20, 5, 0, null);
 
         $this->recorder->record($data);
     });
@@ -47,7 +51,31 @@ describe('ErpStockMovementRecorder', function (): void {
         $this->stockMovementService
             ->shouldReceive('recordOutbound')
             ->once()
-            ->with(1, 10, 20, 3);
+            ->with(1, 10, 20, 3, null);
+
+        $this->recorder->record($data);
+    });
+
+    it('passes the unit cost and the production order as the source of an inbound movement', function (): void {
+        $order = ProductionOrder::factory()->create();
+        $data = new StockMovementData(
+            item_id: 10,
+            warehouse_id: 20,
+            company_id: 1,
+            direction: 'in',
+            quantity: 2.5,
+            source_type: 'mes_production_orders',
+            source_id: $order->id,
+            occurred_at: new DateTimeImmutable('2025-01-01 10:00:00'),
+            unit_cost: 8.0,
+        );
+
+        $this->stockMovementService
+            ->shouldReceive('recordInbound')
+            ->once()
+            ->withArgs(fn (int $company, int $item, int $warehouse, float $quantity, float $unit_cost, ?ProductionOrder $source): bool => $quantity === 2.5
+                && $unit_cost === 8.0
+                && $source?->is($order) === true);
 
         $this->recorder->record($data);
     });

@@ -98,6 +98,7 @@ The manufacturing domain is implemented and covered by the module test suite:
 -   Automatic draft orders from confirmed ERP sales orders (`SalesOrderConfirmed` listener)
 -   Operation execution (start/complete/skip) with efficiency, operator logs and non-blocking shift warnings
 -   Backflush and manual material consumption through the `StockMovementRecorder` contract, with partial consumption and a shortage notification when stock is short
+-   Completion receives the finished goods into stock, valued at the material cost consumed per unit produced (labour and machine time carry no cost rate yet)
 -   Lot and serial generation with forward/backward lot genealogy
 -   Quality plans, automatic quality checks, non-conformances with dispositions (rework spawns a linked order)
 -   Downtime, OEE (A x P x Q, clamped to [0, 1]) and work-center capacity load, schedule and overload check (available minutes from the work center calendar, net of every downtime, planned maintenance included; operations get planned dates on release, forward and infinite-capacity, and `estimateCompletionDate()` plans what is left from now). A downtime is opened through the `open_downtime` action on its work center (one open downtime per work center). OEE and capacity are materialised per work center and day by `mes:kpis:materialize` (hourly, queued) into the cache and shown as an OEE column in the work-center list; starting an operation on a work center materialised as overloaded emits `CapacityOverloadDetected`, notified through `mes.notifications.capacity_overload`
@@ -110,7 +111,6 @@ Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_G
 
 Open items awaiting a decision (tracked in `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md`):
 
--   Finished-goods stock-in and valuation on order completion
 
 ## Scripts
 

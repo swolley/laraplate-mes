@@ -56,7 +56,8 @@ production KPIs.
    `ProductionOrderCancelled` is emitted. Operations emit `OperationStarted`,
    `OperationCompleted` and `OperationSkipped`. Events carry ids only and are dispatched
    after the transition is persisted.
-6. **Complete order** (`complete`) — refused (`DomainException`) while any
+6. **Complete order** (`complete`) — receives the finished goods into the order's warehouse
+   (`FinishedGoodsReceiptService`, see below), refused (`DomainException`) while any
    operation is `in_progress`; sets produced quantity; generates the
    finished `LotNumber` when the item is lot/serial-traced; creates the
    final-inspection `QualityCheck` from any active plan.
@@ -90,6 +91,19 @@ with `routing_operation_id = null` (final inspection). Creation is non-blocking 
 plan → no-op) and idempotent per `(order, plan, operation)`. Operators later run the
 existing `execute` action, which evaluates measurements and opens a non-conformance
 on failure.
+
+## Finished goods receipt and valuation
+
+Completing an order posts an inbound movement of `quantity_produced` for the finished item in
+the order's warehouse, in the same transaction as the completion (a failing receipt rolls the
+completion back; nothing is posted for a quantity of zero). The unit cost is the order's
+material cost over the quantity produced. The material cost is read through the
+`ProductionCostReader` contract (`ErpProductionCostReader`): the sum of quantity x unit cost
+of the ERP stock-outs sourced to the order, valued by the ERP (FIFO layer or weighted
+average). `ErpStockMovementRecorder` now passes the production order as the movement source,
+so every MES movement is traceable to it, and `StockMovementData` carries an optional
+`unit_cost` for inbound movements. Labour and machine time have no cost rate, so they add
+nothing. A backflush still queued when the order completes is not part of the cost.
 
 ## Stock shortage
 

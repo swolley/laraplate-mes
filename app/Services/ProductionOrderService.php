@@ -37,6 +37,7 @@ final class ProductionOrderService
         private LotTracingService $lotTracingService,
         private QualityCheckPlanner $qualityCheckPlanner,
         private CapacityService $capacityService,
+        private FinishedGoodsReceiptService $finishedGoodsReceipt,
     ) {}
 
     /**
@@ -112,8 +113,9 @@ final class ProductionOrderService
     /**
      * Record produced quantity and complete the order.
      *
-     * Lot/serial generation (Task 9) and finished-goods stock-in are layered on
-     * top of this transition by their respective services.
+     * The finished goods are received into stock (valued at the material cost posted
+     * against the order so far: a backflush still queued is not part of it) and the
+     * lot/serial is generated, all in the same transaction.
      *
      * @throws DomainException when the order is not in an executable state or an operation is still in progress.
      */
@@ -135,6 +137,8 @@ final class ProductionOrderService
                 'status' => ProductionOrderStatus::Completed->value,
                 'actual_end_at' => now(),
             ]);
+
+            $this->finishedGoodsReceipt->receive($order, $quantity_produced);
 
             if ($this->requiresLot($order)) {
                 $this->lotTracingService->createProductionLot($order, $quantity_produced, $lot_code);

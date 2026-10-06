@@ -11,6 +11,7 @@ use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Contracts\StockMovementRecorder;
+use Modules\MES\Contracts\ProductionCostReader;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Events\CapacityOverloadDetected;
 use Modules\MES\Events\MaterialShortageDetected;
@@ -28,6 +29,7 @@ use Modules\MES\Models\QualityCheck;
 use Modules\MES\Models\WorkCenter;
 use Modules\MES\Policies\MesModelPolicy;
 use Modules\MES\Services\DomainActions\MesDomainActionRegistrar;
+use Modules\MES\Services\ErpProductionCostReader;
 use Modules\MES\Services\ErpStockMovementRecorder;
 use Modules\MES\Services\ErpStockReader;
 use Illuminate\Console\Scheduling\Schedule;
@@ -57,6 +59,11 @@ final class MESServiceProvider extends ModuleServiceProvider
         $this->app->singleton(
             StockMovementRecorder::class,
             ErpStockMovementRecorder::class,
+        );
+
+        $this->app->singleton(
+            ProductionCostReader::class,
+            ErpProductionCostReader::class,
         );
 
         $this->app->singleton(
