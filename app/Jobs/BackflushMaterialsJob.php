@@ -130,7 +130,7 @@ final class BackflushMaterialsJob implements ShouldQueue
 
         $this->recordConsumedStock($recorder, $order, $item_id, $consumed);
 
-        $line_id = $line['bom_line_id'] ?? null;
+        $line_id = $line['material_line_id'] ?? null;
 
         if ($line_id !== null) {
             $reservations->consumeForLine($order, (int) $line_id, Decimal::format((string) $consumed));

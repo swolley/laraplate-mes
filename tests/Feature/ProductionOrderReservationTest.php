@@ -15,6 +15,8 @@ use Modules\MES\Enums\ConsumptionMethod;
 use Modules\MES\Enums\ProductionOrderStatus;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Jobs\BackflushMaterialsJob;
+use Modules\MES\Models\Bom;
+use Modules\MES\Models\BomLine;
 use Modules\MES\Models\MaterialConsumption;
 use Modules\MES\Models\ProductionOrder;
 use Modules\MES\Models\ProductionOrderOperation;
@@ -67,7 +69,9 @@ function reservableOrder(int $on_hand, float $per_unit = 2.0, float $planned = 1
             'version' => 'v1',
             'lines' => [
                 [
-                    'bom_line_id' => RESERVATION_LINE_ID,
+                    // Distinct template id, to prove the code keys on material_line_id.
+                    'bom_line_id' => 55,
+                    'material_line_id' => RESERVATION_LINE_ID,
                     'item_id' => $component->id,
                     'quantity' => $per_unit,
                     'uom' => 'pcs',
@@ -103,6 +107,67 @@ function backflushOperation(ProductionOrder $order): ProductionOrderOperation
 function lineReservedQuantity(int $line_id): string
 {
     return resolve(StockReservationService::class)->reservedQuantity(RESERVATION_SOURCE, $line_id);
+}
+
+/**
+ * A finished item with one backflushed component line in its active BOM, plus
+ * seeded component stock, so orders can be built from it through the service.
+ *
+ * @return array{company: Modules\ERP\Models\Company, finished: Modules\ERP\Models\Item, component: Modules\ERP\Models\Item, warehouse: Modules\ERP\Models\Warehouse}
+ */
+function sharedBomItem(float $per_unit, int $on_hand): array
+{
+    $company = MesTestHelpers::makeCompany();
+    $finished = MesTestHelpers::makeItem($company->id);
+    $component = MesTestHelpers::makeItem($company->id);
+    $warehouse = MesTestHelpers::makeWarehouse($company->id);
+
+    $bom = Bom::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $finished->id,
+        'valid_from' => now()->subDay()->toDateString(),
+    ]);
+    BomLine::query()->create([
+        'bom_id' => $bom->id,
+        'item_id' => $component->id,
+        'quantity' => $per_unit,
+        'uom' => 'pcs',
+        'consumption_method' => ConsumptionMethod::Backflush->value,
+        'sort_order' => 0,
+    ]);
+
+    if ($on_hand > 0) {
+        app(StockMovementService::class)->recordInbound(
+            company_id: $company->id,
+            item_id: $component->id,
+            warehouse_id: $warehouse->id,
+            quantity: $on_hand,
+            unit_cost: 1,
+        );
+    }
+
+    return ['company' => $company, 'finished' => $finished, 'component' => $component, 'warehouse' => $warehouse];
+}
+
+/**
+ * @param  array{company: Modules\ERP\Models\Company, finished: Modules\ERP\Models\Item, component: Modules\ERP\Models\Item, warehouse: Modules\ERP\Models\Warehouse}  $ctx
+ */
+function orderFromSharedBom(array $ctx, float $planned): ProductionOrder
+{
+    return resolve(ProductionOrderService::class)->create([
+        'company_id' => $ctx['company']->id,
+        'item_id' => $ctx['finished']->id,
+        'quantity_planned' => $planned,
+        'uom' => 'pcs',
+        'planned_start_at' => now(),
+        'planned_end_at' => now()->addDay(),
+        'warehouse_id' => $ctx['warehouse']->id,
+    ]);
+}
+
+function materialLineId(ProductionOrder $order): int
+{
+    return (int) $order->refresh()->bom_snapshot['lines'][0]['material_line_id'];
 }
 
 function readerAvailable(int $item_id, int $warehouse_id, int $company_id): float
@@ -269,4 +334,56 @@ it('keeps the partial-consume and shortage behaviour when physical stock is shor
             && $event->available_quantity === 5.0
             && $event->is_backflush === true,
     );
+});
+
+it('reserves independently and cancels in isolation for two orders built from the same BOM', function (): void {
+    // One shared finished item / active BOM: both orders resolve the SAME template
+    // bom_line_id, so pooling would be visible here.
+    $ctx = sharedBomItem(per_unit: 2.0, on_hand: 1000);
+
+    $service = resolve(ProductionOrderService::class);
+    $order_a = orderFromSharedBom($ctx, 10.0);
+    $order_b = orderFromSharedBom($ctx, 5.0);
+
+    $service->release($order_a);
+    $service->release($order_b);
+
+    $line_a = materialLineId($order_a);
+    $line_b = materialLineId($order_b);
+
+    // Per-order material line ids, so the holds do not pool under a shared id.
+    expect($line_a)->not->toBe($line_b)
+        ->and((float) lineReservedQuantity($line_a))->toBe(20.0)
+        ->and((float) lineReservedQuantity($line_b))->toBe(10.0);
+
+    $service->cancel($order_a->refresh());
+
+    // Cancelling A frees only A's holds; B's reservation is untouched.
+    expect((float) lineReservedQuantity($line_a))->toBe(0.0)
+        ->and((float) lineReservedQuantity($line_b))->toBe(10.0);
+});
+
+it('consumes only its own reservation at backflush when two orders share a BOM', function (): void {
+    $ctx = sharedBomItem(per_unit: 2.0, on_hand: 1000);
+
+    $service = resolve(ProductionOrderService::class);
+    $order_a = orderFromSharedBom($ctx, 10.0);
+    $order_b = orderFromSharedBom($ctx, 5.0);
+
+    $service->release($order_a);
+    $service->release($order_b);
+
+    $line_a = materialLineId($order_a);
+    $line_b = materialLineId($order_b);
+
+    $operation = backflushOperation($order_a->refresh());
+
+    (new BackflushMaterialsJob($operation->id))->handle(
+        resolve(StockMovementRecorder::class),
+        resolve(StockReader::class),
+    );
+
+    // A's reservation is closed; B's is left intact (no oldest-first cross-eating).
+    expect((float) lineReservedQuantity($line_a))->toBe(0.0)
+        ->and((float) lineReservedQuantity($line_b))->toBe(10.0);
 });

@@ -24,7 +24,9 @@ final readonly class ComponentReservationService
 {
     /**
      * Opaque reservation source alias for a production order's BOM material line.
-     * The source id is the frozen snapshot line's `bom_line_id`.
+     * The source id is the frozen snapshot line's `material_line_id`, which is
+     * unique to one order (the shared template `bom_line_id` would pool holds
+     * across every order built from the same BOM).
      */
     public const string SOURCE_TYPE = 'mes.production_order_material';
 
@@ -45,7 +47,7 @@ final readonly class ComponentReservationService
 
         with_company($company_id, function () use ($order, $company_id, $warehouse_id, $basis): void {
             foreach ($order->bom_snapshot['lines'] ?? [] as $line) {
-                $line_id = $line['bom_line_id'] ?? null;
+                $line_id = $line['material_line_id'] ?? null;
                 $item_id = $line['item_id'] ?? null;
 
                 if ($line_id === null || $item_id === null) {
@@ -80,7 +82,7 @@ final readonly class ComponentReservationService
     {
         with_company((int) $order->company_id, function () use ($order): void {
             foreach ($order->bom_snapshot['lines'] ?? [] as $line) {
-                $line_id = $line['bom_line_id'] ?? null;
+                $line_id = $line['material_line_id'] ?? null;
 
                 if ($line_id === null) {
                     continue;
