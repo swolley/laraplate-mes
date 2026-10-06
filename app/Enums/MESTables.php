@@ -31,4 +31,11 @@ enum MESTables: string
     case Shifts = 'mes_shifts';
     case ShiftInstances = 'mes_shift_instances';
     case OperatorLogs = 'mes_operator_logs';
+    case MachineSources = 'mes_machine_sources';
+    case MachineProfiles = 'mes_machine_profiles';
+    case MachineDevices = 'mes_machine_devices';
+    case MachineSignals = 'mes_machine_signals';
+    case UnmappedSignals = 'mes_unmapped_signals';
+    case MachineMessages = 'mes_machine_messages';
+    case MachineIncidents = 'mes_machine_incidents';
 }

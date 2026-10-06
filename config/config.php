@@ -72,4 +72,30 @@ return [
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Machine connectivity
+    |--------------------------------------------------------------------------
+    |
+    | Machines and probes push `laraplate-machine/1` messages into the MES.
+    |
+    | - queue: queue that processes machine messages, so machine traffic never
+    |   delays other MES work (connection: `mes.queue.connection`).
+    | - max_samples / max_body_kb: limits of one HTTP message (413 above them).
+    | - clock_skew_seconds: tolerated difference between the sender clock and
+    |   the server before a `clock_skew` incident is recorded.
+    | - inbox_retention_days: processed raw messages older than this are pruned;
+    |   failed ones are kept.
+    | - rate_limit_per_minute: HTTP requests accepted per source and minute.
+    |
+    */
+    'machine' => [
+        'queue' => env('MES_MACHINE_QUEUE', 'mes-machine'),
+        'max_samples' => (int) env('MES_MACHINE_MAX_SAMPLES', 5000),
+        'max_body_kb' => (int) env('MES_MACHINE_MAX_BODY_KB', 1024),
+        'clock_skew_seconds' => (int) env('MES_MACHINE_CLOCK_SKEW_SECONDS', 30),
+        'inbox_retention_days' => (int) env('MES_MACHINE_INBOX_RETENTION_DAYS', 7),
+        'rate_limit_per_minute' => (int) env('MES_MACHINE_RATE_LIMIT_PER_MINUTE', 600),
+    ],
 ];
