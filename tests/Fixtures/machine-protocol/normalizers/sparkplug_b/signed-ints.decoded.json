@@ -1,0 +1,76 @@
+{
+  "timestamp_ms": 1790000000000,
+  "seq": 2,
+  "metrics": [
+    {
+      "name": "i8",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 1,
+      "is_null": false,
+      "is_historical": false,
+      "value": -5,
+      "supported": true
+    },
+    {
+      "name": "i16",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 2,
+      "is_null": false,
+      "is_historical": false,
+      "value": -300,
+      "supported": true
+    },
+    {
+      "name": "i32",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 3,
+      "is_null": false,
+      "is_historical": false,
+      "value": -70000,
+      "supported": true
+    },
+    {
+      "name": "i64",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 4,
+      "is_null": false,
+      "is_historical": false,
+      "value": -5000000000,
+      "supported": true
+    },
+    {
+      "name": "u8",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 5,
+      "is_null": false,
+      "is_historical": false,
+      "value": 200,
+      "supported": true
+    },
+    {
+      "name": "u32",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 7,
+      "is_null": false,
+      "is_historical": false,
+      "value": 4000000000,
+      "supported": true
+    },
+    {
+      "name": "u64",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 8,
+      "is_null": false,
+      "is_historical": false,
+      "value": "18446744073709551615",
+      "supported": true
+    }
+  ]
+}

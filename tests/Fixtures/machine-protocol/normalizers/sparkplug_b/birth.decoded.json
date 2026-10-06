@@ -1,0 +1,66 @@
+{
+  "timestamp_ms": 1790000000000,
+  "seq": 0,
+  "metrics": [
+    {
+      "name": "bdSeq",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 8,
+      "is_null": false,
+      "is_historical": false,
+      "value": 3,
+      "supported": true
+    },
+    {
+      "name": "Node Control/Rebirth",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 11,
+      "is_null": false,
+      "is_historical": false,
+      "value": false,
+      "supported": true
+    },
+    {
+      "name": "temp",
+      "alias": 1,
+      "timestamp_ms": 1790000000000,
+      "datatype": 10,
+      "is_null": false,
+      "is_historical": false,
+      "value": 21.5,
+      "supported": true
+    },
+    {
+      "name": "count",
+      "alias": 2,
+      "timestamp_ms": 1790000000000,
+      "datatype": 3,
+      "is_null": false,
+      "is_historical": false,
+      "value": 42,
+      "supported": true
+    },
+    {
+      "name": "running",
+      "alias": 3,
+      "timestamp_ms": 1790000000000,
+      "datatype": 11,
+      "is_null": false,
+      "is_historical": false,
+      "value": true,
+      "supported": true
+    },
+    {
+      "name": "mode",
+      "alias": 4,
+      "timestamp_ms": 1790000000000,
+      "datatype": 12,
+      "is_null": false,
+      "is_historical": false,
+      "value": "AUTO",
+      "supported": true
+    }
+  ]
+}

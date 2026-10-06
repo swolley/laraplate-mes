@@ -1,0 +1,26 @@
+{
+  "timestamp_ms": 1790000005000,
+  "seq": 1,
+  "metrics": [
+    {
+      "name": null,
+      "alias": 1,
+      "timestamp_ms": 1790000005000,
+      "datatype": 10,
+      "is_null": false,
+      "is_historical": false,
+      "value": 22.5,
+      "supported": true
+    },
+    {
+      "name": null,
+      "alias": 2,
+      "timestamp_ms": 1790000005000,
+      "datatype": 3,
+      "is_null": false,
+      "is_historical": false,
+      "value": 43,
+      "supported": true
+    }
+  ]
+}

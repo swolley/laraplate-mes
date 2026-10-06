@@ -1,0 +1,86 @@
+{
+  "timestamp_ms": 1790000000000,
+  "seq": 3,
+  "metrics": [
+    {
+      "name": "nothing",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 3,
+      "is_null": true,
+      "is_historical": false,
+      "value": null,
+      "supported": true
+    },
+    {
+      "name": "table",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 16,
+      "is_null": false,
+      "is_historical": false,
+      "value": null,
+      "supported": false
+    },
+    {
+      "name": "blob",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 17,
+      "is_null": false,
+      "is_historical": false,
+      "value": null,
+      "supported": false
+    },
+    {
+      "name": "history",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 3,
+      "is_null": false,
+      "is_historical": true,
+      "value": 7,
+      "supported": true
+    },
+    {
+      "name": "ratio",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 9,
+      "is_null": false,
+      "is_historical": false,
+      "value": 1.5,
+      "supported": true
+    },
+    {
+      "name": "stamp",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 13,
+      "is_null": false,
+      "is_historical": false,
+      "value": 1789999999000,
+      "supported": true
+    },
+    {
+      "name": "note",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 14,
+      "is_null": false,
+      "is_historical": false,
+      "value": "hello",
+      "supported": true
+    },
+    {
+      "name": "flag",
+      "alias": null,
+      "timestamp_ms": 1790000000000,
+      "datatype": 11,
+      "is_null": false,
+      "is_historical": false,
+      "value": false,
+      "supported": true
+    }
+  ]
+}
