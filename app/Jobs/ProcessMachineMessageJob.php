@@ -8,10 +8,22 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Modules\MES\Enums\MachineIncidentType;
+use Modules\MES\Enums\MachineMessageStatus;
+use Modules\MES\Machine\MachineIncidentRecorder;
+use Modules\MES\Machine\MachineMessageProcessor;
+use Modules\MES\Machine\Normalizers\NormalizerRegistry;
+use Modules\MES\Machine\Normalizers\UnreadableMachinePayload;
+use Modules\MES\Models\MachineMessage;
+use Modules\MES\Models\MachineSource;
+use Throwable;
 
 /**
- * Processes one stored machine message: normalise, resolve, attribute, dispatch.
+ * Processes one stored machine message. Messages of a source are processed one at a time, in the
+ * order they were queued, which is the order the agent sent them. Running it again leaves the data
+ * as one run would; `$reprocess` also keeps the unmapped counters from growing.
  */
 final class ProcessMachineMessageJob implements ShouldQueue
 {
@@ -19,6 +31,8 @@ final class ProcessMachineMessageJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    public int $tries = 3;
 
     public function __construct(
         public int $machine_message_id,
@@ -29,8 +43,66 @@ final class ProcessMachineMessageJob implements ShouldQueue
         $this->onQueue(config()->string('mes.machine.queue'));
     }
 
-    public function handle(): void
+    /**
+     * @return list<WithoutOverlapping>
+     */
+    public function middleware(): array
     {
-        // Filled in by the processing task.
+        return [new WithoutOverlapping((string) $this->source_id)->releaseAfter(30)->expireAfter(300)];
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [5, 30];
+    }
+
+    public function handle(NormalizerRegistry $registry, MachineMessageProcessor $processor): void
+    {
+        $message = MachineMessage::query()->withoutGlobalScopes()->find($this->machine_message_id);
+        $source = MachineSource::query()->withoutGlobalScopes()->find($this->source_id);
+
+        if (! $message instanceof MachineMessage || ! $source instanceof MachineSource) {
+            return;
+        }
+
+        $message->update(['attempts' => $message->attempts + 1]);
+
+        try {
+            $normalized = $registry->for($source)->normalize($source, $message->payload);
+        } catch (UnreadableMachinePayload $unreadable) {
+            $this->markFailed($message, $source, $unreadable->getMessage());
+
+            return;
+        }
+
+        $processor->process($source, $normalized, $message->received_at, ! $this->reprocess);
+
+        $message->update(['status' => MachineMessageStatus::Processed->value, 'processed_at' => now(), 'error' => null]);
+    }
+
+    /**
+     * Called by the queue after the last attempt.
+     */
+    public function failed(Throwable $exception): void
+    {
+        $message = MachineMessage::query()->withoutGlobalScopes()->find($this->machine_message_id);
+        $source = MachineSource::query()->withoutGlobalScopes()->find($this->source_id);
+
+        if ($message instanceof MachineMessage && $source instanceof MachineSource) {
+            $this->markFailed($message, $source, $exception->getMessage());
+        }
+    }
+
+    private function markFailed(MachineMessage $message, MachineSource $source, string $error): void
+    {
+        $message->update(['status' => MachineMessageStatus::Failed->value, 'error' => $error]);
+
+        resolve(MachineIncidentRecorder::class)->record($source, MachineIncidentType::MessageFailed, [
+            'machine_message_id' => $message->id,
+            'error' => $error,
+        ]);
     }
 }

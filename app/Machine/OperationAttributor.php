@@ -24,6 +24,52 @@ use Modules\MES\Models\ProductionOrderOperation;
  */
 final class OperationAttributor
 {
+    /**
+     * @var array{company_id: int, from: CarbonImmutable, to: CarbonImmutable, by_work_center: array<int, list<array{id: int, order_id: int, start: CarbonImmutable, end: ?CarbonImmutable}>>}|null
+     */
+    private ?array $prepared = null;
+
+    /**
+     * @var array<string, ?ProductionOrder>
+     */
+    private array $orders = [];
+
+    /**
+     * Loads, in one query, the operations that may attribute the samples of a message, so that
+     * attributing thousands of samples costs no further query.
+     *
+     * @param  list<int>  $work_center_ids
+     */
+    public function prepare(int $company_id, array $work_center_ids, CarbonImmutable $from, CarbonImmutable $to): void
+    {
+        $from = $from->setTimezone(config()->string('app.timezone'));
+        $to = $to->setTimezone(config()->string('app.timezone'));
+        $by_work_center = array_fill_keys($work_center_ids, []);
+
+        $operations = ProductionOrderOperation::query()
+            ->withoutGlobalScopes()
+            ->whereIn('work_center_id', $work_center_ids)
+            ->whereHas('productionOrder', static fn (Builder $orders): Builder => $orders->withoutGlobalScopes()->where('company_id', $company_id))
+            ->where('actual_start_at', '<=', $to)
+            ->where(static fn (Builder $query): Builder => $query->whereNull('actual_end_at')->orWhere('actual_end_at', '>', $from))
+            ->get();
+
+        foreach ($operations as $operation) {
+            if ($operation->actual_start_at === null) {
+                continue;
+            }
+
+            $by_work_center[$operation->work_center_id][] = [
+                'id' => $operation->id,
+                'order_id' => $operation->production_order_id,
+                'start' => CarbonImmutable::instance($operation->actual_start_at),
+                'end' => $operation->actual_end_at === null ? null : CarbonImmutable::instance($operation->actual_end_at),
+            ];
+        }
+
+        $this->prepared = ['company_id' => $company_id, 'from' => $from, 'to' => $to, 'by_work_center' => $by_work_center];
+    }
+
     public function attribute(ResolvedSignal $target, NormalizedSample $sample, ?string $order_reference = null, ?string $operation_reference = null): Attribution
     {
         $operation_ref = $sample->context['operation_ref'] ?? $operation_reference;
@@ -43,11 +89,11 @@ final class OperationAttributor
 
     private function explicit(ResolvedSignal $target, CarbonImmutable $ts, ?string $order_ref, ?string $operation_ref): ?int
     {
-        $order = $order_ref === null ? null : ProductionOrder::query()
+        $order = $order_ref === null ? null : ($this->orders[$target->company_id . '|' . $order_ref] ??= ProductionOrder::query()
             ->withoutGlobalScopes()
             ->where('company_id', $target->company_id)
             ->where('number', $order_ref)
-            ->first();
+            ->first());
 
         if ($order_ref !== null && ! $order instanceof ProductionOrder) {
             return null;
@@ -79,6 +125,19 @@ final class OperationAttributor
      */
     private function singleActive(ResolvedSignal $target, CarbonImmutable $ts, ?int $order_id): ?int
     {
+        $prepared = $this->prepared;
+
+        if ($prepared !== null && $prepared['company_id'] === $target->company_id && isset($prepared['by_work_center'][$target->work_center_id]) && $ts >= $prepared['from'] && $ts <= $prepared['to']) {
+            $active = array_values(array_filter(
+                $prepared['by_work_center'][$target->work_center_id],
+                static fn (array $operation): bool => $operation['start'] <= $ts
+                    && ($operation['end'] === null || $operation['end'] > $ts)
+                    && ($order_id === null || $operation['order_id'] === $order_id),
+            ));
+
+            return count($active) === 1 ? $active[0]['id'] : null;
+        }
+
         $ids = ProductionOrderOperation::query()
             ->withoutGlobalScopes()
             ->where('work_center_id', $target->work_center_id)

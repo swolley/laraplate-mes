@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\MES\Machine\Data\NormalizedSample;
 use Modules\MES\Machine\Data\ResolvedSignal;
 use Modules\MES\Machine\OperationAttributor;
@@ -151,4 +152,20 @@ it('uses the reference signal values of the message when the sample carries no c
     $attribution = resolve(OperationAttributor::class)->attribute($ctx['target'], sampleAt('2026-10-05 09:00:00'), null, (string) $referenced->id);
 
     expect($attribution->production_order_operation_id)->toBe($referenced->id);
+});
+
+it('attributes a prepared message from memory, with the same answers and no further queries', function (): void {
+    $ctx = attributionTarget();
+    $first = operationOn($ctx, '2026-10-05 08:00:00', '2026-10-05 09:00:00');
+    $second = operationOn($ctx, '2026-10-05 09:30:00');
+    $attributor = resolve(OperationAttributor::class);
+    $attributor->prepare($ctx['company_id'], [$ctx['work_center_id']], CarbonImmutable::parse('2026-10-05 08:00:00', config()->string('app.timezone')), CarbonImmutable::parse('2026-10-05 10:00:00', config()->string('app.timezone')));
+
+    DB::enableQueryLog();
+    $answers = array_map(static fn (string $ts): ?int => $attributor->attribute($ctx['target'], sampleAt($ts))->production_order_operation_id, ['2026-10-05 08:30:00', '2026-10-05 09:15:00', '2026-10-05 09:45:00']);
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    expect($answers)->toBe([$first->id, null, $second->id])
+        ->and($queries)->toBe([]);
 });

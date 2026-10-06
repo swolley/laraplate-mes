@@ -35,6 +35,14 @@ final class SignalResolver
         return new ResolvedSignal($device, $signal, (int) $device->work_center_id, (int) $device->company_id);
     }
 
+    /**
+     * The active device of a source with that external id, signals loaded.
+     */
+    public function device(MachineSource $source, string $device_external_id): ?MachineDevice
+    {
+        return $this->map($source->id)[$device_external_id] ?? null;
+    }
+
     public function forget(int $source_id): void
     {
         unset($this->maps[$source_id]);
