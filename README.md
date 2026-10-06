@@ -80,7 +80,20 @@ MES_QUEUE_NAME=mes
 # Production-order auto-creation from confirmed sales orders
 MES_PRODUCTION_DAILY_MINUTES=480
 MES_PRODUCTION_DEFAULT_LEAD_TIME_DAYS=5
+
+# Machine connectivity (see docs/MACHINE_CONNECTIVITY.md)
+MES_MACHINE_QUEUE=mes-machine
+MES_MACHINE_MAX_SAMPLES=5000
+MES_MACHINE_MAX_BODY_KB=1024
+MES_MACHINE_CLOCK_SKEW_SECONDS=30
+MES_MACHINE_INBOX_RETENTION_DAYS=7
+MES_MACHINE_RATE_LIMIT_PER_MINUTE=600
 ```
+
+The machine variables set the config keys `mes.machine.queue`, `mes.machine.max_samples`,
+`mes.machine.max_body_kb`, `mes.machine.clock_skew_seconds`, `mes.machine.inbox_retention_days` and
+`mes.machine.rate_limit_per_minute`. The machine queue (`mes-machine`) needs its own Horizon supervisor;
+incident notifications go to the roles under `mes.notifications.machine_incident`.
 
 The receiving warehouse for auto-created production orders is resolved per company.
 Set it explicitly through the `mes.production.default_warehouse` config map
@@ -105,12 +118,19 @@ The manufacturing domain is implemented and covered by the module test suite:
 -   No custom routes: entities go through Core's generic CRUD, domain verbs through the domain-action registry (`MesDomainActionRegistrar`, `MesModelPolicy`, permissions seeded by `MESDatabaseSeeder`)
 -   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots, and Release/Complete/Cancel header actions), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
 
+-   Machine connectivity foundation: machines and probes push `laraplate-machine/1` messages over HTTP (`POST api/v1/mes/machine-data`, one token per source) into a durable inbox processed by an idempotent, per-source serialised job (normalise, resolve, attribute, typed events); unmapped signals, incidents, a watchdog for silent devices, reprocessing, importable machine profiles, and a "Machine connectivity" backoffice. Guide: `docs/MACHINE_CONNECTIVITY.md`
+
 Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_GUIDA_SEMPLICE.md`.
 
 ## Roadmap
 
-Open items awaiting a decision (tracked in `docs/superpowers/plans/2026-06-19-mes-module-full-implementation.md`):
+Machine data acquisition (design: `docs/superpowers/specs/2026-10-05-mes-machine-data-acquisition-design.md` at the stack root). The foundation is built; each step below has its own plan:
 
+-   MQTT bridge and the `sparkplug_b` normaliser
+-   Machine states to downtimes, and OEE availability with machine data
+-   Piece counts, and OEE performance and quality (ISO 22400)
+-   Probe measurements filling quality checks
+-   Process values (relational store, rollups, per-operation summaries)
 
 ## Scripts
 

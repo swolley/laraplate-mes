@@ -28,6 +28,7 @@ production KPIs.
 | Quality | `QualityPlan`, `QualityPlanCharacteristic` (validity window), `QualityCheck`, `QualityCheckMeasurement`, `NonConformance` |
 | Downtime | `Downtime` |
 | Shifts | `Shift`, `ShiftInstance`, `OperatorLog` |
+| Machine connectivity | `MachineSource` (Sanctum tokenable), `MachineProfile`, `MachineDevice`, `MachineSignal`, `UnmappedSignal`, `MachineMessage`, `MachineIncident` |
 
 ## Core flow
 
@@ -183,6 +184,41 @@ given a date, plans it again from there on the new calendar. Starting an operati
 KPIs flag an overload emits `CapacityOverloadDetected` (non-blocking, nothing is
 recomputed live), notified to the roles in `mes.notifications.capacity_overload`.
 
+## Machine connectivity
+
+User guide and protocol: `docs/MACHINE_CONNECTIVITY.md`. Step 1 of the machine data acquisition design:
+the foundation, with no consumer of the machine data yet.
+
+- **Ingress.** `POST api/v1/mes/machine-data` (`mes.api.machine-data.ingest`):
+  `AuthenticateMachineSource` (bearer token of a `MachineSource`, ability `mes:machine-ingest`; 401 unknown,
+  403 missing ability, inactive source, or not an http canonical source), a per-token throttle
+  (`mes.machine.rate_limit_per_minute`; Redis-backed, and the throttle runs before the source is known, so
+  it keys on the token), `MachineDataIngestController` (413 body or sample limits, 422
+  `MachineEnvelopeValidator`), then `MachineMessageInbox::accept()`, which stores the raw message through
+  `IdempotentWriter` (insert-or-ignore on five drivers, a unique-violation fallback on Oracle), records
+  `seq_gap` and `clock_skew` incidents and queues `ProcessMachineMessageJob`.
+- **Job.** `ProcessMachineMessageJob` (queue `mes.machine.queue`, `WithoutOverlapping` keyed by source,
+  3 tries) owns retries, status and the `message_failed` incident; the pipeline is
+  `MachineMessageProcessor`: `NormalizerRegistry` (`canonical`, `mapped_json`), `SignalResolver` (one cached
+  map per source, forgotten by `MachineConfigurationObserver`), `OperationAttributor` (explicit reference,
+  else the single operation running at the sample time; `prepare()` loads the candidates of a message in one
+  query), `UnmappedSignalRecorder` (batched; counts once per message and never on a reprocess), and the typed
+  events `MachineStateObserved`, `PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`.
+- **Tables.** Configuration tables (`mes_machine_sources/profiles/devices/signals`) extend Core's model with
+  soft delete; pipeline tables (`mes_machine_messages`, `mes_unmapped_signals`, `mes_machine_incidents`) are
+  plain Eloquent models. Messages are `MassPrunable` (processed ones past `inbox_retention_days`).
+- **Operations.** `MachineMessageReprocessor` (per message, per source range), `MachineWatchdog` and
+  `mes:machine-watchdog` (every minute: `device_silent` incidents), `MachineIncidentRecorder` and the
+  `NotifyMachineIncident` listener (`mes.notifications.machine_incident`), `MachineProfileService` (apply,
+  import, export; `MachineSignal::rulesForRole()` validates a signal's config by role),
+  `UnmappedSignalMapper`, `MachineSourceTokenService` (one token per source, shown once).
+- **Domain actions** (`MESPermissions`): `MachineMessage` `reprocess`; `MachineSource` `issue_token`,
+  `revoke_token`, `reprocess_range`; `MachineDevice` `apply_profile`; `MachineProfile` `export`.
+- **Backoffice** (group "Machine connectivity"): sources, devices with a signals relation manager, profiles
+  (import and export), unmapped signals (map in place), the message inbox (reprocess), incidents.
+  Not built yet: the MQTT bridge, `sparkplug_b`, states to downtime, counts, probe measurements, process
+  values.
+
 ## Backoffice
 
 The Filament resources are the superadmin backoffice. Work centers edit their
@@ -205,6 +241,9 @@ the application built on the services and domain actions.
   routing-based lead-time estimation and its no-routing fallback.
 - `mes.notifications.stock_shortage.channels` / `.recipients.roles` — channels
   (default `database`) and recipient roles for the shortage notification.
+- `mes.machine.queue` (`mes-machine`), `.max_samples` (5000), `.max_body_kb` (1024),
+  `.clock_skew_seconds` (30), `.inbox_retention_days` (7), `.rate_limit_per_minute` (600) — machine
+  connectivity; env `MES_MACHINE_*`. `mes.notifications.machine_incident` — channels and roles for incidents.
 
 ## Locked decisions
 

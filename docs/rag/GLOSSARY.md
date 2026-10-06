@@ -116,6 +116,21 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **DocumentNumberAllocator**  | ERP service for per-company document sequences; production order numbers use `DocumentType::ProductionOrder`. |
 
 
+## Machine connectivity
+
+| Term | Meaning |
+|------|---------|
+| **Machine source** | Whatever sends machine data: our edge agent or a customer gateway. One source serves many devices; it has a normaliser, a transport and one token. |
+| **Machine device** | A physical machine as its source names it (`external_id`), tied to a work center. |
+| **Machine signal** | One tag of a device, with a role and a per-role config. |
+| **Signal role** | What a signal means: `state`, `alarm`, `good_count`, `scrap_count`, `total_count`, `measurement`, `process_value`, `order_reference`, `operation_reference`. |
+| **Machine profile** | A reusable, importable and exportable set of signals and maps for a machine model; applying it copies its signals onto a device. |
+| **Machine message** | One stored raw delivery (`mes_machine_messages`): pending, processed or failed; reprocessable. |
+| **Normaliser** | Turns a source's payload into the canonical samples (`canonical`, `mapped_json`). |
+| **Unmapped signal** | A device or signal a source sent that nobody configured, or a raw state value missing from a state map (`{key}#{value}`). |
+| **Attribution** | Deciding which operation a sample belongs to, by the sample time: an explicit reference, else the single operation running then. |
+| **Machine incident** | A connectivity problem worth a human: `seq_gap`, `clock_skew`, `message_failed`, `auth_failure`, `device_silent`. |
+
 ## External ERP integration
 
 

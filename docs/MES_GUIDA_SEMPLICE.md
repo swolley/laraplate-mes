@@ -155,3 +155,23 @@ non a lavorare l'ordine tutti i giorni.
   richiesta, ma per ora **non sono mostrati** in nessuna schermata.
 - Le **carenze di materiale** arrivano come notifica in-app ai responsabili
   configurati.
+
+## Collegare le macchine
+
+Le macchine e i sistemi di misura possono mandare i loro dati direttamente al MES, senza che qualcuno li
+digiti. Per ora il MES li **riceve, li conserva e li prepara**; non li usa ancora per aprire fermi, contare
+pezzi o compilare i controlli qualità (arriverà nei passi successivi).
+
+- Dal gruppo **Machine connectivity** del pannello crei una **sorgente** (l'agente o il gateway che invia
+  i dati) e le assegni un **token**: viene mostrato **una sola volta**, copialo subito; emetterne uno nuovo
+  revoca il precedente.
+- Una **macchina** (dispositivo) è legata a un centro di lavoro e ha dei **segnali**, ciascuno con un ruolo
+  (stato, allarme, pezzi buoni, pezzi scarto, misura, valore di processo...). Un **profilo** applicato alla
+  macchina le copia i segnali di un modello noto; i profili si importano ed esportano come file.
+- Ciò che la macchina manda e nessuno ha configurato finisce nei **segnali non mappati**: da lì lo mappi
+  con un clic. Un valore di stato non previsto dalla mappa compare come `segnale#VALORE`: si corregge nella
+  mappa del segnale di stato, poi si rielabora.
+- La **posta in arrivo** mostra ogni messaggio ricevuto e il suo esito; un messaggio fallito si può
+  **rielaborare**, anche per un intervallo di tempo dalla pagina della sorgente.
+- Gli **incidenti** segnalano buchi nella sequenza dei messaggi, orologi sfasati, messaggi falliti,
+  accessi rifiutati e macchine che hanno smesso di inviare dati.
