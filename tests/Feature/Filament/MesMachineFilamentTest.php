@@ -12,17 +12,24 @@ use Modules\Core\Models\User;
 use Modules\MES\Filament\Resources\MachineDevices\Pages\EditMachineDevice;
 use Modules\MES\Filament\Resources\MachineDevices\Pages\ListMachineDevices;
 use Modules\MES\Filament\Resources\MachineDevices\RelationManagers\SignalsRelationManager;
+use Modules\MES\Filament\Resources\MachineIncidents\Pages\ListMachineIncidents;
+use Modules\MES\Filament\Resources\MachineMessages\Pages\ListMachineMessages;
 use Modules\MES\Filament\Resources\MachineProfiles\Pages\EditMachineProfile;
 use Modules\MES\Filament\Resources\MachineProfiles\Pages\ListMachineProfiles;
 use Modules\MES\Filament\Resources\MachineSources\Pages\CreateMachineSource;
 use Modules\MES\Filament\Resources\MachineSources\Pages\EditMachineSource;
 use Modules\MES\Filament\Resources\MachineSources\Pages\ListMachineSources;
+use Modules\MES\Filament\Resources\UnmappedSignals\Pages\ListUnmappedSignals;
 use Modules\MES\Machine\MachineProfileService;
+use Modules\MES\Enums\MachineIncidentType;
+use Modules\MES\Enums\MachineMessageStatus;
 use Modules\MES\Models\MachineDevice;
+use Modules\MES\Models\MachineIncident;
 use Modules\MES\Models\MachineMessage;
 use Modules\MES\Models\MachineProfile;
 use Modules\MES\Models\MachineSignal;
 use Modules\MES\Models\MachineSource;
+use Modules\MES\Models\UnmappedSignal;
 use Modules\MES\Tests\Support\MesTestHelpers;
 
 uses(RefreshDatabase::class);
@@ -149,4 +156,54 @@ it('lists the signals of a device in its relation manager and refuses a broken c
     $manager->callAction(\Filament\Actions\Testing\TestAction::make('create')->table(), ['key' => 'bad', 'role' => 'good_count', 'data_type' => 'number', 'config' => '{"mode":"sometimes"}'])
         ->assertHasFormErrors();
     expect($device->signals()->count())->toBe(1);
+});
+
+it('renders the unmapped signals, inbox and incident lists', function (string $page, Closure $make): void {
+    $record = $make();
+
+    $list = Livewire::test($page)->assertOk();
+
+    expect($list->instance()->getTableRecords()->modelKeys())->toContain($record->getKey());
+})->with([
+    'unmapped signals' => [ListUnmappedSignals::class, fn (): UnmappedSignal => UnmappedSignal::factory()->create()],
+    'inbox' => [ListMachineMessages::class, fn (): MachineMessage => MachineMessage::factory()->create()],
+    'incidents' => [ListMachineIncidents::class, fn (): MachineIncident => MachineIncident::factory()->create()],
+]);
+
+it('maps an unmapped signal from its row action, and the row disappears', function (): void {
+    $device = MachineDevice::factory()->create(['external_id' => 'press-07']);
+    $unmapped = UnmappedSignal::factory()->create(['source_id' => $device->source_id, 'device_external_id' => 'press-07', 'signal_key' => 'spindle']);
+
+    Livewire::test(ListUnmappedSignals::class)
+        ->callTableAction('map', $unmapped, ['role' => 'process_value', 'data_type' => 'number', 'unit' => 'rpm'])
+        ->assertNotified();
+
+    expect(UnmappedSignal::query()->count())->toBe(0)
+        ->and($device->signals()->where('key', 'spindle')->exists())->toBeTrue();
+});
+
+it('offers no map action on a raw state value row', function (): void {
+    $unmapped = UnmappedSignal::factory()->create(['signal_key' => 'state#HOLDING']);
+
+    Livewire::test(ListUnmappedSignals::class)->assertTableActionHidden('map', $unmapped);
+});
+
+it('reprocesses a failed message from the inbox', function (): void {
+    Illuminate\Support\Facades\Queue::fake();
+    $message = MachineMessage::factory()->failed()->create();
+
+    Livewire::test(ListMachineMessages::class)
+        ->callTableAction('reprocess', $message)
+        ->assertNotified();
+
+    expect($message->fresh()->status)->toBe(MachineMessageStatus::Pending);
+});
+
+it('filters the incidents by type', function (): void {
+    $gap = MachineIncident::factory()->create(['type' => MachineIncidentType::SeqGap->value]);
+    MachineIncident::factory()->create(['type' => MachineIncidentType::ClockSkew->value]);
+
+    $list = Livewire::test(ListMachineIncidents::class)->filterTable('type', MachineIncidentType::SeqGap->value);
+
+    expect($list->instance()->getTableRecords()->modelKeys())->toBe([$gap->getKey()]);
 });
