@@ -333,8 +333,8 @@ unique per signal and moment, so the same message twice stores nothing new. The 
 column of the signal's role (the other two are 0). A signal with `mode: delta` is used as received; a
 `cumulative` one is compared with the previous sample by time. The first cumulative sample is only a baseline
 (delta 0). A drop is a **rollover** when the signal has `rollover_max` and the previous value was above half
-of it (delta = `rollover_max - previous + value`), otherwise a **reset** (counting again from zero, delta =
-the new value). A delta is never negative. A late sample is inserted by its time and the row after it is
+of it (`rollover_max` is the highest value the counter shows, 65535 for a 16-bit one; the wrap to 0 is one count, so delta = `rollover_max - previous + value + 1`), otherwise a **reset** (counting again from zero, delta =
+the new value). A delta is never negative. Caveat: an operator reset of a counter that was above half of `rollover_max` cannot be told from a rollover and adds phantom pieces; reset counters when they are low, or use `delta` mode. A late sample is inserted by its time and the row after it is
 recomputed against it.
 
 **Operation quantities.** `machine_good_quantity` and `machine_scrap_quantity` of an operation are the sums of
@@ -359,7 +359,7 @@ counted pieces over the run time: the ideal cycle is the operation's `cycle_time
 attributed use `60 / capacity_per_hour` of the work center; the run time is the busy time minus the unplanned
 downtime (working time for a connected work center). Quality is good pieces over total pieces, where the total
 is the sent total or good plus scrap. Both stay in [0, 1], and with no run time performance is 1. Without count
-rows in the window the old order-based formulas apply. KPI cache keys are `mes:kpi:v3:...`.
+rows in the window, or only rows with no piece in them, the old order-based formulas apply. An operation without a cycle time uses the work center's ideal cycle. Late counts of an operation that is no longer in progress still update its machine quantities but announce nothing. KPI cache keys are `mes:kpi:v3:...`.
 
 ## Incidents and health
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
+use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Events\OperationTargetReached;
 use Modules\MES\Machine\Counts\CountTotals;
 use Modules\MES\Models\MachineCount;
@@ -13,6 +14,7 @@ use Modules\MES\Models\ProductionOrderOperation;
  * Keeps the machine quantities of an operation equal to the sum of its attributed count rows, so they can
  * be recomputed at any time. The first time the good pieces reach the order's planned quantity the
  * operation is stamped and {@see OperationTargetReached} is dispatched; a recount never clears the stamp.
+ * Only an operation in progress is announced: late counts of a closed one still update its quantities.
  */
 final class OperationCountTally
 {
@@ -38,7 +40,7 @@ final class OperationCountTally
         $order = $operation->productionOrder;
         $planned = $order === null ? 0.0 : (float) $order->quantity_planned;
 
-        if ($order === null || $planned <= 0.0 || $good < $planned) {
+        if ($order === null || $planned <= 0.0 || $good < $planned || $operation->status !== ProductionOrderOperationStatus::InProgress) {
             return;
         }
 

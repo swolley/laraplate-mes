@@ -6,8 +6,8 @@ namespace Modules\MES\Machine\Counts;
 
 /**
  * The pieces a counter signal reports between two samples. A delta counter reports them directly; a
- * cumulative one is compared with the previous sample, recognising a rollover (the counter wrapped at
- * `rollover_max`) and a reset (it started again from zero). The first cumulative sample is only a baseline.
+ * cumulative one is compared with the previous sample, recognising a rollover (the counter passed its highest value,
+ * `rollover_max`, and went back to 0: the wrap itself is one count) and a reset (it started again from zero). The first cumulative sample is only a baseline.
  */
 final class CounterDelta
 {
@@ -26,7 +26,7 @@ final class CounterDelta
         }
 
         if ($rollover_max !== null && $previous > $rollover_max / 2) {
-            return max(0.0, $rollover_max - $previous + $value);
+            return max(0.0, $rollover_max - $previous + $value + 1.0);
         }
 
         return max(0.0, $value);

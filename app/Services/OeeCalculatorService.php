@@ -104,11 +104,33 @@ final class OeeCalculatorService
     /**
      * With machine counts in the window (ISO 22400): the ideal time of the counted pieces over the run time.
      * The ideal cycle is the operation's `cycle_time_minutes`; counts nobody attributed use the work center's
-     * `60 / capacity_per_hour`. Without counts, the order-based formula.
+     * `60 / capacity_per_hour`, as do operations without a cycle time. Without counts, the order-based formula.
      */
     public function performance(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
     {
+        return $this->performanceFrom($work_center_id, $from, $to, $this->countsByOperation($work_center_id, $from, $to));
+    }
+
+    /**
+     * Both factors from one read of the counts.
+     *
+     * @return array{performance: float, quality: float}
+     */
+    public function performanceAndQuality(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): array
+    {
         $counts = $this->countsByOperation($work_center_id, $from, $to);
+
+        return [
+            'performance' => $this->performanceFrom($work_center_id, $from, $to, $counts),
+            'quality' => $this->qualityFrom($work_center_id, $from, $to, $counts),
+        ];
+    }
+
+    /**
+     * @param  list<array{operation_id: ?int, good: float, total: float}>  $counts
+     */
+    private function performanceFrom(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, array $counts): float
+    {
 
         if ($counts !== []) {
             return $this->countedPerformance($work_center_id, $from, $to, $counts);
@@ -133,8 +155,14 @@ final class OeeCalculatorService
      */
     public function quality(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
     {
-        $counts = $this->countsByOperation($work_center_id, $from, $to);
+        return $this->qualityFrom($work_center_id, $from, $to, $this->countsByOperation($work_center_id, $from, $to));
+    }
 
+    /**
+     * @param  list<array{operation_id: ?int, good: float, total: float}>  $counts
+     */
+    private function qualityFrom(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, array $counts): float
+    {
         if ($counts !== []) {
             $good = array_sum(array_column($counts, 'good'));
             $total = array_sum(array_column($counts, 'total'));
@@ -181,9 +209,8 @@ final class OeeCalculatorService
         $ideal = 0.0;
 
         foreach ($counts as $count) {
-            $cycle = $count['operation_id'] === null
-                ? ($capacity > 0.0 ? 60.0 / $capacity : 0.0)
-                : $this->number($cycles[$count['operation_id']] ?? 0.0);
+            $own = $count['operation_id'] === null ? 0.0 : $this->number($cycles[$count['operation_id']] ?? 0.0);
+            $cycle = $own > 0.0 ? $own : ($capacity > 0.0 ? 60.0 / $capacity : 0.0);
             $ideal += $cycle * $count['total'];
         }
 
@@ -235,7 +262,8 @@ final class OeeCalculatorService
             ];
         }
 
-        return $counts;
+        // Rows that carry no piece at all (a baseline, zero deltas) are no count data: the order-based formulas apply.
+        return array_sum(array_column($counts, 'total')) > 0.0 ? $counts : [];
     }
 
     private function number(mixed $value): float

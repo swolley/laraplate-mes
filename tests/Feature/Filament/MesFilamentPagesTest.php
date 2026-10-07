@@ -417,3 +417,13 @@ it('proposes the declared good quantity of the last operation when completing an
         ->mountAction('complete')
         ->assertActionDataSet(['quantity_produced' => 37]);
 });
+
+it('hides the declare and assign actions from a user who cannot update the order', function (): void {
+    $order = ProductionOrder::factory()->create();
+    $operation = ProductionOrderOperation::factory()->create(['production_order_id' => $order->id]);
+    $this->actingAs(user_class()::factory()->create());
+
+    Livewire::test(OperationsRelationManager::class, ['ownerRecord' => $order, 'pageClass' => EditProductionOrder::class])
+        ->assertTableActionHidden('declare', $operation)
+        ->assertTableActionHidden('assign_counts', $operation);
+});

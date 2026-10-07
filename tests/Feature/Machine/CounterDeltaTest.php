@@ -16,7 +16,8 @@ it('takes the first cumulative sample as a baseline and the first delta sample a
 });
 
 it('recognises a rollover and a reset, and never returns a negative delta', function (): void {
-    expect(CounterDelta::between(995.0, 5.0, 'cumulative', 1000.0))->toBe(10.0)
+    expect(CounterDelta::between(995.0, 5.0, 'cumulative', 1000.0))->toBe(11.0)
+        ->and(CounterDelta::between(65530.0, 3.0, 'cumulative', 65535.0))->toBe(9.0)
         ->and(CounterDelta::between(500.0, 3.0, 'cumulative', null))->toBe(3.0)
         ->and(CounterDelta::between(100.0, 3.0, 'cumulative', 1000.0))->toBe(3.0)
         ->and(CounterDelta::between(10.0, -4.0, 'delta', null))->toBe(0.0);

@@ -96,3 +96,27 @@ it('assigns the unattributed counts of the work center inside the range, and onl
         ->and($attributed->fresh()->production_order_operation_id)->toBe($other_operation->id)
         ->and((float) $operation->fresh()->machine_good_quantity)->toBe(10.0);
 });
+
+it('records the value found in the database as the old one, not the one the caller loaded', function (): void {
+    $operation = runningOperation(['declared_good_quantity' => 95]);
+    $stale = ProductionOrderOperation::query()->findOrFail($operation->id);
+    ProductionOrderOperation::query()->whereKey($operation->id)->toBase()->update(['declared_good_quantity' => 50]);
+
+    resolve(OperationQuantityDeclarer::class)->declare($stale, 60.0, null);
+
+    $audit = OperationQuantityAudit::query()->sole();
+    expect((float) $audit->old_value)->toBe(50.0)
+        ->and((float) $audit->new_value)->toBe(60.0);
+});
+
+it('leaves the rows of another company on the same work center alone', function (): void {
+    $operation = runningOperation(['production_order_id' => Modules\MES\Models\ProductionOrder::factory()->create(['quantity_planned' => 1000])->id]);
+    $own = MachineCount::factory()->create(['work_center_id' => $operation->work_center_id, 'ts' => '2026-10-05 08:30:00', 'good' => 10]);
+    $foreign = MachineCount::factory()->create(['work_center_id' => $operation->work_center_id, 'ts' => '2026-10-05 08:31:00', 'good' => 4]);
+    $foreign->forceFill(['company_id' => Modules\ERP\Models\Company::factory()->create()->id])->saveQuietly();
+
+    $assigned = resolve(MachineCountAssigner::class)->assign($operation->id, Carbon\CarbonImmutable::parse('2026-10-05 08:00:00'), Carbon\CarbonImmutable::parse('2026-10-05 09:00:00'));
+
+    expect($assigned)->toBe(1)
+        ->and($foreign->fresh()->production_order_operation_id)->toBeNull();
+});

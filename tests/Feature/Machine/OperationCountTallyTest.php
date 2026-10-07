@@ -167,3 +167,16 @@ it('re-tallies the operations of rows it already stored, so a retry repairs a fa
 
     expect((float) $operation->fresh()->machine_good_quantity)->toBe(12.0);
 });
+
+it('keeps the machine quantities of a completed operation current but announces nothing for it', function (): void {
+    Event::fake([OperationTargetReached::class]);
+    $operation = tallyOperation(100);
+    $operation->update(['status' => ProductionOrderOperationStatus::Completed->value]);
+    countRow($operation, '08:00:00', good: 120);
+
+    resolve(OperationCountTally::class)->refresh($operation->id);
+
+    Event::assertNotDispatched(OperationTargetReached::class);
+    expect((float) $operation->fresh()->machine_good_quantity)->toBe(120.0)
+        ->and($operation->fresh()->target_reached_at)->toBeNull();
+});

@@ -29,8 +29,7 @@ final class WorkCenterKpiMaterializer
 
         $planned = $this->capacityService->plannedMinutes($id, $from, $to);
         $availability = $this->oeeCalculator->availability($id, $from, $to, $planned);
-        $performance = $this->oeeCalculator->performance($id, $from, $to);
-        $quality = $this->oeeCalculator->quality($id, $from, $to);
+        ['performance' => $performance, 'quality' => $quality] = $this->oeeCalculator->performanceAndQuality($id, $from, $to);
 
         $kpis = new WorkCenterKpis(
             work_center_id: $id,

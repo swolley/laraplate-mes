@@ -272,3 +272,37 @@ it('derives good pieces from total minus scrap in quality when the device sends 
 
     expect(round(resolve(OeeCalculatorService::class)->quality($work_center->id, $day, $day->addHours(8)), 4))->toBe(0.95);
 });
+
+it('falls back to the order-based formulas when the counts in the window are all zero', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    oeeCountRow($work_center, '10:00:00', ['good' => 0, 'raw_value' => 500]);
+    $service = resolve(OeeCalculatorService::class);
+
+    expect($service->performance($work_center->id, $day, $day->addHours(8)))->toBe(1.0)
+        ->and($service->quality($work_center->id, $day, $day->addHours(8)))->toBe(1.0);
+});
+
+it('uses the ideal cycle of the work center for an operation without a cycle time', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    $work_center->update(['capacity_per_hour' => 120]);
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 09:00:00', '2026-10-05 10:00:00');
+    $operation = Modules\MES\Models\ProductionOrderOperation::factory()->create(['work_center_id' => $work_center->id, 'cycle_time_minutes' => 0]);
+    oeeCountRow($work_center, '10:30:00', ['total' => 600], $operation->id);
+
+    expect(round(resolve(OeeCalculatorService::class)->performance($work_center->id, $day, $day->addHours(8)), 6))->toBe(round(300.0 / 420.0, 6));
+});
+
+it('reads the counts once for performance and quality together', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    oeeCountRow($work_center, '10:30:00', ['good' => 570]);
+    oeeCountRow($work_center, '10:30:00', ['scrap' => 30]);
+    $service = resolve(OeeCalculatorService::class);
+    DB::enableQueryLog();
+
+    $both = $service->performanceAndQuality($work_center->id, $day, $day->addHours(8));
+
+    $reads = collect(DB::getQueryLog())->filter(static fn (array $query): bool => str_contains($query['query'], 'mes_machine_counts'))->count();
+    expect($reads)->toBe(1)
+        ->and($both['quality'])->toBe($service->quality($work_center->id, $day, $day->addHours(8)))
+        ->and($both['performance'])->toBe($service->performance($work_center->id, $day, $day->addHours(8)));
+});

@@ -21,6 +21,9 @@ final class OperationQuantityDeclarer
         }
 
         return $operation->getConnection()->transaction(function () use ($operation, $good, $scrap, $user_id): ProductionOrderOperation {
+            // The old values come from the database under a lock, not from the model the caller loaded earlier.
+            $operation = ProductionOrderOperation::query()->lockForUpdate()->findOrFail($operation->id);
+
             foreach (['declared_good_quantity' => $good, 'declared_scrap_quantity' => $scrap] as $field => $value) {
                 if ($value === null) {
                     continue;

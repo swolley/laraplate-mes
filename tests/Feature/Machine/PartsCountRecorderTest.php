@@ -96,7 +96,7 @@ it('handles a rollover and a reset without a negative delta', function (): void 
     feedCounts($rig, ['good=990@08:00:00', 'good=5@08:01:00', 'good=2@08:02:00']);
 
     $good = MachineCount::query()->where('signal_id', $rig['good']->id)->orderBy('ts')->pluck('good')->map(static fn ($v): float => (float) $v)->all();
-    expect($good)->toBe([0.0, 15.0, 2.0]);
+    expect($good)->toBe([0.0, 16.0, 2.0]);
 });
 
 it('stores the same rows when the same samples arrive twice', function (): void {

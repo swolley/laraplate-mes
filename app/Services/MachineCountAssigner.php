@@ -24,10 +24,12 @@ final class MachineCountAssigner
      */
     public function assign(int $operation_id, DateTimeInterface $from, DateTimeInterface $to): int
     {
-        $operation = ProductionOrderOperation::query()->findOrFail($operation_id);
+        $operation = ProductionOrderOperation::query()->with('productionOrder')->findOrFail($operation_id);
+        $company_id = $operation->productionOrder?->company_id;
 
         $assigned = MachineCount::query()
             ->where('work_center_id', $operation->work_center_id)
+            ->when($company_id !== null, static fn ($query) => $query->where('company_id', $company_id))
             ->whereNull('production_order_operation_id')
             ->where('ts', '>=', MachineTime::db(Carbon::parse($from)))
             ->where('ts', '<', MachineTime::db(Carbon::parse($to)))
