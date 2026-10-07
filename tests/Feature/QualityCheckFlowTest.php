@@ -161,3 +161,39 @@ it('is never complete for a plan without characteristics or a check without a pl
     expect(resolve(QualityCheckService::class)->isComplete($empty))->toBeFalse()
         ->and(resolve(QualityCheckService::class)->isComplete(QualityCheck::factory()->create()))->toBeFalse();
 });
+
+it('does not open a second non-conformance when it resolves a check another process already failed', function (): void {
+    ['check' => $check, 'characteristics' => [$length]] = checkWithPlan();
+    $service = resolve(QualityCheckService::class);
+    $service->record($check, [measurementOf($length, 12.5)]);
+    $stale = QualityCheck::query()->findOrFail($check->id);
+
+    $service->resolve(QualityCheck::query()->findOrFail($check->id));
+    $service->resolve($stale);
+
+    expect(NonConformance::query()->where('quality_check_id', $check->id)->count())->toBe(1);
+});
+
+it('resolves a pending check only when it is complete, and only once', function (): void {
+    ['check' => $check, 'characteristics' => [$length]] = checkWithPlan([2]);
+    $service = resolve(QualityCheckService::class);
+
+    $service->record($check, [measurementOf($length, 10)]);
+    expect($service->resolveWhenComplete($check))->toBeFalse();
+
+    $service->record($check->fresh(), [measurementOf($length, 10)]);
+    expect($service->resolveWhenComplete($check->fresh()))->toBeTrue()
+        ->and($check->fresh()->status)->toBe(QualityCheckStatus::Passed)
+        ->and($service->resolveWhenComplete($check->fresh()))->toBeFalse();
+});
+
+it('fails an executed check that already holds an out-of-limit machine measurement', function (): void {
+    ['check' => $check, 'characteristics' => [$length]] = checkWithPlan([3]);
+    $service = resolve(QualityCheckService::class);
+    $service->record($check, [measurementOf($length, 12.5)]);
+
+    $result = $service->execute($check->fresh(), [['characteristic' => 'manual', 'lower_limit' => 9, 'upper_limit' => 11, 'measured_value' => 10]]);
+
+    expect($result->status)->toBe(QualityCheckStatus::Failed)
+        ->and(NonConformance::query()->where('quality_check_id', $check->id)->count())->toBe(1);
+});

@@ -18,7 +18,7 @@ use Override;
  * is created, or to be assigned by hand.
  *
  * @property int $id
- * @property int|null $company_id
+ * @property int $company_id
  * @property int $signal_id
  * @property int $device_id
  * @property int $work_center_id

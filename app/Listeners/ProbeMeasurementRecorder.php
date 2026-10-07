@@ -13,7 +13,6 @@ use Modules\MES\Models\QualityCheck;
 use Modules\MES\Models\QualityCheckMeasurement;
 use Modules\MES\Models\QualityPlanCharacteristic;
 use Modules\MES\Models\UnattributedMeasurement;
-use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Services\QualityCheckService;
 
 /**
@@ -86,9 +85,7 @@ final class ProbeMeasurementRecorder
                     'machine_signal_id' => $sample->signal->id,
                 ]]);
 
-                if ($check->status === QualityCheckStatus::Pending && $this->checks->isComplete($check)) {
-                    $this->checks->resolve($check);
-                }
+                $this->checks->resolveWhenComplete($check);
             } else {
                 UnattributedMeasurement::query()->create([
                     'company_id' => $event->company_id,

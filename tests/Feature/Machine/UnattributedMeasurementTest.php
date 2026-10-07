@@ -131,3 +131,17 @@ it('refuses an assignment to a check whose plan lacks the characteristic, to ano
 
     expect(fn () => $assigner->assign($row->fresh(), $good))->toThrow(DomainException::class);
 });
+
+it('attaches what it can and does not fail when one waiting row cannot be assigned', function (): void {
+    $rig = plannedOperation(2);
+    $bad = waiting($rig, '08:00:00', 10);
+    $bad->forceFill(['company_id' => Modules\ERP\Models\Company::factory()->create()->id])->saveQuietly();
+    waiting($rig, '08:01:00', 10);
+    $check = QualityCheck::factory()->create(['production_order_id' => $rig['operation']->production_order_id, 'production_order_operation_id' => $rig['operation']->id, 'quality_plan_id' => $rig['plan']->id]);
+
+    $attached = resolve(UnattributedMeasurementAttacher::class)->attachFor($check);
+
+    expect($attached)->toBe(1)
+        ->and($bad->fresh()->assigned_at)->toBeNull()
+        ->and(QualityCheckMeasurement::query()->where('quality_check_id', $check->id)->count())->toBe(1);
+});

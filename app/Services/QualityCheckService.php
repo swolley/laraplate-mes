@@ -29,8 +29,10 @@ final class QualityCheckService
     public function execute(QualityCheck $check, array $measurements): QualityCheck
     {
         return $check->getConnection()->transaction(function () use ($check, $measurements): QualityCheck {
+            $check = $this->lock($check);
             $rows = $this->store($check, $measurements);
-            $passed = collect($rows)->every(static fn (QualityCheckMeasurement $row): bool => $row->is_within_limits);
+            $passed = collect($rows)->every(static fn (QualityCheckMeasurement $row): bool => $row->is_within_limits)
+                && ! $this->hasOutOfLimits($check, 'machine');
 
             return $this->settle($check, $passed, true);
         });
@@ -46,6 +48,7 @@ final class QualityCheckService
     public function record(QualityCheck $check, array $measurements): array
     {
         return $check->getConnection()->transaction(function () use ($check, $measurements): array {
+            $check = $this->lock($check);
             $rows = $this->store($check, $measurements);
 
             if ($check->status !== QualityCheckStatus::Pending) {
@@ -67,12 +70,30 @@ final class QualityCheckService
     public function resolve(QualityCheck $check): QualityCheck
     {
         return $check->getConnection()->transaction(function () use ($check): QualityCheck {
-            $passed = ! QualityCheckMeasurement::query()
-                ->where('quality_check_id', $check->id)
-                ->where('is_within_limits', false)
-                ->exists();
+            $check = $this->lock($check);
 
-            return $this->settle($check, $passed, false);
+            return $this->settle($check, ! $this->hasOutOfLimits($check), false);
+        });
+    }
+
+    /**
+     * Resolve a pending check once it is complete. The check is locked and its status read again first, so
+     * two processes completing it together resolve it once.
+     *
+     * @return bool whether this call resolved the check
+     */
+    public function resolveWhenComplete(QualityCheck $check): bool
+    {
+        return $check->getConnection()->transaction(function () use ($check): bool {
+            $check = $this->lock($check);
+
+            if ($check->status !== QualityCheckStatus::Pending || ! $this->isComplete($check)) {
+                return false;
+            }
+
+            $this->settle($check, ! $this->hasOutOfLimits($check), false);
+
+            return true;
         });
     }
 
@@ -101,6 +122,24 @@ final class QualityCheckService
             ->pluck('samples', 'quality_plan_characteristic_id');
 
         return $characteristics->every(static fn (QualityPlanCharacteristic $characteristic): bool => (is_numeric($counts[$characteristic->id] ?? null) ? (int) $counts[$characteristic->id] : 0) >= max(1, $characteristic->required_samples));
+    }
+
+    /**
+     * The check as the database holds it now, locked until the transaction ends: two writers of one check are
+     * serialised, and the status a caller loaded earlier is never trusted.
+     */
+    private function lock(QualityCheck $check): QualityCheck
+    {
+        return QualityCheck::query()->withoutGlobalScopes()->whereKey($check->id)->lockForUpdate()->firstOrFail();
+    }
+
+    private function hasOutOfLimits(QualityCheck $check, ?string $source = null): bool
+    {
+        return QualityCheckMeasurement::query()
+            ->where('quality_check_id', $check->id)
+            ->where('is_within_limits', false)
+            ->when($source !== null, static fn ($query) => $query->where('source', $source))
+            ->exists();
     }
 
     /**

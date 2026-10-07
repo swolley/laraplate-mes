@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
+use DomainException;
+use Illuminate\Support\Facades\Log;
 use Modules\MES\Models\MachineSignal;
 use Modules\MES\Models\QualityCheck;
 use Modules\MES\Models\QualityPlanCharacteristic;
@@ -44,8 +46,13 @@ final class UnattributedMeasurementAttacher
             ->orderBy('ts')
             ->get()
             ->each(function (UnattributedMeasurement $row) use ($check, &$attached): void {
-                $this->assigner->assign($row, $check);
-                $attached++;
+                try {
+                    $this->assigner->assign($row, $check);
+                    $attached++;
+                } catch (DomainException $domain_exception) {
+                    // One measurement that cannot be placed must not stop the others, nor the completion that created the check.
+                    Log::warning('A waiting probe measurement could not be attached to its quality check.', ['measurement_id' => $row->id, 'quality_check_id' => $check->id, 'reason' => $domain_exception->getMessage()]);
+                }
             });
 
         return $attached;

@@ -25,6 +25,7 @@ final class UnattributedMeasurementsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(static fn ($query) => $query->with(['signal.characteristic', 'signal.device.workCenter']))
             ->defaultSort('ts', 'desc')
             ->columns([
                 TextColumn::make('signal.key')->label('Signal')->searchable()->sortable(),
@@ -48,7 +49,7 @@ final class UnattributedMeasurementsTable
                 Action::make('assign')
                     ->label('Assign')
                     ->icon(Heroicon::OutlinedLink)
-                    ->visible(static fn (UnattributedMeasurement $record): bool => $record->assigned_at === null && self::canAssign())
+                    ->visible(static fn (UnattributedMeasurement $record): bool => $record->assigned_at === null && $record->signal?->quality_plan_characteristic_id !== null && self::canAssign())
                     ->schema([
                         Select::make('quality_check_id')
                             ->label('Quality check')

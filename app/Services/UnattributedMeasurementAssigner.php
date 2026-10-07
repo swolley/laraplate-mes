@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\MES\Services;
 
 use DomainException;
-use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Machine\States\MachineTime;
+use Modules\MES\Models\MachineSignal;
 use Modules\MES\Models\QualityCheck;
 use Modules\MES\Models\QualityCheckMeasurement;
 use Modules\MES\Models\QualityPlanCharacteristic;
@@ -35,11 +35,11 @@ final class UnattributedMeasurementAssigner
             throw_if($locked->assigned_at !== null, new DomainException("Measurement {$locked->id} is already assigned."));
             throw_if((int) $locked->company_id !== (int) $check->company_id, new DomainException('The quality check belongs to another company.'));
 
-            $characteristic_id = $locked->signal?->quality_plan_characteristic_id;
+            $characteristic_id = MachineSignal::query()->withoutGlobalScopes()->whereKey($locked->signal_id)->value('quality_plan_characteristic_id');
             $characteristic = $characteristic_id === null ? null : QualityPlanCharacteristic::query()->find($characteristic_id);
 
             throw_if(
-                ! $characteristic instanceof QualityPlanCharacteristic || $characteristic->quality_plan_id !== $check->quality_plan_id,
+                ! $characteristic instanceof QualityPlanCharacteristic || (int) $characteristic->quality_plan_id !== (int) $check->quality_plan_id,
                 new DomainException('The plan of the quality check does not hold the characteristic of this signal.'),
             );
 
@@ -58,9 +58,7 @@ final class UnattributedMeasurementAssigner
 
             $locked->forceFill(['assigned_at' => now()])->save();
 
-            if ($check->refresh()->status === QualityCheckStatus::Pending && $this->checks->isComplete($check)) {
-                $this->checks->resolve($check);
-            }
+            $this->checks->resolveWhenComplete($check);
 
             return $measurement;
         });
