@@ -252,7 +252,8 @@ final class ProductionOrder extends Model
      */
     private function assertBomWithinStride(): void
     {
-        $lines = $this->bom_snapshot['lines'] ?? [];
+        $snapshot = $this->bom_snapshot ?? [];
+        $lines = $snapshot['lines'] ?? [];
         $count = count($lines);
 
         if ($count >= self::MATERIAL_LINE_STRIDE) {
