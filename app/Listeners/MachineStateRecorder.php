@@ -40,8 +40,18 @@ final class MachineStateRecorder
             }
         }
 
+        $this->settle($change, $tagged, $event->work_center_id);
+    }
+
+    /**
+     * Brings the downtimes in line with what recording changed: merged-away intervals lose theirs, the others are synced.
+     *
+     * @param  list<MachineStateInterval>  $tagged  intervals that only got an alarm code
+     */
+    public function settle(MachineStateChange $change, array $tagged, int $work_center_id): void
+    {
         foreach ($change->removed_starts as $started_at) {
-            $this->deriver->forget($event->work_center_id, $started_at);
+            $this->deriver->forget($work_center_id, $started_at);
         }
 
         $ids = [];

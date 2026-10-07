@@ -8,6 +8,14 @@ use Carbon\CarbonImmutable;
 use Modules\MES\Enums\MachineIncidentType;
 use Illuminate\Support\Facades\Cache;
 use Modules\MES\Enums\MachineMessageStatus;
+use Modules\MES\Enums\MachineState;
+use Modules\MES\Enums\SignalRole;
+use Modules\MES\Listeners\MachineStateRecorder;
+use Modules\MES\Machine\States\MachineStateChange;
+use Modules\MES\Machine\States\MachineStateIntervals;
+use Modules\MES\Machine\States\MachineTime;
+use Modules\MES\Models\MachineSignal;
+use Modules\MES\Models\MachineStateInterval;
 use Modules\MES\Enums\MachineTransport;
 use Modules\MES\Jobs\ProcessMachineMessageJob;
 use Modules\MES\Machine\Mqtt\MachineBridge;
@@ -30,6 +38,8 @@ final class MachineWatchdog
 
     public function __construct(
         private readonly MachineIncidentRecorder $incidents,
+        private readonly MachineStateIntervals $intervals,
+        private readonly MachineStateRecorder $states,
     ) {}
 
     /**
@@ -64,6 +74,12 @@ final class MachineWatchdog
             $is_silent = $silent_seconds > $source->heartbeat_timeout_seconds;
             $has_incident = in_array($device->id, $open, true);
 
+            if ($is_silent) {
+                $this->markOffline($device, $seen);
+            } else {
+                $this->markOnline($device, $seen);
+            }
+
             if ($is_silent && ! $has_incident) {
                 $this->incidents->record($source, MachineIncidentType::DeviceSilent, [
                     'device' => $device->external_id,
@@ -78,6 +94,25 @@ final class MachineWatchdog
         $this->requeueStalePending($now);
 
         return $opened + $this->checkBridge($now);
+    }
+
+    private function markOffline(MachineDevice $device, CarbonImmutable $seen): void
+    {
+        $has_state = MachineSignal::query()->withoutGlobalScopes()->where('device_id', $device->id)->where('role', SignalRole::State->value)->exists();
+
+        if ($has_state) {
+            $this->states->settle($this->intervals->observe($device, MachineState::Offline, $seen), [], (int) $device->work_center_id);
+        }
+    }
+
+    private function markOnline(MachineDevice $device, CarbonImmutable $seen): void
+    {
+        $offline = MachineStateInterval::query()->open()->where('device_id', $device->id)->where('state', MachineState::Offline->value)->first();
+
+        if ($offline instanceof MachineStateInterval && $seen->greaterThan($offline->started_at)) {
+            $offline->update(['ended_at' => MachineTime::local($seen)]);
+            $this->states->settle(new MachineStateChange([$offline]), [], (int) $device->work_center_id);
+        }
     }
 
     /**

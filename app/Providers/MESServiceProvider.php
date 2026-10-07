@@ -14,6 +14,7 @@ use Modules\Core\Exceptions\ConfigurationException;
 use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
+use Modules\MES\Console\MachineOpenStopsCommand;
 use Modules\MES\Console\MachineWatchdogCommand;
 use Modules\MES\Console\MaterializeKpisCommand;
 use Modules\MES\Contracts\ProductionCostReader;
@@ -152,6 +153,12 @@ final class MESServiceProvider extends ModuleServiceProvider
 
             $this->app->make(Schedule::class)
                 ->command(MachineWatchdogCommand::class)
+                ->everyMinute()
+                ->withoutOverlapping()
+                ->onOneServer();
+
+            $this->app->make(Schedule::class)
+                ->command(MachineOpenStopsCommand::class)
                 ->everyMinute()
                 ->withoutOverlapping()
                 ->onOneServer();
