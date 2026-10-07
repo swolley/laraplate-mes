@@ -1,14 +1,15 @@
 # Machine connectivity
 
 Machines and probes push their data into the MES through the `laraplate-machine/1` protocol, over HTTP or
-through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states (steps 1 to 3 of the
+through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states and the piece counts (steps 1 to 4 of the
 machine data acquisition design): the protocol, the HTTP endpoint, the bridge and the `sparkplug_b`
 normaliser, a durable inbox, the asynchronous pipeline with its configuration, the state history with the
-downtimes derived from it, and the backoffice. The pipeline dispatches typed events (`MachineStateObserved`,
-`PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`); only `MachineStateObserved` has a consumer so far.
+downtimes derived from it, the stored piece counts with the OEE performance and quality built on them, and
+the backoffice. The pipeline dispatches typed events (`MachineStateObserved`, `PartsCounted`,
+`ProbeMeasured`, `ProcessValuesSampled`); `MachineStateObserved` and `PartsCounted` have a consumer so far.
 
-**Not built yet** (later steps): piece counts and OEE performance and quality (step 4), probe measurements
-filling quality checks (step 5), process values and their storage (step 6).
+**Not built yet** (later steps): probe measurements filling quality checks (step 5), process values and
+their storage (step 6).
 
 ## How a message travels
 
@@ -323,6 +324,42 @@ to [0, 1] (1 when there is no busy time). Planned maintenance therefore no longe
 centers without a machine keep the planned-time formula. The daily KPIs also carry an **incomplete data**
 flag, true when an `Offline` stretch overlaps the day; the work center list shows `OEE (today)` with
 `(incomplete)` then. KPI cache keys are `mes:kpi:v2:...`, so figures cached before this step are not read.
+
+## Piece counts and OEE performance and quality
+
+**Count rows.** Every sample of a good, scrap or total counter signal becomes a row of `mes_machine_counts`
+(device, work center, operation or none, `ts` with milliseconds, `good`, `scrap`, `total`, `raw_value`),
+unique per signal and moment, so the same message twice stores nothing new. The row holds the **delta** in the
+column of the signal's role (the other two are 0). A signal with `mode: delta` is used as received; a
+`cumulative` one is compared with the previous sample by time. The first cumulative sample is only a baseline
+(delta 0). A drop is a **rollover** when the signal has `rollover_max` and the previous value was above half
+of it (delta = `rollover_max - previous + value`), otherwise a **reset** (counting again from zero, delta =
+the new value). A delta is never negative. A late sample is inserted by its time and the row after it is
+recomputed against it.
+
+**Operation quantities.** `machine_good_quantity` and `machine_scrap_quantity` of an operation are the sums of
+its attributed rows and can be recomputed at any time. When the good pieces reach the order's planned
+quantity, `target_reached_at` is stamped and `OperationTargetReached` is dispatched **once**, with a
+notification to the roles of `mes.notifications.operation_target` (default admin and superadmin); a recount
+never clears the stamp. The machine never completes an operation.
+
+**Declared quantities.** When an operation is completed, `declared_good_quantity` and
+`declared_scrap_quantity` are prefilled from the machine ones (only when the machine counted something and
+nothing was declared yet). The operator corrects them with the "Declare quantities" action of the operations
+table; each changed value leaves a row in `mes_operation_quantity_audits` (old value, new value, user), and an
+unchanged value leaves none. The Complete action of the order proposes the declared good quantity of its last
+operation as the produced quantity.
+
+**Unattributed counts.** Counts with no operation stay on the work center and count towards its OEE. The
+"Assign machine counts" action of the operations table gives an operation the unattributed counts of its work
+center inside a time range (`from <= ts < to`).
+
+**OEE (ISO 22400).** For a work center with count rows in the window, performance is the ideal time of the
+counted pieces over the run time: the ideal cycle is the operation's `cycle_time_minutes`, and counts nobody
+attributed use `60 / capacity_per_hour` of the work center; the run time is the busy time minus the unplanned
+downtime (working time for a connected work center). Quality is good pieces over total pieces, where the total
+is the sent total or good plus scrap. Both stay in [0, 1], and with no run time performance is 1. Without count
+rows in the window the old order-based formulas apply. KPI cache keys are `mes:kpi:v3:...`.
 
 ## Incidents and health
 

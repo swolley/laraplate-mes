@@ -312,7 +312,17 @@ the foundation, with no consumer of the machine data yet.
   `mes:machine-open-stops` (every minute) opens the downtime of stops still open; `MachineWatchdog` records
   and closes the synthetic `Offline` interval. `WorkCenterKpis::$incomplete_data` and the `mes:kpi:v2:` cache
   key. User guide: `docs/MACHINE_CONNECTIVITY.md`.
-  Not built yet: counts, probe measurements, process values.
+- **Counts (step 4).** `PartsCountRecorder` (listener of `PartsCounted`) writes `mes_machine_counts` rows
+  (`MachineCount`, delta in the column of the signal's role, `raw_value`, unique `(signal_id, ts)`) through
+  `IdempotentWriter`, with `CounterDelta::between()` (cumulative/delta mode, rollover, reset) and recomputes the
+  row after a late insert. `OperationCountTally::refresh()` sums rows into `machine_good_quantity` and
+  `machine_scrap_quantity` and fires `OperationTargetReached` once (`target_reached_at`).
+  `ProductionOrderOperationService::complete()` prefills `declared_*`; `OperationQuantityDeclarer::declare()`
+  is the audited writer (`mes_operation_quantity_audits`); `MachineCountAssigner::assign()` attributes
+  unattributed counts by time range. `OeeCalculatorService::performance()` and `quality()` use the counts when
+  the window has any (ideal cycle of the operation, or `60 / capacity_per_hour` for unattributed counts); cache
+  key `mes:kpi:v3:`. User guide: `docs/MACHINE_CONNECTIVITY.md`.
+  Not built yet: probe measurements, process values.
 
 ## Backoffice
 

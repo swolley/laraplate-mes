@@ -159,8 +159,8 @@ non a lavorare l'ordine tutti i giorni.
 ## Collegare le macchine
 
 Le macchine e i sistemi di misura possono mandare i loro dati direttamente al MES, senza che qualcuno li
-digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi; non conta ancora i pezzi
-né compila i controlli qualità (arriverà nei passi successivi).
+digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi e i contapezzi per le quantità
+prodotte; non compila ancora i controlli qualità (arriverà nei passi successivi).
 
 - Dal gruppo **Machine connectivity** del pannello crei una **sorgente** (l'agente o il gateway che invia
   i dati) e le assegni un **token**: viene mostrato **una sola volta**, copialo subito; emetterne uno nuovo
@@ -187,6 +187,16 @@ vengono dalla macchina e non si cambiano; **causa e note** sì: finché non le i
 uno stato **Offline**: non è un fermo, ma l'OEE del giorno mostra **(incomplete)** perché i dati sono
 incompleti. La disponibilità dell'OEE per i centri collegati segue lo standard ISO 22400: la manutenzione
 programmata non conta come perdita.
+
+### Pezzi contati
+
+Se la macchina manda i contapezzi (buoni, scarti, totale), ogni operazione mostra le quantità **della
+macchina** (buoni e scarti). Quando i pezzi buoni raggiungono la quantità pianificata dell'ordine arriva una
+notifica, una sola volta: l'operazione però **non** si chiude da sola. Alla chiusura le quantità **dichiarate**
+partono da quelle della macchina; puoi correggerle con **Declare quantities** nella tabella delle operazioni e
+ogni correzione resta registrata (chi, prima, dopo). I pezzi contati senza un'operazione restano sul centro di
+lavoro e contano per l'OEE: con **Assign machine counts** li assegni a un'operazione indicando l'intervallo di
+tempo. Con i contapezzi, **prestazione** e **qualità** dell'OEE si calcolano sui pezzi contati (ISO 22400).
 
 ### Le macchine che parlano tramite MQTT
 

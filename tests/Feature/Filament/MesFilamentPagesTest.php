@@ -377,3 +377,43 @@ it('never treats offline or running as a downtime state, whatever the list says'
         ->and($work_center->isDowntimeState(Modules\MES\Enums\MachineState::Running))->toBeFalse()
         ->and($work_center->isDowntimeState(Modules\MES\Enums\MachineState::Fault))->toBeTrue();
 });
+
+it('declares the quantities of an operation from the operations table, with an audit row', function (): void {
+    $order = ProductionOrder::factory()->create();
+    $operation = ProductionOrderOperation::factory()->create(['production_order_id' => $order->id, 'machine_good_quantity' => 95, 'machine_scrap_quantity' => 5, 'declared_good_quantity' => 95]);
+
+    Livewire::test(OperationsRelationManager::class, ['ownerRecord' => $order, 'pageClass' => EditProductionOrder::class])
+        ->assertTableColumnExists('machine_good_quantity')
+        ->assertTableColumnExists('declared_good_quantity')
+        ->assertTableColumnExists('target_reached_at')
+        ->callTableAction('declare', $operation, ['declared_good_quantity' => 92, 'declared_scrap_quantity' => 8])
+        ->assertHasNoTableActionErrors();
+
+    $fresh = ProductionOrderOperation::query()->findOrFail($operation->id);
+    expect((float) $fresh->declared_good_quantity)->toBe(92.0)
+        ->and((float) $fresh->declared_scrap_quantity)->toBe(8.0)
+        ->and($fresh->quantityAudits()->count())->toBe(2);
+});
+
+it('assigns the unattributed counts of a time range to an operation from the operations table', function (): void {
+    $order = ProductionOrder::factory()->create(['quantity_planned' => 1000]);
+    $operation = ProductionOrderOperation::factory()->create(['production_order_id' => $order->id]);
+    $count = Modules\MES\Models\MachineCount::factory()->create(['work_center_id' => $operation->work_center_id, 'ts' => '2026-10-05 08:30:00', 'good' => 12]);
+
+    Livewire::test(OperationsRelationManager::class, ['ownerRecord' => $order, 'pageClass' => EditProductionOrder::class])
+        ->callTableAction('assign_counts', $operation, ['from' => '2026-10-05 08:00:00', 'to' => '2026-10-05 09:00:00'])
+        ->assertHasNoTableActionErrors();
+
+    expect($count->fresh()->production_order_operation_id)->toBe($operation->id)
+        ->and((float) $operation->fresh()->machine_good_quantity)->toBe(12.0);
+});
+
+it('proposes the declared good quantity of the last operation when completing an order', function (): void {
+    $order = ProductionOrder::factory()->create(['status' => Modules\MES\Enums\ProductionOrderStatus::InProgress->value]);
+    ProductionOrderOperation::factory()->create(['production_order_id' => $order->id, 'sequence' => 10, 'declared_good_quantity' => 40]);
+    ProductionOrderOperation::factory()->create(['production_order_id' => $order->id, 'sequence' => 20, 'declared_good_quantity' => 37]);
+
+    Livewire::test(EditProductionOrder::class, ['record' => $order->getKey()])
+        ->mountAction('complete')
+        ->assertActionDataSet(['quantity_produced' => 37]);
+});

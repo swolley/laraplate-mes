@@ -15,6 +15,7 @@ use Modules\Core\Filament\Utils\HasCloseOrCancelFormAction;
 use Modules\Core\Models\User;
 use Modules\MES\Filament\Resources\ProductionOrders\ProductionOrderResource;
 use Modules\MES\Models\ProductionOrder;
+use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Policies\MesModelPolicy;
 use Modules\MES\Services\ProductionOrderService;
 use Override;
@@ -48,6 +49,7 @@ final class EditProductionOrder extends EditRecord
                 ->label('Complete')
                 ->icon(Heroicon::OutlinedCheckCircle)
                 ->color('success')
+                ->fillForm(fn (): array => ['quantity_produced' => $this->lastOperationDeclaredGood()])
                 ->schema([
                     TextInput::make('quantity_produced')
                         ->numeric()
@@ -70,6 +72,21 @@ final class EditProductionOrder extends EditRecord
                 ->visible(fn (): bool => $this->policyAllows('cancel'))
                 ->action(fn () => $this->runTransition('Order cancelled', static fn (ProductionOrderService $service, ProductionOrder $order) => $service->cancel($order))),
         ];
+    }
+
+    /**
+     * The produced quantity is proposed from the last operation: what its operator declared (the machine
+     * count, corrected). Nothing is proposed while no operation has a declaration.
+     */
+    private function lastOperationDeclaredGood(): ?float
+    {
+        if (! $this->record instanceof ProductionOrder) {
+            return null;
+        }
+
+        $last = $this->record->operations()->orderByDesc('sequence')->first();
+
+        return $last instanceof ProductionOrderOperation && $last->declared_good_quantity !== null ? (float) $last->declared_good_quantity : null;
     }
 
     private function policyAllows(string $ability): bool

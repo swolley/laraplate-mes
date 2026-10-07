@@ -55,3 +55,13 @@ it('documents the states, downtimes and availability', function () use ($module)
 
     expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Machine states to downtimes');
 });
+
+it('documents the piece counts', function () use ($module): void {
+    $document = (string) file_get_contents("{$module}/docs/MACHINE_CONNECTIVITY.md");
+
+    foreach (['mes_machine_counts', 'rollover', 'OperationTargetReached', 'declared', 'mes_operation_quantity_audits', 'mes:kpi:v3', 'ISO 22400'] as $needle) {
+        expect($document)->toContain($needle);
+    }
+
+    expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Piece counts, and OEE');
+});

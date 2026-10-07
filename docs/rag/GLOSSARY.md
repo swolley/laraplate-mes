@@ -155,6 +155,8 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **Micro-stop** | A stop no longer than the work center's `micro_stop_threshold_seconds`; it leaves no downtime. |
 | **Connected work center** | A work center with an active device, of an active source, with a state signal: its downtimes come from the machine and its OEE availability follows ISO 22400. |
 | **Machine downtime** | A downtime derived from a state interval (`source = machine`); its times are locked, its cause and notes can be edited. |
+| **Machine count** | The delta of a piece counter between two samples, stored per signal and moment (`mes_machine_counts`); rollover and reset are recognised. |
+| **Declared quantity** | The good and scrap quantity the operator confirms for an operation; prefilled from the machine count at completion, every correction audited. |
 
 
 ## Related reading
