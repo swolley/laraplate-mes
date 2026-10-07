@@ -80,7 +80,7 @@ final class WorkCenter extends Model implements IActivatableModel
             'capacity_uom' => ['required', 'string', 'max:16'],
             'is_active' => ['sometimes', 'boolean'],
             'micro_stop_threshold_seconds' => ['sometimes', 'integer', 'min:0'],
-            'downtime_states' => ['sometimes', 'array'],
+            'downtime_states' => ['sometimes', 'nullable', 'array'],
             'downtime_states.*' => ['string', Rule::in(MachineState::values())],
         ]);
 
@@ -92,7 +92,7 @@ final class WorkCenter extends Model implements IActivatableModel
             'capacity_uom' => ['sometimes', 'string', 'max:16'],
             'is_active' => ['sometimes', 'boolean'],
             'micro_stop_threshold_seconds' => ['sometimes', 'integer', 'min:0'],
-            'downtime_states' => ['sometimes', 'array'],
+            'downtime_states' => ['sometimes', 'nullable', 'array'],
             'downtime_states.*' => ['string', Rule::in(MachineState::values())],
         ]);
 
@@ -125,7 +125,11 @@ final class WorkCenter extends Model implements IActivatableModel
      */
     public function isDowntimeState(MachineState $state): bool
     {
-        $states = is_array($this->downtime_states) ? $this->downtime_states : ['fault', 'stopped', 'setup', 'maintenance'];
+        if (in_array($state, [MachineState::Offline, MachineState::Running], true)) {
+            return false;
+        }
+
+        $states = is_array($this->downtime_states) && $this->downtime_states !== [] ? $this->downtime_states : ['fault', 'stopped', 'setup', 'maintenance'];
 
         return in_array($state->value, $states, true);
     }

@@ -29,13 +29,6 @@ use Modules\MES\Models\Routing;
  */
 final class ProductionOrderService
 {
-    /**
-     * Stride for the per-order material line id: `order_id * STRIDE + line_index`.
-     * It also bounds a single order to this many component lines (far above any
-     * real BOM) while keeping the id well inside the signed bigint range.
-     */
-    private const int MATERIAL_LINE_STRIDE = 1000;
-
     public function __construct(
         private BomExplosionService $bomExplosionService,
         private RoutingResolverService $routingResolverService,
@@ -74,7 +67,10 @@ final class ProductionOrderService
             (int) $on_date->format('Y'),
         );
 
-        $order = ProductionOrder::query()->withoutGlobalScopes()->create([
+        // The frozen BOM snapshot's per-order `material_line_id`s are stamped by
+        // the ProductionOrder `created` boot hook, which covers every creation
+        // path (service, factory, import), so there is nothing to stamp here.
+        return ProductionOrder::query()->withoutGlobalScopes()->create([
             'company_id' => $payload['company_id'],
             'number' => $number,
             'item_id' => $payload['item_id'],
@@ -89,8 +85,6 @@ final class ProductionOrderService
             'bom_snapshot' => $this->buildBomSnapshot((int) $payload['item_id'], $on_date),
             'routing_snapshot' => $this->buildRoutingSnapshot((int) $payload['item_id'], $on_date),
         ]);
-
-        return $this->stampMaterialLineIds($order);
     }
 
     /**
@@ -225,34 +219,6 @@ final class ProductionOrderService
         ])->all();
 
         return ['id' => $bom->id, 'version' => $bom->version, 'lines' => $lines];
-    }
-
-    /**
-     * Stamp every frozen BOM snapshot line with an id unique to THIS order and
-     * stable for its whole lifecycle (reserve at release, release at cancel,
-     * consume at backflush). The template `bom_line_id` is shared by every order
-     * built from the same BOM, so it cannot key per-order component reservations;
-     * this derived id can. The id is assigned after insert because it is seeded
-     * from the order's own primary key.
-     */
-    private function stampMaterialLineIds(ProductionOrder $order): ProductionOrder
-    {
-        $snapshot = $order->bom_snapshot;
-        $lines = $snapshot['lines'] ?? [];
-
-        if ($lines === []) {
-            return $order;
-        }
-
-        foreach ($lines as $index => $line) {
-            $line['material_line_id'] = $order->id * self::MATERIAL_LINE_STRIDE + (int) $index;
-            $lines[$index] = $line;
-        }
-
-        $snapshot['lines'] = $lines;
-        $order->forceFill(['bom_snapshot' => $snapshot])->save();
-
-        return $order;
     }
 
     /**

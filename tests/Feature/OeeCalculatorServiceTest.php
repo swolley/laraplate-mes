@@ -117,7 +117,7 @@ function oeeConnectedWorkCenter(): array
     $device = Modules\MES\Models\MachineDevice::factory()->create(['work_center_id' => $work_center->id, 'company_id' => $company->id]);
     Modules\MES\Models\MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 'state', 'role' => Modules\MES\Enums\SignalRole::State->value, 'config' => ['map' => ['RUN' => 'running']]]);
 
-    return [$work_center, Carbon\CarbonImmutable::parse('2026-10-05 00:00:00')];
+    return [$work_center, Carbon\CarbonImmutable::parse('2026-10-05 08:00:00')];
 }
 
 function oeeMachineDowntime(WorkCenter $work_center, DowntimeCause $cause, string $from, string $to): void
@@ -141,19 +141,19 @@ it('measures a connected work center against its calendar time, planned maintena
 
     expect($service->availability($work_center->id, $day, $to, 480.0))->toBe(1.0);
 
-    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 01:00:00', '2026-10-05 02:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 09:00:00', '2026-10-05 10:00:00');
     expect($service->availability($work_center->id, $day, $to, 480.0))->toBe(420.0 / 480.0);
 
-    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 03:00:00', '2026-10-05 05:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 11:00:00', '2026-10-05 13:00:00');
     expect(round($service->availability($work_center->id, $day, $to, 480.0), 4))->toBe(round(300.0 / 360.0, 4));
 });
 
 it('keeps the planned-time formula for a work center without a machine', function (): void {
     $company = MesTestHelpers::makeCompany();
     $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
-    $day = Carbon\CarbonImmutable::parse('2026-10-05 00:00:00');
-    Downtime::factory()->create(['company_id' => $company->id, 'work_center_id' => $work_center->id, 'cause' => DowntimeCause::Breakdown->value, 'started_at' => '2026-10-05 01:00:00', 'ended_at' => '2026-10-05 02:00:00']);
-    Downtime::factory()->create(['company_id' => $company->id, 'work_center_id' => $work_center->id, 'cause' => DowntimeCause::PlannedMaintenance->value, 'started_at' => '2026-10-05 03:00:00', 'ended_at' => '2026-10-05 05:00:00']);
+    $day = Carbon\CarbonImmutable::parse('2026-10-05 08:00:00');
+    Downtime::factory()->create(['company_id' => $company->id, 'work_center_id' => $work_center->id, 'cause' => DowntimeCause::Breakdown->value, 'started_at' => '2026-10-05 09:00:00', 'ended_at' => '2026-10-05 10:00:00']);
+    Downtime::factory()->create(['company_id' => $company->id, 'work_center_id' => $work_center->id, 'cause' => DowntimeCause::PlannedMaintenance->value, 'started_at' => '2026-10-05 11:00:00', 'ended_at' => '2026-10-05 13:00:00']);
 
     expect(resolve(OeeCalculatorService::class)->availability($work_center->id, $day, $day->addMinutes(480), 480.0))->toBe(420.0 / 480.0);
 });
@@ -161,21 +161,35 @@ it('keeps the planned-time formula for a work center without a machine', functio
 it('counts only the part of a breakdown inside the window, and is fully available when maintenance fills the calendar', function (): void {
     [$work_center, $day] = oeeConnectedWorkCenter();
     $service = resolve(OeeCalculatorService::class);
-    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-04 23:00:00', '2026-10-05 01:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 07:00:00', '2026-10-05 09:00:00');
 
     expect($service->availability($work_center->id, $day, $day->addMinutes(480), 480.0))->toBe(420.0 / 480.0);
 
-    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 02:00:00', '2026-10-05 10:00:00');
-    expect($service->availability($work_center->id, $day->addHours(2), $day->addHours(10), 480.0))->toBe(1.0);
+    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 08:00:00', '2026-10-05 16:00:00');
+    expect($service->availability($work_center->id, $day, $day->addHours(8), 480.0))->toBe(1.0);
 });
 
 it('flags offline stretches as incomplete data without counting them as downtime', function (): void {
     [$work_center, $day] = oeeConnectedWorkCenter();
     $device = Modules\MES\Models\MachineDevice::query()->where('work_center_id', $work_center->id)->firstOrFail();
-    Modules\MES\Models\MachineStateInterval::factory()->create(['company_id' => $work_center->company_id, 'device_id' => $device->id, 'work_center_id' => $work_center->id, 'state' => 'offline', 'started_at' => '2026-10-05 01:00:00', 'ended_at' => '2026-10-05 02:00:00']);
+    Modules\MES\Models\MachineStateInterval::factory()->create(['company_id' => $work_center->company_id, 'device_id' => $device->id, 'work_center_id' => $work_center->id, 'state' => 'offline', 'started_at' => '2026-10-05 09:00:00', 'ended_at' => '2026-10-05 10:00:00']);
     $service = resolve(OeeCalculatorService::class);
 
     expect($service->hasIncompleteData($work_center->id, $day, $day->addHours(8)))->toBeTrue()
         ->and($service->hasIncompleteData($work_center->id, $day->addHours(2), $day->addHours(8)))->toBeFalse()
         ->and($service->availability($work_center->id, $day, $day->addMinutes(480), 480.0))->toBe(1.0);
+});
+
+it('does not count the hours a connected machine stands still outside the working calendar', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    oeeMachineDowntime($work_center, DowntimeCause::Unclassified, '2026-10-04 16:00:00', '2026-10-05 08:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::Unclassified, '2026-10-05 16:00:00', '2026-10-06 08:00:00');
+
+    $kpis = resolve(Modules\MES\Services\WorkCenterKpiMaterializer::class)->materialize($work_center, $day);
+
+    expect($kpis->availability)->toBe(1.0);
+
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 09:00:00', '2026-10-05 10:00:00');
+
+    expect(resolve(Modules\MES\Services\WorkCenterKpiMaterializer::class)->materialize($work_center, $day)->availability)->toBe(420.0 / 480.0);
 });

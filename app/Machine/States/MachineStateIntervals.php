@@ -21,6 +21,9 @@ final class MachineStateIntervals
     public function observe(MachineDevice $device, MachineState $state, CarbonInterface $at): MachineStateChange
     {
         return $device->getConnection()->transaction(function () use ($device, $state, $at): MachineStateChange {
+            // Serialises the writers of one device (the job, the watchdog): two splits of the same open interval would overlap.
+            MachineDevice::query()->withoutGlobalScopes()->whereKey($device->id)->lockForUpdate()->first();
+
             $container = $this->containing($device, $at);
 
             if (! $container instanceof MachineStateInterval) {
@@ -110,6 +113,6 @@ final class MachineStateIntervals
         $next->delete();
         $written->update(['ended_at' => $next_end]);
 
-        return new MachineStateChange($change->changed, [...$change->removed_starts, $removed]);
+        return new MachineStateChange($change->changed, [...$change->removed_starts, $removed => MachineTime::db($written->started_at)]);
     }
 }

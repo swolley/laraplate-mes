@@ -196,7 +196,7 @@ it('reserves the BOM components when a production order is released and drops wa
         ->and(readerAvailable($ctx['component']->id, $ctx['warehouse']->id, $ctx['company']->id))->toBe(80.0);
 });
 
-it('does not subtract a company-wide null-warehouse reservation from the per-warehouse availability', function (): void {
+it('subtracts a company-wide null-warehouse (sales) reservation from the per-warehouse availability', function (): void {
     $company = MesTestHelpers::makeCompany();
     $component = MesTestHelpers::makeItem($company->id);
     $warehouse = MesTestHelpers::makeWarehouse($company->id);
@@ -214,14 +214,14 @@ it('does not subtract a company-wide null-warehouse reservation from the per-war
         $component->id,
         '10',
         StockReservationState::Hard,
-        'erp.some_company_wide_hold',
+        'erp.sales_order_line',
         999,
         null,
     );
 
-    // The null-warehouse hold is a documented v1 limitation: it is not pinned to
-    // the warehouse, so the per-warehouse reader does not subtract it.
-    expect(readerAvailable($component->id, $warehouse->id, $company->id))->toBe(40.0);
+    // A sales hold carries warehouse_id = null (company-wide). The reader now
+    // subtracts it conservatively so MES backflush cannot consume sold stock.
+    expect(readerAvailable($component->id, $warehouse->id, $company->id))->toBe(30.0);
 });
 
 it('releases the component reservations when a production order is cancelled', function (): void {
@@ -485,4 +485,122 @@ it('leaves the order released and logs when a component reservation fails', func
             ->count())->toBe(0);
 
     Log::shouldHaveReceived('warning');
+});
+
+it('stamps a material_line_id on an order created outside the service so its components reserve', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $finished = MesTestHelpers::makeItem($company->id);
+    $component = MesTestHelpers::makeItem($company->id);
+    $warehouse = MesTestHelpers::makeWarehouse($company->id);
+
+    app(StockMovementService::class)->recordInbound(
+        company_id: $company->id,
+        item_id: $component->id,
+        warehouse_id: $warehouse->id,
+        quantity: 100,
+        unit_cost: 1,
+    );
+
+    // Created via the factory, not ProductionOrderService::create(): the model
+    // boot hook must still stamp a per-order material_line_id on the snapshot line.
+    $order = ProductionOrder::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $finished->id,
+        'warehouse_id' => $warehouse->id,
+        'quantity_planned' => 10.0,
+        'quantity_produced' => null,
+        'status' => ProductionOrderStatus::Draft->value,
+        'bom_snapshot' => [
+            'id' => 1,
+            'version' => 'v1',
+            'lines' => [
+                [
+                    'bom_line_id' => 55,
+                    'item_id' => $component->id,
+                    'quantity' => 2.0,
+                    'uom' => 'pcs',
+                    'consumption_method' => ConsumptionMethod::Backflush->value,
+                    'routing_operation_id' => 50,
+                ],
+            ],
+        ],
+        'routing_snapshot' => ['id' => null, 'version' => null, 'operations' => []],
+    ]);
+
+    $line_id = $order->refresh()->bom_snapshot['lines'][0]['material_line_id'] ?? null;
+
+    expect($line_id)->not->toBeNull()
+        ->and($line_id)->toBe($order->id * 1000);
+
+    resolve(ProductionOrderService::class)->release($order);
+
+    expect((float) lineReservedQuantity($line_id))->toBe(20.0)
+        ->and(readerAvailable($component->id, $warehouse->id, $company->id))->toBe(80.0);
+});
+
+it('rejects a BOM snapshot with 1000 or more component lines', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $finished = MesTestHelpers::makeItem($company->id);
+    $warehouse = MesTestHelpers::makeWarehouse($company->id);
+
+    $lines = [];
+
+    for ($i = 0; $i < 1000; $i++) {
+        $lines[] = [
+            'bom_line_id' => $i + 1,
+            'item_id' => $finished->id,
+            'quantity' => 1.0,
+            'uom' => 'pcs',
+            'consumption_method' => ConsumptionMethod::Backflush->value,
+            'routing_operation_id' => null,
+        ];
+    }
+
+    expect(fn (): ProductionOrder => ProductionOrder::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $finished->id,
+        'warehouse_id' => $warehouse->id,
+        'quantity_planned' => 1.0,
+        'quantity_produced' => null,
+        'status' => ProductionOrderStatus::Draft->value,
+        'bom_snapshot' => ['id' => 1, 'version' => 'v1', 'lines' => $lines],
+        'routing_snapshot' => ['id' => null, 'version' => null, 'operations' => []],
+    ]))->toThrow(DomainException::class);
+});
+
+it('cannot backflush-consume the stock a sales null-warehouse hold reserved', function (): void {
+    Event::fake([MaterialShortageDetected::class]);
+
+    // 100 on hand; a sales order hard-reserves 90 company-wide (null warehouse).
+    $ctx = reservableOrder(on_hand: 100);
+    resolve(StockReservationService::class)->reserve(
+        $ctx['company']->id,
+        $ctx['component']->id,
+        '90',
+        StockReservationState::Hard,
+        'erp.sales_order_line',
+        424242,
+        null,
+    );
+
+    // At release MES reserves only min(required 20, available 100 - 90) = 10.
+    resolve(ProductionOrderService::class)->release($ctx['order']);
+    expect((float) lineReservedQuantity($ctx['line_id']))->toBe(10.0);
+
+    $operation = backflushOperation($ctx['order']->refresh());
+
+    (new BackflushMaterialsJob($operation->id))->handle(
+        resolve(StockMovementRecorder::class),
+        resolve(StockReader::class),
+    );
+
+    $consumption = MaterialConsumption::query()->where('item_id', $ctx['component']->id)->first();
+
+    // Planned 20, but only the order's own 10 hold is consumable: the sales-reserved
+    // 90 stays physically protected, so a shortage is raised for the missing 10.
+    expect((float) $consumption->quantity_consumed)->toBe(10.0)
+        ->and($consumption->stock_shortage)->toBeTrue()
+        ->and((float) lineReservedQuantity($ctx['line_id']))->toBe(0.0);
+
+    Event::assertDispatched(MaterialShortageDetected::class);
 });

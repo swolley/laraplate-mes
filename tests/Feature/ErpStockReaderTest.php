@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\ERP\Enums\StockReservationState;
 use Modules\ERP\Services\Inventory\StockMovementService;
+use Modules\ERP\Services\Inventory\StockReservationService;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Tests\Support\MesTestHelpers;
 
@@ -33,4 +35,33 @@ it('returns zero when no stock level exists', function (): void {
 
     expect(resolve(StockReader::class)->availableQuantity($item->id, $warehouse->id, $company->id))
         ->toBe(0.0);
+});
+
+it('excludes a company-wide null-warehouse (sales) hold from the per-warehouse availability', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $item = MesTestHelpers::makeItem($company->id);
+    $warehouse = MesTestHelpers::makeWarehouse($company->id);
+
+    app(StockMovementService::class)->recordInbound(
+        company_id: $company->id,
+        item_id: $item->id,
+        warehouse_id: $warehouse->id,
+        quantity: 15,
+        unit_cost: 2,
+    );
+
+    // A sales order hard-reserves 5 company-wide (warehouse_id = null). MES must
+    // not be able to consume it, so the reader subtracts it conservatively.
+    resolve(StockReservationService::class)->reserve(
+        $company->id,
+        $item->id,
+        '5',
+        StockReservationState::Hard,
+        'erp.sales_order_line',
+        999,
+        null,
+    );
+
+    expect(resolve(StockReader::class)->availableQuantity($item->id, $warehouse->id, $company->id))
+        ->toBe(10.0);
 });

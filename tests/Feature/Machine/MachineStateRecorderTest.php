@@ -20,6 +20,7 @@ use Modules\MES\Models\Downtime;
 use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineMessage;
 use Modules\MES\Models\MachineSignal;
+use Modules\MES\Machine\States\MachineDowntimeDeriver;
 use Modules\MES\Models\MachineStateInterval;
 use Modules\MES\Models\WorkCenter;
 use Modules\MES\Tests\Support\MesTestHelpers;
@@ -276,4 +277,30 @@ it('ignores states the work center does not treat as downtime', function (): voi
 
     $downtime = Downtime::query()->sole();
     expect($downtime->started_at->format('H:i'))->toBe('08:40');
+});
+
+it('moves the downtime of a merged-away stop to the interval that absorbed it, keeping the operator\'s cause and notes', function (): void {
+    $rig = stateRig();
+    feedStates($rig, ['running@08:00:00', 'fault@08:10:00']);
+    $downtime = Downtime::query()->sole();
+    $downtime->update(['cause' => DowntimeCause::Breakdown->value, 'notes' => 'jammed feeder']);
+
+    feedStates($rig, ['fault@08:05:00']);
+
+    $fresh = Downtime::query()->sole();
+    expect($fresh->id)->toBe($downtime->id)
+        ->and($fresh->started_at->format('H:i:s'))->toBe('08:05:00')
+        ->and($fresh->cause)->toBe(DowntimeCause::Breakdown)
+        ->and($fresh->notes)->toBe('jammed feeder');
+});
+
+it('does not open a downtime from a stale model of a stop that was cut short meanwhile', function (): void {
+    $rig = stateRig();
+    feedStates($rig, ['running@08:00:00', 'stopped@08:10:00', 'running@08:15:00']);
+    $stale = MachineStateInterval::query()->where('state', 'stopped')->sole();
+    feedStates($rig, ['running@08:10:30']);
+    expect(Downtime::query()->count())->toBe(0);
+
+    expect(resolve(MachineDowntimeDeriver::class)->sync($stale))->toBeNull()
+        ->and(Downtime::query()->count())->toBe(0);
 });

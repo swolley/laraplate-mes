@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\MES\Services;
 
 use Carbon\CarbonInterface;
+use Closure;
 use DateTimeInterface;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
@@ -161,17 +162,17 @@ final class DowntimeService
      *
      * Planned maintenance is left out, matching {@see OeeCalculatorService::availability()}.
      */
-    public function unplannedMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    public function unplannedMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, ?Closure $measure = null): float
     {
-        return $this->downtimeMinutesWithin($work_center_id, $from, $to, false);
+        return $this->downtimeMinutesWithin($work_center_id, $from, $to, false, $measure);
     }
 
     /**
      * Minutes of planned maintenance on a work center that overlap a window.
      */
-    public function plannedMaintenanceMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    public function plannedMaintenanceMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, ?Closure $measure = null): float
     {
-        return $this->outOfServiceMinutesWithin($work_center_id, $from, $to) - $this->unplannedMinutesWithin($work_center_id, $from, $to);
+        return $this->downtimeMinutesWithin($work_center_id, $from, $to, true, $measure, DowntimeCause::PlannedMaintenance);
     }
 
     /**
@@ -183,24 +184,33 @@ final class DowntimeService
     }
 
     /**
-     * Each downtime is clipped to the window; an open one runs until now.
+     * Each downtime is clipped to the window; an open one runs until now. `$measure` turns a clipped stretch
+     * into minutes (the default is the elapsed time; availability passes the working time inside it).
+     * With `$only` set, only downtimes of that cause count.
+     *
+     * @param  (Closure(CarbonInterface, CarbonInterface): float)|null  $measure
      */
-    private function downtimeMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, bool $include_planned): float
+    private function downtimeMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, bool $include_planned, ?Closure $measure = null, ?DowntimeCause $only = null): float
     {
         $window_start = Carbon::parse($from);
         $window_end = Carbon::parse($to);
 
         return Downtime::query()
             ->where('work_center_id', $work_center_id)
+            ->when($only, static fn (Builder $query, DowntimeCause $cause): Builder => $query->where('cause', $cause->value))
             ->when(! $include_planned, static fn (Builder $query): Builder => $query->where('cause', '!=', DowntimeCause::PlannedMaintenance->value))
             ->where('started_at', '<', $window_end)
             ->where(static fn (Builder $query): Builder => $query->whereNull('ended_at')->orWhere('ended_at', '>', $window_start))
             ->get()
-            ->sum(static function (Downtime $downtime) use ($window_start, $window_end): float {
+            ->sum(static function (Downtime $downtime) use ($window_start, $window_end, $measure): float {
                 $start = $downtime->started_at->max($window_start);
                 $end = ($downtime->ended_at ?? now())->min($window_end);
 
-                return $end->greaterThan($start) ? (float) $start->diffInMinutes($end) : 0.0;
+                if (! $end->greaterThan($start)) {
+                    return 0.0;
+                }
+
+                return $measure instanceof Closure ? $measure($start, $end) : (float) $start->diffInMinutes($end);
             });
     }
 }

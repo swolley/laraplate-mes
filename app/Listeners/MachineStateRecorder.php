@@ -50,8 +50,8 @@ final class MachineStateRecorder
      */
     public function settle(MachineStateChange $change, array $tagged, int $work_center_id): void
     {
-        foreach ($change->removed_starts as $started_at) {
-            $this->deriver->forget($work_center_id, $started_at);
+        foreach ($change->removed_starts as $removed => $kept) {
+            $this->deriver->forget($work_center_id, $removed, $kept);
         }
 
         $ids = [];

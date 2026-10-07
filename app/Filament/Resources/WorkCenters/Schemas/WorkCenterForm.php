@@ -12,7 +12,6 @@ use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 use Modules\Core\Filament\Utils\HasForm;
-use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\WorkCenterType;
 
 final class WorkCenterForm
@@ -33,6 +32,13 @@ final class WorkCenterForm
         5 => 'Saturday',
         6 => 'Sunday',
     ];
+
+    /**
+     * Running is never a stop, and Offline is a gap in the data, not a downtime.
+     *
+     * @var list<string>
+     */
+    private const array DOWNTIME_STATE_CHOICES = ['fault', 'stopped', 'setup', 'maintenance', 'idle'];
 
     public static function configure(Schema $schema): Schema
     {
@@ -74,7 +80,8 @@ final class WorkCenterForm
                 CheckboxList::make('downtime_states')
                     ->label('Machine states that count as downtime')
                     ->helperText('Leave empty for the defaults.')
-                    ->options(array_combine(MachineState::values(), MachineState::values()))
+                    ->options(array_combine(self::DOWNTIME_STATE_CHOICES, self::DOWNTIME_STATE_CHOICES))
+                    ->dehydrateStateUsing(static fn (?array $state): ?array => $state === null || $state === [] ? null : array_values($state))
                     ->columns(3),
                 Repeater::make('calendar')
                     ->relationship()

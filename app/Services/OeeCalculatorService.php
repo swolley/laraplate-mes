@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\MES\Services;
 
 use DateTimeInterface;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\MES\Enums\MachineState;
@@ -28,6 +29,7 @@ final class OeeCalculatorService
         private DowntimeService $downtimeService,
         private CapacityService $capacityService,
         private MachineConnectivity $connectivity,
+        private WorkCalendar $workCalendar,
     ) {}
 
     /**
@@ -56,18 +58,20 @@ final class OeeCalculatorService
      * A work center fed by a machine follows ISO 22400: the busy time is the calendar time minus the planned
      * maintenance, and the availability is the share of it that was not lost to unplanned downtime (so
      * planned maintenance no longer counts against it). Any other work center keeps the planned-time formula.
-     * For a connected work center `$planned_minutes` is the calendar time.
+     * For a connected work center `$planned_minutes` is the working calendar time of the window, and downtimes are measured by their working time too.
      */
     public function availability(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, float $planned_minutes): float
     {
         if ($this->connectivity->isConnected($work_center_id)) {
-            $busy = $planned_minutes - $this->downtimeService->plannedMaintenanceMinutesWithin($work_center_id, $from, $to);
+            // Only the working time of a stop counts: a machine stopped overnight is not a loss.
+            $measure = fn (CarbonInterface $start, CarbonInterface $end): float => $this->workCalendar->workingMinutesBetween($work_center_id, $start, $end);
+            $busy = $planned_minutes - $this->downtimeService->plannedMaintenanceMinutesWithin($work_center_id, $from, $to, $measure);
 
             if ($busy <= 0.0) {
                 return 1.0;
             }
 
-            $lost = min($busy, $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to));
+            $lost = min($busy, $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to, $measure));
 
             return $this->clamp(($busy - $lost) / $busy);
         }

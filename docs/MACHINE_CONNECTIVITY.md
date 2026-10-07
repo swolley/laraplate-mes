@@ -286,7 +286,7 @@ same work center is refused). On a connected work center the downtimes come from
   notes stay editable.
 
 **Deriving downtimes.** A stop is a downtime when its state is one of the work center's `downtime_states`
-(by default `fault`, `stopped`, `setup` and `maintenance`) and it lasted strictly longer than
+(by default `fault`, `stopped`, `setup` and `maintenance`; an empty list means the defaults, and `running` and `offline` never count) and it lasted strictly longer than
 `micro_stop_threshold_seconds` (default 60; both are edited on the work center). A shorter stop is a
 micro-stop and leaves no downtime. A downtime follows its interval in place: when a late sample moves or
 shortens the interval, only the times of the downtime change, so the operator's cause and notes survive; a
@@ -305,8 +305,9 @@ outlasted the threshold; the downtime closes when a later sample ends the interv
 `Offline` interval from the moment it was last heard, and closes it at that moment when the device is heard
 again (a state sample arriving first just ends it). `Offline` is never a downtime: it is a gap in the data.
 
-**OEE availability (ISO 22400).** For a connected work center the busy time is the calendar time minus the
-planned maintenance, and availability is the share of the busy time not lost to unplanned downtime, clamped
+**OEE availability (ISO 22400).** For a connected work center the busy time is the working calendar time of the window minus the
+planned maintenance (both planned maintenance and stops are measured by their working time, so a machine
+standing still overnight is not a loss), and availability is the share of the busy time not lost to unplanned downtime, clamped
 to [0, 1] (1 when there is no busy time). Planned maintenance therefore no longer counts against it. Work
 centers without a machine keep the planned-time formula. The daily KPIs also carry an **incomplete data**
 flag, true when an `Offline` stretch overlaps the day; the work center list shows `OEE (today)` with

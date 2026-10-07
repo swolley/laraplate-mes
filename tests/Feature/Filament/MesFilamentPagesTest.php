@@ -356,3 +356,24 @@ it('refuses a manual downtime for a connected work center and stores nothing', f
 
     expect(Downtime::withoutGlobalScopes()->where('work_center_id', $work_center->id)->exists())->toBeFalse();
 });
+
+it('stores no list of downtime states when none is ticked, so the defaults apply', function (): void {
+    $work_center = WorkCenter::factory()->create();
+
+    Livewire::test(EditWorkCenter::class, ['record' => $work_center->getKey()])
+        ->fillForm(['downtime_states' => []])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = WorkCenter::withoutGlobalScopes()->findOrFail($work_center->id);
+    expect($fresh->downtime_states)->toBeNull()
+        ->and($fresh->isDowntimeState(Modules\MES\Enums\MachineState::Fault))->toBeTrue();
+});
+
+it('never treats offline or running as a downtime state, whatever the list says', function (): void {
+    $work_center = WorkCenter::factory()->create(['downtime_states' => ['fault', 'offline', 'running']]);
+
+    expect($work_center->isDowntimeState(Modules\MES\Enums\MachineState::Offline))->toBeFalse()
+        ->and($work_center->isDowntimeState(Modules\MES\Enums\MachineState::Running))->toBeFalse()
+        ->and($work_center->isDowntimeState(Modules\MES\Enums\MachineState::Fault))->toBeTrue();
+});

@@ -114,8 +114,8 @@ nothing. A backflush still queued when the order completes is not part of the co
 
 ## Stock shortage
 
-`StockReader` (ERP-backed `ErpStockReader` over `StockLevel` and the warehouse-pinned
-reservations) is the read side of the stock boundary. Backflush and manual consumption read availability and consume
+`StockReader` (ERP-backed `ErpStockReader` over `StockLevel`, the warehouse-pinned
+reservations and the company-wide null-warehouse holds) is the read side of the stock boundary. Backflush and manual consumption read availability and consume
 what exists: the stock-out is posted for the available quantity
 (`quantity_consumed`), the shortfall is recorded as a negative `variance` with
 `stock_shortage = true`, and `MaterialShortageDetected` is emitted. This keeps the
@@ -153,27 +153,35 @@ through `ComponentReservationService`; ERP only sees the opaque source alias
   `consumeForLine()`. The consumable is sized as the reader's availability **plus this order's own
   hard hold for the line**: `ErpStockReader` subtracts every warehouse-pinned hold, this order's
   included, so adding its own hold back lets the order consume the stock it reserved for itself while
-  the ceiling stays `on hand − other orders' holds`. Only the reserved part is closed: a line that
+  the ceiling stays `on hand − other orders' holds`. A company-wide null-warehouse (sales) hold is
+  never the order's own, so it is not added back and stays subtracted: backflush can never consume
+  stock a sales order reserved. Only the reserved part is closed: a line that
   never reserved is a no-op, and stock beyond the reservation is consumed physically as before. The
   reservation close is not in the same transaction as the stock-out.
 - **Per-warehouse availability.** `ErpStockReader::availableQuantity()` is the on-hand `StockLevel`
-  of the `(item, warehouse)` minus the soft/hard reservations pinned to that same warehouse. A
+  of the `(item, warehouse)` minus the soft/hard reservations pinned to that same warehouse **and**
+  the item's company-wide null-warehouse holds (sales reservations). A
   soft row counts by state alone, so an expired but not yet swept soft hold still counts until the
-  ERP expiry sweep closes it. Reservations with no warehouse (every sales-order reservation) are
-  not attributable to one warehouse and are not subtracted.
+  ERP expiry sweep closes it. The null-warehouse subtraction is conservative: a company-wide hold is
+  taken off every warehouse's availability (it may under-report when stock is spread across
+  warehouses) so MES can never oversell stock another module reserved company-wide.
 - **`material_line_id` keying.** The reservation `source_id` is the snapshot line's
-  `material_line_id`, stamped by `ProductionOrderService::create()` right after the order is inserted
-  as `order id * 1000 + line index`. It is unique to one order and stable for the whole lifecycle
-  (reserve, release, consume). The template `bom_line_id` cannot be used: it is shared by every order
-  built from the same BOM and would pool holds across them. A snapshot line without a
-  `material_line_id` is skipped by reserve, release and consume.
+  `material_line_id`, stamped by the `ProductionOrder` `created` boot hook on every creation path
+  (service, factory, import, direct create) as `order id * 1000 + line index`. It is unique to one
+  order and stable for the whole lifecycle (reserve, release, consume). The template `bom_line_id`
+  cannot be used: it is shared by every order built from the same BOM and would pool holds across
+  them. A line that already carries a `material_line_id` (a test fixture) is left untouched; a line
+  that still has none after stamping is skipped by reserve, release and consume.
 
 Known limitations:
 
-- The `* 1000` scheme bounds a production order to fewer than 1000 component lines; a larger BOM
-  would run into the id range of the next order.
+- The `* 1000` scheme bounds a production order to fewer than 1000 component lines; the `creating`
+  boot hook rejects a snapshot that reaches 1000 lines with a `DomainException` (before insert), so a
+  larger BOM can never silently collide with the id range of the next order.
 - Availability is read two ways: the reserve clamp uses the company-wide ERP availability, while the
-  hold is pinned to the order's warehouse and `ErpStockReader` reads that warehouse alone.
+  warehouse-pinned hold is read per warehouse. The reader does subtract the company-wide
+  null-warehouse (sales) holds, but conservatively (off every warehouse), so per-warehouse ATP stays
+  a deferred non-goal.
 - The backflush closes the line's reservation in a separate transaction from the stock-out movement,
   so a crash between the two can leave the stock posted while the hold is still open until the next
   release/cancel/completion of the order.
@@ -189,7 +197,7 @@ linked order), `CapacityService` (work-center load, available minutes, overload)
 `SalesOrderProductionPlanner` (auto-creation from confirmed sales orders, with
 `ProductionWarehouseResolver` and `ProductionLeadTimeEstimator`),
 `QualityPlanResolver` + `QualityCheckPlanner` (auto quality checks on completion),
-`ErpStockReader` (`StockReader` read for shortage detection: on-hand minus warehouse-pinned reservations),
+`ErpStockReader` (`StockReader` read for shortage detection: on-hand minus warehouse-pinned reservations and company-wide null-warehouse sales holds),
 `ComponentReservationService` (reserve, release and consume ERP reservations for a production order's BOM
 components).
 

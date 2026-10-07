@@ -30,6 +30,14 @@ final class MachineDowntimeDeriver
      */
     public function sync(MachineStateInterval $interval): ?Downtime
     {
+        // The caller may hold a model another writer has since changed or merged away.
+        $current = MachineStateInterval::query()->find($interval->id);
+
+        if (! $current instanceof MachineStateInterval) {
+            return null;
+        }
+
+        $interval = $current;
         $work_center = WorkCenter::query()->withoutGlobalScopes()->find($interval->work_center_id);
         $device = MachineDevice::query()->withoutGlobalScopes()->find($interval->device_id);
 
@@ -65,11 +73,24 @@ final class MachineDowntimeDeriver
     }
 
     /**
-     * Removes the downtime of an interval that was merged away.
+     * The downtime of an interval that was merged away moves to the interval that absorbed it when that one
+     * has none (the operator's cause and notes survive); otherwise it is removed.
      */
-    public function forget(int $work_center_id, string $started_at): void
+    public function forget(int $work_center_id, string $started_at, ?string $absorbed_by = null): void
     {
-        $this->downtimeStartingAt($work_center_id, $started_at)?->delete();
+        $downtime = $this->downtimeStartingAt($work_center_id, $started_at);
+
+        if (! $downtime instanceof Downtime) {
+            return;
+        }
+
+        if ($absorbed_by !== null && ! $this->downtimeStartingAt($work_center_id, $absorbed_by) instanceof Downtime) {
+            Downtime::writingAsMachine(static fn (): bool => $downtime->update(['started_at' => $absorbed_by]));
+
+            return;
+        }
+
+        $downtime->delete();
     }
 
     private function downtimeStartingAt(int $work_center_id, string $started_at): ?Downtime

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\MES\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Modules\MES\Machine\States\MachineDowntimeDeriver;
 use Modules\MES\Models\MachineStateInterval;
 use Override;
@@ -29,8 +30,12 @@ final class MachineOpenStopsCommand extends Command
             ->open()
             ->whereHas('device', static fn ($devices) => $devices->where('is_active', true)->whereHas('source', static fn ($sources) => $sources->where('is_active', true)))
             ->each(function (MachineStateInterval $interval) use ($deriver, &$synced): void {
-                if ($deriver->sync($interval) !== null) {
-                    $synced++;
+                try {
+                    if ($deriver->sync($interval) !== null) {
+                        $synced++;
+                    }
+                } catch (UniqueConstraintViolationException) {
+                    // The processing job opened the same downtime a moment earlier: nothing left to do.
                 }
             });
 
