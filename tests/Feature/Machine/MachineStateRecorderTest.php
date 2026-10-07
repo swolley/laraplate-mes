@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
 use Modules\MES\Enums\DowntimeCause;
 use Modules\MES\Enums\DowntimeSource;
 use Modules\MES\Enums\MachineMessageStatus;
@@ -303,4 +304,24 @@ it('does not open a downtime from a stale model of a stop that was cut short mea
 
     expect(resolve(MachineDowntimeDeriver::class)->sync($stale))->toBeNull()
         ->and(Downtime::query()->count())->toBe(0);
+});
+
+it('tags an alarm that shares the timestamp of the state change, whatever its position in the message', function (): void {
+    $rig = stateRig();
+
+    feedStates($rig, ['running@08:00:00', 'alarm:E17@08:10:00', 'fault@08:10:00']);
+
+    expect(MachineStateInterval::query()->where('state', 'fault')->sole()->alarm_code)->toBe('E17')
+        ->and(MachineStateInterval::query()->where('state', 'running')->sole()->alarm_code)->toBeNull();
+});
+
+it('announces a downtime that goes away, once it had been announced', function (): void {
+    Event::fake([Modules\MES\Events\DowntimeDiscarded::class]);
+    $rig = stateRig();
+    feedStates($rig, ['running@08:00:00', 'stopped@08:10:00', 'running@08:15:00']);
+    $downtime = Downtime::query()->sole();
+
+    feedStates($rig, ['running@08:10:30']);
+
+    Event::assertDispatched(Modules\MES\Events\DowntimeDiscarded::class, static fn ($event): bool => $event->downtime_id === $downtime->id && $event->work_center_id === $downtime->work_center_id);
 });

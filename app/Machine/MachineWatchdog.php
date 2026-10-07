@@ -100,9 +100,17 @@ final class MachineWatchdog
     {
         $has_state = MachineSignal::query()->withoutGlobalScopes()->where('device_id', $device->id)->where('role', SignalRole::State->value)->exists();
 
-        if ($has_state) {
-            $this->states->settle($this->intervals->observe($device, MachineState::Offline, $seen), [], (int) $device->work_center_id);
+        if (! $has_state) {
+            return;
         }
+
+        // A device clock ahead of the server leaves its last interval starting after `$seen`: Offline follows that interval.
+        $latest = MachineStateInterval::query()->where('device_id', $device->id)->max('started_at');
+        $at = is_string($latest) && CarbonImmutable::parse($latest, config()->string('app.timezone'))->greaterThanOrEqualTo($seen)
+            ? CarbonImmutable::parse($latest, config()->string('app.timezone'))->addMillisecond()
+            : $seen;
+
+        $this->states->settle($this->intervals->observe($device, MachineState::Offline, $at), [], (int) $device->work_center_id);
     }
 
     private function markOnline(MachineDevice $device, CarbonImmutable $seen): void

@@ -167,3 +167,18 @@ it('closes the offline interval when the device is heard again', function (): vo
         ->and($interval->ended_at?->format('H:i:s'))->toBe('11:59:30')
         ->and(MachineSource::query()->count())->toBe(1);
 });
+
+it('puts a device whose clock runs ahead offline after its last interval, so the stop does not stay open', function (): void {
+    $rig = stopRig(['last_seen_at' => '2026-10-05 11:55:00']);
+    $rig['device']->source->update(['heartbeat_timeout_seconds' => 120]);
+    stateInterval($rig['device'], 'running', '08:00:00', '11:57:00');
+    stateInterval($rig['device'], 'fault', '11:57:00');
+
+    resolve(MachineWatchdog::class)->sweep();
+
+    $open = MachineStateInterval::query()->open()->where('device_id', $rig['device']->id)->get();
+    expect($open)->toHaveCount(1)
+        ->and($open->first()->state)->toBe(MachineState::Offline)
+        ->and($open->first()->started_at->format('H:i:s'))->toBe('11:57:00')
+        ->and(MachineStateInterval::query()->where('device_id', $rig['device']->id)->where('state', 'fault')->whereNull('ended_at')->exists())->toBeFalse();
+});

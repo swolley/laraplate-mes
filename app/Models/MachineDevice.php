@@ -8,11 +8,13 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Database\Factories\MachineDeviceFactory;
 use Modules\MES\Enums\MESTables;
+use Modules\MES\Enums\SignalRole;
 use Override;
 
 /**
@@ -50,6 +52,31 @@ final class MachineDevice extends Model
         'last_seen_at',
         'is_active',
     ];
+
+    #[Override]
+    protected static function booted(): void
+    {
+        parent::booted();
+
+        static::saving(static function (self $device): void {
+            if (! $device->is_active || ! $device->isDirty(['is_active', 'work_center_id'])) {
+                return;
+            }
+
+            $has_state = MachineSignal::query()->withoutGlobalScopes()->where('device_id', $device->id)->where('role', SignalRole::State->value)->exists();
+            $taken = $has_state && self::query()
+                ->withoutGlobalScopes()
+                ->where('work_center_id', $device->work_center_id)
+                ->where('is_active', true)
+                ->whereKeyNot($device->id)
+                ->whereIn('id', MachineSignal::query()->withoutGlobalScopes()->where('role', SignalRole::State->value)->whereNull('deleted_at')->select('device_id'))
+                ->exists();
+
+            if ($taken) {
+                throw ValidationException::withMessages(['work_center_id' => ['Another device of this work center already has a state signal.']]);
+            }
+        });
+    }
 
     /**
      * @return array<string, array<string, mixed>>

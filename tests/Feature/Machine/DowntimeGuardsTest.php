@@ -164,3 +164,28 @@ it('lets the same device have its state signal edited', function (): void {
     expect($signal->fresh()->unit)->toBe('x')
         ->and(MachineSource::query()->count())->toBe(1);
 });
+
+it('refuses to turn a manual downtime into a machine one, or to move it onto a connected work center', function (): void {
+    $connected = connectedWorkCenter();
+    $manual = Downtime::factory()->create(['started_at' => '2026-10-05 08:00:00', 'ended_at' => '2026-10-05 09:00:00']);
+
+    expect(fn () => $manual->update(['source' => DowntimeSource::Machine->value, 'machine_device_id' => $connected['device']->id]))->toThrow(ValidationException::class)
+        ->and(fn () => $manual->fresh()->update(['work_center_id' => $connected['work_center']->id]))->toThrow(ValidationException::class);
+});
+
+it('answers a second manual downtime with the same start with a validation error, not a database error', function (): void {
+    $first = Downtime::factory()->create(['started_at' => '2026-10-05 08:00:00', 'ended_at' => '2026-10-05 09:00:00']);
+
+    expect(fn () => Downtime::factory()->create(['company_id' => $first->company_id, 'work_center_id' => $first->work_center_id, 'started_at' => '2026-10-05 08:00:00', 'ended_at' => '2026-10-05 08:30:00']))->toThrow(ValidationException::class);
+});
+
+it('keeps one state device per work center when a device moves or is reactivated', function (): void {
+    $connected = connectedWorkCenter();
+    $other = MachineDevice::factory()->create(['company_id' => $connected['device']->company_id, 'is_active' => false, 'work_center_id' => $connected['work_center']->id]);
+    MachineSignal::factory()->create(['device_id' => $other->id, 'key' => 'state', 'role' => SignalRole::State->value, 'config' => ['map' => ['RUN' => 'running']]]);
+    $elsewhere = MachineDevice::factory()->create();
+    MachineSignal::factory()->create(['device_id' => $elsewhere->id, 'key' => 'state', 'role' => SignalRole::State->value, 'config' => ['map' => ['RUN' => 'running']]]);
+
+    expect(fn () => $other->update(['is_active' => true]))->toThrow(ValidationException::class)
+        ->and(fn () => $elsewhere->update(['work_center_id' => $connected['work_center']->id]))->toThrow(ValidationException::class);
+});

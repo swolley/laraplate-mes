@@ -91,14 +91,14 @@ final class MachineSignal extends Model
 
     /**
      * Two devices with a state signal on one work center would overlap their stops and count them twice:
-     * the work center keeps one.
+     * the work center keeps one. An inactive device is checked when it is activated (see the device model).
      */
     private function oneStateDevicePerWorkCenter(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
             $device = MachineDevice::query()->withoutGlobalScopes()->find($value);
 
-            if (! $device instanceof MachineDevice) {
+            if (! $device instanceof MachineDevice || ! $device->is_active) {
                 return;
             }
 

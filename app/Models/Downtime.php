@@ -114,15 +114,25 @@ final class Downtime extends Model
                 return;
             }
 
-            if (resolve(MachineConnectivity::class)->isConnected((int) $downtime->work_center_id)) {
-                throw ValidationException::withMessages(['work_center_id' => ['This work center is connected to a machine: its downtimes come from the machine, not from the keyboard.']]);
-            }
+            self::assertManualWriteAllowed($downtime);
         });
 
         static::updating(static function (self $downtime): void {
             $locked = ['started_at', 'ended_at', 'duration_minutes', 'source'];
 
-            if (self::$machine_writes || $downtime->getOriginal('source') !== DowntimeSource::Machine) {
+            if (self::$machine_writes) {
+                return;
+            }
+
+            if ($downtime->getOriginal('source') !== DowntimeSource::Machine) {
+                if ($downtime->source === DowntimeSource::Machine) {
+                    throw ValidationException::withMessages(['source' => ['A machine downtime is written by the machine pipeline only.']]);
+                }
+
+                if ($downtime->isDirty(['work_center_id', 'started_at'])) {
+                    self::assertManualWriteAllowed($downtime);
+                }
+
                 return;
             }
 
@@ -132,6 +142,28 @@ final class Downtime extends Model
                 }
             }
         });
+    }
+
+    /**
+     * A manual downtime needs a work center that is not fed by a machine and a start nobody else uses on it
+     * (the database holds a unique index on both, which would otherwise surface as a server error).
+     */
+    private static function assertManualWriteAllowed(self $downtime): void
+    {
+        if (resolve(MachineConnectivity::class)->isConnected((int) $downtime->work_center_id)) {
+            throw ValidationException::withMessages(['work_center_id' => ['This work center is connected to a machine: its downtimes come from the machine, not from the keyboard.']]);
+        }
+
+        $taken = self::query()
+            ->withoutGlobalScopes()
+            ->where('work_center_id', $downtime->work_center_id)
+            ->where('started_at', $downtime->getAttributes()['started_at'] ?? $downtime->started_at)
+            ->when($downtime->exists, fn (Builder $query): Builder => $query->whereKeyNot($downtime->getKey()))
+            ->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages(['started_at' => ['This work center already has a downtime starting at that moment.']]);
+        }
     }
 
     /**

@@ -292,6 +292,16 @@ micro-stop and leaves no downtime. A downtime follows its interval in place: whe
 shortens the interval, only the times of the downtime change, so the operator's cause and notes survive; a
 downtime whose interval no longer qualifies is removed. A downtime is unique per work center and start.
 
+**Events.** `DowntimeOpened` and `DowntimeClosed` announce a downtime; `DowntimeDiscarded` (company, work
+center, downtime id) announces that a derived downtime went away (a late sample made its stop a micro-stop,
+or it merged into an earlier one), so listeners can undo what they did on `DowntimeOpened`.
+
+**Constraints.** A device cannot be activated, or moved, onto a work center that already has an active state
+device. A manual downtime cannot be turned into a machine one, cannot be moved onto a connected work center,
+and cannot share its start with another downtime of the same work center (validation error). Times are
+stored as naive local times of `app.timezone`: keep it on a zone without daylight saving time (UTC, the
+default), because the repeated hour of a clock change would map two instants to one value.
+
 **Cause.** In order: the `map` (alarm code to downtime cause) of the device's alarm signals, for the alarm
 code seen during the stop; then the default of the state (`setup` gives Setup, `maintenance` gives Planned
 maintenance); otherwise `unclassified`, which the operator sorts out in the backoffice. The first alarm code
@@ -302,7 +312,8 @@ every minute (`withoutOverlapping()->onOneServer()`) and opens the downtime of e
 outlasted the threshold; the downtime closes when a later sample ends the interval.
 
 **Offline.** When a device goes silent (see below) and has a state signal, the watchdog records a synthetic
-`Offline` interval from the moment it was last heard, and closes it at that moment when the device is heard
+`Offline` interval from the moment it was last heard (or just after the device's last interval when the
+device clock runs ahead of the server), and closes it at that moment when the device is heard
 again (a state sample arriving first just ends it). `Offline` is never a downtime: it is a gap in the data.
 
 **OEE availability (ISO 22400).** For a connected work center the busy time is the working calendar time of the window minus the

@@ -84,8 +84,10 @@ it('stores the device and the alarm of a machine downtime, with millisecond time
 it('refuses two downtimes of one work center with the same start', function (): void {
     $first = Downtime::factory()->create(['started_at' => '2026-10-05 08:00:00']);
 
-    expect(fn () => Downtime::factory()->create(['company_id' => $first->company_id, 'work_center_id' => $first->work_center_id, 'started_at' => '2026-10-05 08:00:00']))
-        ->toThrow(UniqueConstraintViolationException::class);
+    $duplicate = ['company_id' => $first->company_id, 'work_center_id' => $first->work_center_id, 'started_at' => '2026-10-05 08:00:00'];
+
+    expect(fn () => Downtime::factory()->create($duplicate))->toThrow(Illuminate\Validation\ValidationException::class)
+        ->and(fn () => Downtime::withoutEvents(static fn () => Downtime::factory()->create($duplicate)))->toThrow(UniqueConstraintViolationException::class);
 });
 
 it('stores a state interval with millisecond times and refuses a duplicate start on a device', function (): void {

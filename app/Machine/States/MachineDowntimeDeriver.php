@@ -6,6 +6,7 @@ namespace Modules\MES\Machine\States;
 
 use Modules\MES\Enums\DowntimeCause;
 use Modules\MES\Enums\DowntimeSource;
+use Modules\MES\Events\DowntimeDiscarded;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\MachineStateInterval;
@@ -51,7 +52,7 @@ final class MachineDowntimeDeriver
             && $interval->started_at->diffInMilliseconds($end, true) > $work_center->micro_stop_threshold_seconds * 1000;
 
         if (! $qualifies) {
-            $existing?->delete();
+            $this->discard($existing);
 
             return null;
         }
@@ -90,7 +91,18 @@ final class MachineDowntimeDeriver
             return;
         }
 
+        $this->discard($downtime);
+    }
+
+    private function discard(?Downtime $downtime): void
+    {
+        if (! $downtime instanceof Downtime) {
+            return;
+        }
+
         $downtime->delete();
+
+        DowntimeDiscarded::dispatch((int) $downtime->company_id, (int) $downtime->work_center_id, (int) $downtime->id);
     }
 
     private function downtimeStartingAt(int $work_center_id, string $started_at): ?Downtime

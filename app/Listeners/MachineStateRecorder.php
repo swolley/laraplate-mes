@@ -30,7 +30,10 @@ final class MachineStateRecorder
             if ($sample->state !== null) {
                 $change = $change->merge($this->intervals->observe($sample->device, $sample->state, $sample->sample->ts));
             }
+        }
 
+        // Alarms after every state of the message, so one that shares the timestamp of a state change lands in the new interval.
+        foreach ($event->samples as $sample) {
             if ($sample->alarm_code !== null) {
                 $interval = $this->intervals->tagAlarm($sample->device, $sample->alarm_code, $sample->sample->ts);
 
