@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\MES\Database\Factories\ProductionOrderOperationFactory;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Override;
@@ -29,6 +30,11 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $actual_end_at
  * @property string|null $actual_minutes
  * @property string|null $efficiency
+ * @property string $machine_good_quantity
+ * @property string $machine_scrap_quantity
+ * @property string|null $declared_good_quantity
+ * @property string|null $declared_scrap_quantity
+ * @property \Illuminate\Support\Carbon|null $target_reached_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
@@ -62,6 +68,11 @@ final class ProductionOrderOperation extends Model
         'actual_end_at',
         'actual_minutes',
         'efficiency',
+        'machine_good_quantity',
+        'machine_scrap_quantity',
+        'declared_good_quantity',
+        'declared_scrap_quantity',
+        'target_reached_at',
     ];
 
     /**
@@ -82,6 +93,14 @@ final class ProductionOrderOperation extends Model
     public function workCenter(): BelongsTo
     {
         return $this->belongsTo(WorkCenter::class);
+    }
+
+    /**
+     * @return HasMany<OperationQuantityAudit, $this>
+     */
+    public function quantityAudits(): HasMany
+    {
+        return $this->hasMany(OperationQuantityAudit::class, 'operation_id');
     }
 
     /**
@@ -113,6 +132,11 @@ final class ProductionOrderOperation extends Model
             'actual_end_at' => 'datetime',
             'actual_minutes' => 'decimal:4',
             'efficiency' => 'decimal:2',
+            'machine_good_quantity' => 'decimal:4',
+            'machine_scrap_quantity' => 'decimal:4',
+            'declared_good_quantity' => 'decimal:4',
+            'declared_scrap_quantity' => 'decimal:4',
+            'target_reached_at' => 'datetime',
         ];
     }
 }

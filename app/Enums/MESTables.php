@@ -40,4 +40,6 @@ enum MESTables: string
     case MachineIncidents = 'mes_machine_incidents';
     case SparkplugAliases = 'mes_sparkplug_aliases';
     case MachineStateIntervals = 'mes_machine_state_intervals';
+    case MachineCounts = 'mes_machine_counts';
+    case OperationQuantityAudits = 'mes_operation_quantity_audits';
 }

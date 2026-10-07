@@ -38,6 +38,11 @@ return new class extends Migration
             $table->dateTime('actual_end_at')->nullable();
             $table->decimal('actual_minutes', 12, 4)->nullable();
             $table->decimal('efficiency', 6, 2)->nullable();
+            $table->decimal('machine_good_quantity', 12, 4)->default(0);
+            $table->decimal('machine_scrap_quantity', 12, 4)->default(0);
+            $table->decimal('declared_good_quantity', 12, 4)->nullable();
+            $table->decimal('declared_scrap_quantity', 12, 4)->nullable();
+            $table->dateTime('target_reached_at')->nullable();
             $table->timestamps();
 
             $table->index(['production_order_id', 'sequence'], "{$table_name}_order_sequence_IDX");
