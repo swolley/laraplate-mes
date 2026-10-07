@@ -38,6 +38,9 @@ final class QualityChecksRelationManager extends RelationManager
                     ->placeholder('Final'),
                 TextColumn::make('status')
                     ->badge(),
+                TextColumn::make('measurements_count')
+                    ->label('Measurements')
+                    ->counts('measurements'),
                 TextColumn::make('checked_at')
                     ->dateTime(),
             ]);

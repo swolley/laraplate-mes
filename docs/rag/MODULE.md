@@ -322,7 +322,15 @@ the foundation, with no consumer of the machine data yet.
   unattributed counts by time range. `OeeCalculatorService::performance()` and `quality()` use the counts when
   the window has any (ideal cycle of the operation, or `60 / capacity_per_hour` for unattributed counts); cache
   key `mes:kpi:v3:`. User guide: `docs/MACHINE_CONNECTIVITY.md`.
-  Not built yet: probe measurements, process values.
+- **Probe measurements (step 5).** `ProbeMeasurementRecorder` (listener of `ProbeMeasured`) takes a sample to the
+  check of its operation whose plan holds the signal's characteristic (`QualityCheckService::record()`, then
+  `isComplete()` and `resolve()` when pending), or to `mes_machine_unattributed_measurements`
+  (`UnattributedMeasurement`); an out-of-limit value dispatches `OutOfToleranceMeasured` once. Idempotency by an
+  existence check under `lockForUpdate` on the signal row (no unique index on measurements).
+  `QualityCheckPlanner::createCheck()` calls `UnattributedMeasurementAttacher::attachFor()`;
+  `UnattributedMeasurementAssigner::assign()` is the manual path (Filament "Unattributed measurements").
+  `QualityCheckService::execute()` = `record()` + `resolve()`. User guide: `docs/MACHINE_CONNECTIVITY.md`.
+  Not built yet: process values.
 
 ## Backoffice
 

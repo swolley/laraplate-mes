@@ -134,6 +134,8 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **Machine downtime** | A downtime derived from a state interval (`source = machine`); its times are locked, its cause and notes can be edited. |
 | **Machine count** | The delta of a piece counter between two samples, stored per signal and moment (`mes_machine_counts`); rollover and reset are recognised. |
 | **Declared quantity** | The good and scrap quantity the operator confirms for an operation; prefilled from the machine count at completion, every correction audited. |
+| **Unattributed measurement** | A probe measurement with no quality check to go to yet (`mes_machine_unattributed_measurements`); it attaches when the check of its operation is created, or is assigned by hand. |
+| **Required samples** | How many measurements a plan characteristic needs before the check can resolve (`required_samples`, default 1). |
 
 ## Related reading
 

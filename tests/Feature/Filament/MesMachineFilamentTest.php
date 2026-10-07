@@ -207,3 +207,32 @@ it('filters the incidents by type', function (): void {
 
     expect($list->instance()->getTableRecords()->modelKeys())->toBe([$gap->getKey()]);
 });
+
+it('lists the unattributed measurements and assigns one to a quality check from its row action', function (): void {
+    $row = Modules\MES\Models\UnattributedMeasurement::factory()->create(['value' => 10.5]);
+    $characteristic = $row->signal->characteristic;
+    $check = Modules\MES\Models\QualityCheck::factory()->create(['company_id' => $row->company_id, 'quality_plan_id' => $characteristic->quality_plan_id]);
+
+    $list = Livewire::test(Modules\MES\Filament\Resources\UnattributedMeasurements\Pages\ListUnattributedMeasurements::class)->assertOk();
+    expect($list->instance()->getTableRecords()->modelKeys())->toContain($row->getKey());
+
+    $list->callTableAction('assign', $row, ['quality_check_id' => $check->id])->assertNotified();
+
+    expect($row->fresh()->assigned_at)->not->toBeNull()
+        ->and(Modules\MES\Models\QualityCheckMeasurement::query()->where('quality_check_id', $check->id)->count())->toBe(1)
+        ->and($check->fresh()->status)->toBe(Modules\MES\Enums\QualityCheckStatus::Passed);
+});
+
+it('hides the assign action from an assigned row and from a user who may not insert machine signals', function (): void {
+    $assigned = Modules\MES\Models\UnattributedMeasurement::factory()->create(['assigned_at' => now()]);
+    $waiting = Modules\MES\Models\UnattributedMeasurement::factory()->create();
+
+    Livewire::test(Modules\MES\Filament\Resources\UnattributedMeasurements\Pages\ListUnattributedMeasurements::class)
+        ->assertTableActionHidden('assign', $assigned)
+        ->assertTableActionVisible('assign', $waiting);
+
+    $this->actingAs(user_class()::factory()->create());
+
+    Livewire::test(Modules\MES\Filament\Resources\UnattributedMeasurements\Pages\ListUnattributedMeasurements::class)
+        ->assertTableActionHidden('assign', $waiting);
+});

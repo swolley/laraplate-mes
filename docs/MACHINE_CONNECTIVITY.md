@@ -1,15 +1,15 @@
 # Machine connectivity
 
 Machines and probes push their data into the MES through the `laraplate-machine/1` protocol, over HTTP or
-through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states and the piece counts (steps 1 to 4 of the
+through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states, the piece counts and the probe measurements (steps 1 to 5 of the
 machine data acquisition design): the protocol, the HTTP endpoint, the bridge and the `sparkplug_b`
 normaliser, a durable inbox, the asynchronous pipeline with its configuration, the state history with the
 downtimes derived from it, the stored piece counts with the OEE performance and quality built on them, and
-the backoffice. The pipeline dispatches typed events (`MachineStateObserved`, `PartsCounted`,
-`ProbeMeasured`, `ProcessValuesSampled`); `MachineStateObserved` and `PartsCounted` have a consumer so far.
+the probe measurements that fill quality checks, and the backoffice. The pipeline dispatches typed events
+(`MachineStateObserved`, `PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`); all but
+`ProcessValuesSampled` have a consumer so far.
 
-**Not built yet** (later steps): probe measurements filling quality checks (step 5), process values and
-their storage (step 6).
+**Not built yet** (later step): process values and their storage (step 6).
 
 ## How a message travels
 
@@ -360,6 +360,38 @@ attributed use `60 / capacity_per_hour` of the work center; the run time is the 
 downtime (working time for a connected work center). Quality is good pieces over total pieces, where the total
 is the sent total or good plus scrap. Both stay in [0, 1], and with no run time performance is 1. Without count
 rows in the window, or only rows with no piece in them, the old order-based formulas apply. An operation without a cycle time uses the work center's ideal cycle. Late counts of an operation that is no longer in progress still update its machine quantities but announce nothing. KPI cache keys are `mes:kpi:v3:...`.
+
+## Probe measurements and quality checks
+
+**Where a measurement goes.** A `measurement` signal points at a characteristic of a quality plan
+(`quality_plan_characteristic_id`). A sample goes to the quality check of its attributed operation whose plan
+holds that characteristic, whatever the check's status. The nominal and the limits are copied from the
+characteristic, the row records `source = machine`, the signal, the measuring time and the serial from the
+sample context. A limit is **inclusive**: a value exactly on it is within.
+
+**Completion.** A check resolves by itself when every characteristic of its plan has at least its
+`required_samples` (default 1, a column of the plan characteristic) among the check's machine measurements.
+Manual measurements do not count towards that. The status is `failed` when any measurement of the check is out
+of limits, else `passed`; a failure opens the usual non-conformance, once. `QualityCheckService::execute()`
+still records and resolves in one go for a person entering values; it is now `record()` followed by
+`resolve()`.
+
+**Out of tolerance.** An out-of-limit value dispatches `OutOfToleranceMeasured` the first time it is stored,
+even before the check resolves and even while the measurement waits for a check (`quality_check_id` is then
+null), with a notification to the roles of `mes.notifications.out_of_tolerance` (default admin and
+superadmin). A replay or a reprocess never announces it again. A value out of limits that arrives after the
+check resolved is stored on the check and opens a non-conformance linked to it; the status of the check does
+not change.
+
+**Measurements that wait.** The quality check of an operation is created when the operation completes, so a
+probe measuring during production finds none; the recorder never creates a check. Such a measurement (and one
+with no attributed operation) goes to `mes_machine_unattributed_measurements` (signal, time, value, serial,
+context, the operation when known, `assigned_at`). When the check of that operation is created, the waiting
+measurements of its plan's characteristics are put on it in time order and the check resolves if it is
+complete. The others are assigned one by one from "Unattributed measurements" in the "Machine connectivity"
+group. Idempotency comes from the unique `(signal_id, ts)` of that table plus an existence check under a lock
+on the signal, not from a unique index on the measurements: a nullable composite unique would break manual
+rows on some databases.
 
 ## Incidents and health
 

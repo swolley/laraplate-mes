@@ -65,3 +65,13 @@ it('documents the piece counts', function () use ($module): void {
 
     expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Piece counts, and OEE');
 });
+
+it('documents the probe measurements', function () use ($module): void {
+    $document = (string) file_get_contents("{$module}/docs/MACHINE_CONNECTIVITY.md");
+
+    foreach (['mes_machine_unattributed_measurements', 'required_samples', 'OutOfToleranceMeasured', 'quality_plan_characteristic_id', 'inclusive'] as $needle) {
+        expect($document)->toContain($needle);
+    }
+
+    expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Probe measurements filling quality checks');
+});

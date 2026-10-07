@@ -159,8 +159,8 @@ non a lavorare l'ordine tutti i giorni.
 ## Collegare le macchine
 
 Le macchine e i sistemi di misura possono mandare i loro dati direttamente al MES, senza che qualcuno li
-digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi e i contapezzi per le quantità
-prodotte; non compila ancora i controlli qualità (arriverà nei passi successivi).
+digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi , i contapezzi per le quantità
+prodotte e le sonde per i controlli qualità; non salva ancora i valori di processo (arriverà nel passo successivo).
 
 - Dal gruppo **Machine connectivity** del pannello crei una **sorgente** (l'agente o il gateway che invia
   i dati) e le assegni un **token**: viene mostrato **una sola volta**, copialo subito; emetterne uno nuovo
@@ -187,6 +187,17 @@ vengono dalla macchina e non si cambiano; **causa e note** sì: finché non le i
 uno stato **Offline**: non è un fermo, ma l'OEE del giorno mostra **(incomplete)** perché i dati sono
 incompleti. La disponibilità dell'OEE per i centri collegati segue lo standard ISO 22400: la manutenzione
 programmata non conta come perdita.
+
+### Misure delle sonde
+
+Una sonda collegata a una caratteristica del piano qualità manda le sue misure al controllo qualità
+dell'operazione: i limiti sono quelli del piano, e il controllo si chiude da solo (superato o non superato)
+quando ogni caratteristica ha le misure richieste (**campioni richiesti**, uno per default). Un valore fuori
+limite fa partire subito una notifica, anche prima che il controllo si chiuda; un valore fuori limite che arriva
+a controllo già chiuso apre una non conformità. Il controllo di un'operazione nasce quando l'operazione si
+chiude: le misure fatte prima aspettano in **Unattributed measurements** e si agganciano da sole al controllo
+appena viene creato. Quelle che restano lì (nessuna operazione, nessun controllo) le assegni a mano con
+**Assign**, scegliendo il controllo.
 
 ### Pezzi contati
 
