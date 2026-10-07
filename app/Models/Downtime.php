@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Models;
 
+use Closure;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -12,7 +13,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\DowntimeFactory;
 use Modules\MES\Enums\DowntimeCause;
+use Illuminate\Validation\ValidationException;
 use Modules\MES\Enums\DowntimeSource;
+use Modules\MES\Machine\MachineConnectivity;
 use Override;
 
 /**
@@ -74,6 +77,56 @@ final class Downtime extends Model
     protected $attributes = [
         'source' => 'manual',
     ];
+
+    private static bool $machine_writes = false;
+
+    /**
+     * Runs a callback that may write machine downtimes: only the machine path creates them and moves
+     * their times (the operator edits cause and notes). The permission is restored afterwards, even on an exception.
+     */
+    public static function writingAsMachine(Closure $callback): mixed
+    {
+        $previous = self::$machine_writes;
+        self::$machine_writes = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$machine_writes = $previous;
+        }
+    }
+
+    #[Override]
+    protected static function booted(): void
+    {
+        static::creating(static function (self $downtime): void {
+            if ($downtime->source === DowntimeSource::Machine) {
+                if (! self::$machine_writes) {
+                    throw ValidationException::withMessages(['source' => ['A machine downtime is written by the machine pipeline only.']]);
+                }
+
+                return;
+            }
+
+            if (resolve(MachineConnectivity::class)->isConnected((int) $downtime->work_center_id)) {
+                throw ValidationException::withMessages(['work_center_id' => ['This work center is connected to a machine: its downtimes come from the machine, not from the keyboard.']]);
+            }
+        });
+
+        static::updating(static function (self $downtime): void {
+            $locked = ['started_at', 'ended_at', 'duration_minutes', 'source'];
+
+            if (self::$machine_writes || $downtime->getOriginal('source') !== DowntimeSource::Machine) {
+                return;
+            }
+
+            foreach ($locked as $column) {
+                if ($downtime->isDirty($column)) {
+                    throw ValidationException::withMessages([$column => ['The times of a machine downtime come from the machine and cannot be changed; the cause and the notes can.']]);
+                }
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<WorkCenter, $this>

@@ -62,7 +62,7 @@ it('defaults a downtime to manual and accepts the unclassified cause', function 
 it('stores the device and the alarm of a machine downtime, with millisecond times', function (): void {
     $device = MachineDevice::factory()->create();
 
-    $downtime = Downtime::factory()->create([
+    $downtime = Downtime::writingAsMachine(static fn (): Downtime => Downtime::factory()->create([
         'company_id' => $device->company_id,
         'work_center_id' => $device->work_center_id,
         'source' => DowntimeSource::Machine->value,
@@ -70,7 +70,7 @@ it('stores the device and the alarm of a machine downtime, with millisecond time
         'alarm_code' => 'E17',
         'started_at' => '2026-10-05 08:00:00.123',
         'ended_at' => '2026-10-05 08:05:30.456',
-    ]);
+    ]));
 
     $fresh = $downtime->fresh();
     expect($fresh->source)->toBe(DowntimeSource::Machine)

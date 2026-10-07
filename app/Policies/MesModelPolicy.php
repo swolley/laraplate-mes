@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\Core\Models\Permission;
 use Modules\Core\Models\User;
 use Modules\Core\Support\PermissionName;
+use Modules\MES\Enums\DowntimeSource;
 use Modules\MES\Enums\NonConformanceStatus;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Models\Bom;
@@ -89,7 +90,7 @@ final class MesModelPolicy
                 return $record->status === NonConformanceStatus::Resolved;
             }
 
-            return $record instanceof Downtime && $record->ended_at === null;
+            return $record instanceof Downtime && $record->ended_at === null && $record->source === DowntimeSource::Manual;
         });
     }
 

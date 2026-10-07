@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Models;
 
+use Closure;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,10 @@ final class MachineSignal extends Model
         ];
         $role_rules = self::rulesForRole($this->role);
 
+        if ($this->role === SignalRole::State) {
+            $role_rules['device_id'] = ['required', 'integer', 'exists:' . MESTables::MachineDevices->value . ',id', $this->oneStateDevicePerWorkCenter()];
+        }
+
         $rules['create'] = array_merge($rules['create'], [
             'company_id' => ['required', 'integer', 'exists:' . ERPTables::Companies->value . ',id'],
             'device_id' => ['required', 'integer', 'exists:' . MESTables::MachineDevices->value . ',id'],
@@ -82,6 +87,33 @@ final class MachineSignal extends Model
         ], $role_rules);
 
         return $rules;
+    }
+
+    /**
+     * Two devices with a state signal on one work center would overlap their stops and count them twice:
+     * the work center keeps one.
+     */
+    private function oneStateDevicePerWorkCenter(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $device = MachineDevice::query()->withoutGlobalScopes()->find($value);
+
+            if (! $device instanceof MachineDevice) {
+                return;
+            }
+
+            $taken = self::query()
+                ->withoutGlobalScopes()
+                ->where('role', SignalRole::State->value)
+                ->whereNull('deleted_at')
+                ->when($this->exists, fn ($query) => $query->whereKeyNot($this->getKey()))
+                ->whereIn('device_id', MachineDevice::query()->withoutGlobalScopes()->where('work_center_id', $device->work_center_id)->where('is_active', true)->whereNull('deleted_at')->where('id', '!=', $device->id)->select('id'))
+                ->exists();
+
+            if ($taken) {
+                $fail('Another device of this work center already has a state signal.');
+            }
+        };
     }
 
     /**

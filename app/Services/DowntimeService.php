@@ -9,8 +9,10 @@ use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Enums\DowntimeSource;
 use Modules\MES\Events\DowntimeClosed;
 use Modules\MES\Events\DowntimeOpened;
+use Modules\MES\Machine\MachineConnectivity;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\WorkCenter;
 
@@ -27,6 +29,11 @@ final class DowntimeService
      */
     public function open(WorkCenter $work_center, DowntimeCause $cause, ?int $operation_id = null, ?string $notes = null): Downtime
     {
+        throw_if(
+            resolve(MachineConnectivity::class)->isConnected($work_center->id),
+            new DomainException("Work center {$work_center->id} is connected to a machine: its downtimes come from the machine."),
+        );
+
         throw_if(
             $this->isWorkCenterDown($work_center->id),
             new DomainException("Work center {$work_center->id} already has an open downtime."),
@@ -57,6 +64,11 @@ final class DowntimeService
         throw_unless(
             $downtime->ended_at === null,
             new DomainException("Downtime {$downtime->id} is already closed."),
+        );
+
+        throw_if(
+            $downtime->source === DowntimeSource::Machine,
+            new DomainException("Downtime {$downtime->id} comes from a machine and ends when the machine leaves its state."),
         );
 
         $ended_at = now();
