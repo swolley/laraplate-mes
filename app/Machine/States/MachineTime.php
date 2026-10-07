@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Machine\States;
 
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
@@ -13,6 +14,14 @@ use Carbon\CarbonInterface;
  */
 final class MachineTime
 {
+    /**
+     * The same instant in the application timezone, which is how the columns read back what they were given.
+     */
+    public static function local(CarbonInterface $moment): CarbonImmutable
+    {
+        return CarbonImmutable::instance($moment)->setTimezone(config()->string('app.timezone'));
+    }
+
     public static function db(CarbonInterface $moment): string
     {
         return $moment->copy()->setTimezone(config()->string('app.timezone'))->format('Y-m-d H:i:s.v');

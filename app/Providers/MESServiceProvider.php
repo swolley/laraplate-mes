@@ -21,12 +21,14 @@ use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
 use Modules\MES\Events\CapacityOverloadDetected;
 use Modules\MES\Events\MachineIncidentRecorded;
+use Modules\MES\Events\MachineStateObserved;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Events\ProductionOrderCancelled;
 use Modules\MES\Events\ProductionOrderCompleted;
 use Modules\MES\Events\ProductionOrderReleased;
 use Modules\MES\Listeners\CreateProductionOrdersForSalesOrder;
 use Modules\MES\Listeners\NotifyCapacityOverload;
+use Modules\MES\Listeners\MachineStateRecorder;
 use Modules\MES\Listeners\NotifyMachineIncident;
 use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Listeners\ReleaseComponentsAfterCompletion;
@@ -135,6 +137,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         Event::listen(MaterialShortageDetected::class, NotifyMaterialShortage::class);
         Event::listen(CapacityOverloadDetected::class, NotifyCapacityOverload::class);
         Event::listen(MachineIncidentRecorded::class, NotifyMachineIncident::class);
+        Event::listen(MachineStateObserved::class, MachineStateRecorder::class);
     }
 
     #[Override]

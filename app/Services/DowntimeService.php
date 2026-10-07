@@ -77,7 +77,7 @@ final class DowntimeService
             'company_id' => $device->company_id,
             'work_center_id' => $device->work_center_id,
             'cause' => $cause->value,
-            'started_at' => $started_at,
+            'started_at' => MachineTime::local($started_at),
             'ended_at' => null,
             'source' => DowntimeSource::Machine->value,
             'machine_device_id' => $device->id,
@@ -104,7 +104,7 @@ final class DowntimeService
 
         $minutes = round($downtime->started_at->diffInMilliseconds($ended_at, true) / 60000, 4);
 
-        Downtime::writingAsMachine(static fn () => $downtime->update(['ended_at' => $ended_at, 'duration_minutes' => $minutes]));
+        Downtime::writingAsMachine(static fn () => $downtime->update(['ended_at' => MachineTime::local($ended_at), 'duration_minutes' => $minutes]));
         $downtime->refresh();
 
         if ($was_open) {
