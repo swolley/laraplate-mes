@@ -22,6 +22,14 @@ final class QualityCheckMeasurement extends Model
     protected $table = 'mes_quality_check_measurements';
 
     /**
+     * Machine measurements keep their milliseconds.
+     *
+     * @var string
+     */
+    #[Override]
+    protected $dateFormat = 'Y-m-d H:i:s.v';
+
+    /**
      * @var list<string>
      */
     #[Override]
@@ -33,6 +41,11 @@ final class QualityCheckMeasurement extends Model
         'upper_limit',
         'measured_value',
         'is_within_limits',
+        'quality_plan_characteristic_id',
+        'serial',
+        'measured_at',
+        'source',
+        'machine_signal_id',
     ];
 
     /**
@@ -65,6 +78,7 @@ final class QualityCheckMeasurement extends Model
             'upper_limit' => 'decimal:4',
             'measured_value' => 'decimal:4',
             'is_within_limits' => 'boolean',
+            'measured_at' => 'datetime',
         ];
     }
 }

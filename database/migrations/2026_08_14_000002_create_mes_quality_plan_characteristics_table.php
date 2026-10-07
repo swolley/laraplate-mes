@@ -24,6 +24,7 @@ return new class extends Migration
             $table->decimal('lower_limit', 15, 4)->nullable();
             $table->decimal('upper_limit', 15, 4)->nullable();
             $table->unsignedInteger('sort_order')->default(0);
+            $table->unsignedInteger('required_samples')->default(1);
             $table->timestamps();
         });
     }

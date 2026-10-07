@@ -42,4 +42,5 @@ enum MESTables: string
     case MachineStateIntervals = 'mes_machine_state_intervals';
     case MachineCounts = 'mes_machine_counts';
     case OperationQuantityAudits = 'mes_operation_quantity_audits';
+    case UnattributedMeasurements = 'mes_machine_unattributed_measurements';
 }

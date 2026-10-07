@@ -37,6 +37,7 @@ final class QualityPlanCharacteristic extends Model
         'lower_limit',
         'upper_limit',
         'sort_order',
+        'required_samples',
     ];
 
     /**
@@ -68,6 +69,7 @@ final class QualityPlanCharacteristic extends Model
             'lower_limit' => 'decimal:4',
             'upper_limit' => 'decimal:4',
             'sort_order' => 'integer',
+            'required_samples' => 'integer',
         ];
     }
 }
