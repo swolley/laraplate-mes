@@ -21,6 +21,7 @@ final readonly class WorkCenterKpis
         public float $available_minutes,
         public bool $overloaded,
         public string $computed_at,
+        public bool $incomplete_data = false,
     ) {}
 
     /**

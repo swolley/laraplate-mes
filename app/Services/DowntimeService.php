@@ -167,6 +167,14 @@ final class DowntimeService
     }
 
     /**
+     * Minutes of planned maintenance on a work center that overlap a window.
+     */
+    public function plannedMaintenanceMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        return $this->outOfServiceMinutesWithin($work_center_id, $from, $to) - $this->unplannedMinutesWithin($work_center_id, $from, $to);
+    }
+
+    /**
      * Minutes a work center was out of service within a window, planned maintenance included.
      */
     public function outOfServiceMinutesWithin(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float

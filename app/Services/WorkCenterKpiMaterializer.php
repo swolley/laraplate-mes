@@ -43,6 +43,7 @@ final class WorkCenterKpiMaterializer
             available_minutes: $this->capacityService->availableMinutes($id, $from, $to),
             overloaded: $this->capacityService->checkOverload($id, $from, $to),
             computed_at: now()->toIso8601String(),
+            incomplete_data: $this->oeeCalculator->hasIncompleteData($id, $from, $to),
         );
 
         $this->store->put($kpis);

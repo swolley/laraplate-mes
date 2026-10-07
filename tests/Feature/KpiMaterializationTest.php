@@ -90,3 +90,17 @@ it('dispatches one job per active work center from the command', function (): vo
     Queue::assertPushed(MaterializeWorkCenterKpisJob::class, 1);
     Queue::assertPushed(MaterializeWorkCenterKpisJob::class, static fn (MaterializeWorkCenterKpisJob $job): bool => $job->work_center_id === $active->id);
 });
+
+it('stores the incomplete-data flag and does not read a figure cached under the old key', function (): void {
+    $company = MesTestHelpers::makeCompany();
+    $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
+    $device = Modules\MES\Models\MachineDevice::factory()->create(['work_center_id' => $work_center->id, 'company_id' => $company->id]);
+    Modules\MES\Models\MachineStateInterval::factory()->create(['company_id' => $company->id, 'device_id' => $device->id, 'work_center_id' => $work_center->id, 'state' => 'offline', 'started_at' => now()->startOfDay()->addHour(), 'ended_at' => now()->startOfDay()->addHours(2)]);
+    Cache::put(sprintf('mes:kpi:%d:%s', $work_center->id, now()->toDateString()), 'stale', 60);
+
+    expect(resolve(WorkCenterKpiStore::class)->get($work_center->id, now()))->toBeNull();
+
+    resolve(WorkCenterKpiMaterializer::class)->materialize($work_center, now());
+
+    expect(resolve(WorkCenterKpiStore::class)->get($work_center->id, now())?->incomplete_data)->toBeTrue();
+});

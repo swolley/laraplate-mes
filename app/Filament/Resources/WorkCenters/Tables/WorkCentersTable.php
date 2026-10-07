@@ -39,7 +39,7 @@ final class WorkCentersTable
                     TextColumn::make('oee_today')
                         ->label('OEE (today)')
                         ->state(static fn (WorkCenter $record): ?string => ($kpis = resolve(WorkCenterKpiStore::class)->get($record->id, now())) instanceof WorkCenterKpis
-                            ? number_format($kpis->oee * 100, 1) . '%'
+                            ? number_format($kpis->oee * 100, 1) . '%' . ($kpis->incomplete_data ? ' (incomplete)' : '')
                             : null)
                         ->placeholder('-')
                         ->toggleable(),
