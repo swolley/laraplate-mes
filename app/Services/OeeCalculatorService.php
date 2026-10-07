@@ -12,10 +12,12 @@ use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Machine\MachineConnectivity;
 use Modules\MES\Machine\States\MachineTime;
+use Modules\MES\Models\MachineCount;
 use Modules\MES\Models\MachineStateInterval;
 use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Models\ProductionOrderOperation;
 use Modules\MES\Models\QualityCheck;
+use Modules\MES\Models\WorkCenter;
 
 /**
  * Computes Overall Equipment Effectiveness (OEE = Availability x Performance x
@@ -98,8 +100,19 @@ final class OeeCalculatorService
             ->exists();
     }
 
+    /**
+     * With machine counts in the window (ISO 22400): the ideal time of the counted pieces over the run time.
+     * The ideal cycle is the operation's `cycle_time_minutes`; counts nobody attributed use the work center's
+     * `60 / capacity_per_hour`. Without counts, the order-based formula.
+     */
     public function performance(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
     {
+        $counts = $this->countsByOperation($work_center_id, $from, $to);
+
+        if ($counts !== []) {
+            return $this->countedPerformance($work_center_id, $from, $to, $counts);
+        }
+
         $operations = $this->completedOperations($work_center_id, $from, $to)->get();
 
         $standard = $operations->sum(fn (ProductionOrderOperation $operation): float => (float) $operation->setup_time_minutes
@@ -113,8 +126,21 @@ final class OeeCalculatorService
         return $this->clamp($standard / $actual);
     }
 
+    /**
+     * With machine counts in the window (ISO 22400): good pieces over total pieces. Without counts, the share of
+     * passed quality checks.
+     */
     public function quality(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
     {
+        $counts = $this->countsByOperation($work_center_id, $from, $to);
+
+        if ($counts !== []) {
+            $good = array_sum(array_column($counts, 'good'));
+            $total = array_sum(array_column($counts, 'total'));
+
+            return $total <= 0.0 ? 1.0 : $this->clamp($good / $total);
+        }
+
         $order_ids = ProductionOrderOperation::query()
             ->where('work_center_id', $work_center_id)
             ->pluck('production_order_id')
@@ -133,6 +159,88 @@ final class OeeCalculatorService
         $passed = (clone $checks)->where('status', QualityCheckStatus::Passed->value)->count();
 
         return $this->clamp($passed / $total);
+    }
+
+    /**
+     * @param  list<array{operation_id: ?int, good: float, total: float}>  $counts
+     */
+    private function countedPerformance(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to, array $counts): float
+    {
+        $run = $this->runMinutes($work_center_id, $from, $to);
+
+        if ($run <= 0.0) {
+            return 1.0;
+        }
+
+        $work_center = WorkCenter::query()->withoutGlobalScopes()->find($work_center_id);
+        $capacity = $work_center instanceof WorkCenter ? $this->number($work_center->capacity_per_hour) : 0.0;
+        $cycles = ProductionOrderOperation::query()
+            ->whereIn('id', array_filter(array_column($counts, 'operation_id')))
+            ->pluck('cycle_time_minutes', 'id');
+        $ideal = 0.0;
+
+        foreach ($counts as $count) {
+            $cycle = $count['operation_id'] === null
+                ? ($capacity > 0.0 ? 60.0 / $capacity : 0.0)
+                : $this->number($cycles[$count['operation_id']] ?? 0.0);
+            $ideal += $cycle * $count['total'];
+        }
+
+        return $this->clamp($ideal / $run);
+    }
+
+    /**
+     * Run time: the busy time minus the unplanned downtime, both in working time for a connected work center.
+     */
+    private function runMinutes(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): float
+    {
+        $planned = $this->capacityService->plannedMinutes($work_center_id, $from, $to);
+
+        if (! $this->connectivity->isConnected($work_center_id)) {
+            return max(0.0, $planned - $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to));
+        }
+
+        $measure = fn (CarbonInterface $start, CarbonInterface $end): float => $this->workCalendar->workingMinutesBetween($work_center_id, $start, $end);
+        $busy = $planned - $this->downtimeService->plannedMaintenanceMinutesWithin($work_center_id, $from, $to, $measure);
+
+        return max(0.0, $busy - $this->downtimeService->unplannedMinutesWithin($work_center_id, $from, $to, $measure));
+    }
+
+    /**
+     * The counted pieces of the window by operation (null: nobody attributed them); the total is the sent
+     * total, or good plus scrap when the device sends none.
+     *
+     * @return list<array{operation_id: ?int, good: float, total: float}>
+     */
+    private function countsByOperation(int $work_center_id, DateTimeInterface $from, DateTimeInterface $to): array
+    {
+        $rows = MachineCount::query()
+            ->withoutGlobalScopes()
+            ->toBase()
+            ->where('work_center_id', $work_center_id)
+            ->where('ts', '>=', MachineTime::db(Carbon::parse($from)))
+            ->where('ts', '<', MachineTime::db(Carbon::parse($to)))
+            ->groupBy('production_order_operation_id')
+            ->selectRaw('production_order_operation_id as operation_id, SUM(good) as good, SUM(scrap) as scrap, SUM(total) as total')
+            ->get();
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $good = $this->number($row->good);
+            $total = $this->number($row->total);
+            $counts[] = [
+                'operation_id' => is_numeric($row->operation_id) ? (int) $row->operation_id : null,
+                'good' => $good,
+                'total' => $total > 0.0 ? $total : $good + $this->number($row->scrap),
+            ];
+        }
+
+        return $counts;
+    }
+
+    private function number(mixed $value): float
+    {
+        return is_numeric($value) ? (float) $value : 0.0;
     }
 
     /**

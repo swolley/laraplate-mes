@@ -31,6 +31,6 @@ final class WorkCenterKpiStore
 
     private function key(int $work_center_id, DateTimeInterface $day): string
     {
-        return sprintf('mes:kpi:v2:%d:%s', $work_center_id, Carbon::parse($day)->toDateString());
+        return sprintf('mes:kpi:v3:%d:%s', $work_center_id, Carbon::parse($day)->toDateString());
     }
 }

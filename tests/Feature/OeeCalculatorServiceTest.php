@@ -193,3 +193,59 @@ it('does not count the hours a connected machine stands still outside the workin
 
     expect(resolve(Modules\MES\Services\WorkCenterKpiMaterializer::class)->materialize($work_center, $day)->availability)->toBe(420.0 / 480.0);
 });
+
+function oeeCountRow(WorkCenter $work_center, string $time, array $quantities, ?int $operation_id = null): void
+{
+    Modules\MES\Models\MachineCount::factory()->create($quantities + [
+        'work_center_id' => $work_center->id,
+        'production_order_operation_id' => $operation_id,
+        'ts' => "2026-10-05 {$time}",
+    ]);
+}
+
+it('computes performance from the counted pieces and the ideal cycle time over the run time', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 09:00:00', '2026-10-05 10:00:00');
+    $operation = Modules\MES\Models\ProductionOrderOperation::factory()->create(['work_center_id' => $work_center->id, 'cycle_time_minutes' => 0.5]);
+    oeeCountRow($work_center, '10:30:00', ['total' => 400], $operation->id);
+    oeeCountRow($work_center, '12:00:00', ['total' => 200], $operation->id);
+    oeeCountRow($work_center, '16:00:00', ['total' => 999], $operation->id); // outside the window
+
+    $performance = resolve(OeeCalculatorService::class)->performance($work_center->id, $day, $day->addHours(8));
+
+    expect(round($performance, 6))->toBe(round(300.0 / 420.0, 6));
+});
+
+it('uses the ideal cycle of the work center for counts nobody attributed, and good plus scrap when no total is sent', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    $work_center->update(['capacity_per_hour' => 120]);
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 09:00:00', '2026-10-05 10:00:00');
+    oeeCountRow($work_center, '10:30:00', ['good' => 570]);
+    oeeCountRow($work_center, '10:30:00', ['scrap' => 30]);
+    $service = resolve(OeeCalculatorService::class);
+
+    expect(round($service->performance($work_center->id, $day, $day->addHours(8)), 6))->toBe(round(300.0 / 420.0, 6))
+        ->and(round($service->quality($work_center->id, $day, $day->addHours(8)), 6))->toBe(0.95);
+});
+
+it('keeps performance and quality in range with no run time, or no good pieces', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    $service = resolve(OeeCalculatorService::class);
+    oeeCountRow($work_center, '10:00:00', ['scrap' => 10]);
+
+    expect($service->quality($work_center->id, $day, $day->addHours(8)))->toBe(0.0)
+        ->and($service->performance($work_center->id, $day, $day->addHours(8)))->toBeGreaterThanOrEqual(0.0)->toBeLessThanOrEqual(1.0);
+
+    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 08:00:00', '2026-10-05 16:00:00');
+
+    expect($service->performance($work_center->id, $day, $day->addHours(8)))->toBe(1.0);
+});
+
+it('keeps the order-based formulas for a work center that has no count rows in the window', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    oeeCountRow($work_center, '10:00:00', ['good' => 5]);
+    $service = resolve(OeeCalculatorService::class);
+
+    expect($service->quality($work_center->id, $day->addDay(), $day->addDays(2)))->toBe(1.0)
+        ->and($service->performance($work_center->id, $day->addDay(), $day->addDays(2)))->toBe(1.0);
+});
