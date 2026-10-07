@@ -127,12 +127,13 @@ final class ProductionOrderOperationService
         $ended_at = now();
         $actual = $actual_minutes ?? ($operation->actual_start_at?->diffInMinutes($ended_at) ?? 0.0);
 
-        $operation->update([
+        $operation->forceFill([
             'status' => ProductionOrderOperationStatus::Completed->value,
             'actual_end_at' => $ended_at,
             'actual_minutes' => $actual,
             'efficiency' => $this->efficiency($operation, (float) $actual),
-        ]);
+            ...$this->declaredPrefill($operation),
+        ])->save();
 
         $this->shiftVerificationService->logOperatorAction($operation, OperatorLogAction::Completed);
         BackflushMaterialsJob::dispatch($operation->id);
@@ -160,6 +161,24 @@ final class ProductionOrderOperationService
         OperationSkipped::dispatch($this->orderOf($operation)->company_id, $operation->production_order_id, $operation->id, $operation->work_center_id);
 
         return $operation->refresh();
+    }
+
+    /**
+     * What the machine counted becomes the starting point of the declared quantities, which the operator may
+     * correct afterwards (see {@see OperationQuantityDeclarer}). Quantities already declared are kept.
+     *
+     * @return array<string, float>
+     */
+    private function declaredPrefill(ProductionOrderOperation $operation): array
+    {
+        $good = (float) $operation->machine_good_quantity;
+        $scrap = (float) $operation->machine_scrap_quantity;
+
+        if (($good <= 0.0 && $scrap <= 0.0) || $operation->declared_good_quantity !== null || $operation->declared_scrap_quantity !== null) {
+            return [];
+        }
+
+        return ['declared_good_quantity' => $good, 'declared_scrap_quantity' => $scrap];
     }
 
     private function orderOf(ProductionOrderOperation $operation): ProductionOrder
