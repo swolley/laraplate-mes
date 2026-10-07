@@ -14,6 +14,17 @@ use Modules\MES\Enums\NonConformanceDisposition;
 use Modules\MES\Enums\NonConformanceStatus;
 use Override;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $production_order_id
+ * @property int|null $quality_check_id
+ * @property int $item_id
+ * @property int|null $rework_production_order_id
+ * @property NonConformanceStatus $status
+ * @property string $quantity
+ * @property string $description
+ */
 final class NonConformance extends Model
 {
     use HasFactory;

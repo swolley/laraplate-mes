@@ -60,6 +60,8 @@ return [
     |   clock skew, failed message, refused authentication, silent device). Same shape.
     | - operation_target: sent once per operation when the machine counted the
     |   planned quantity of its order (the operation is not completed). Same shape.
+    | - out_of_tolerance: sent when a probe measures a value outside the limits of
+    |   its plan characteristic, before the quality check resolves. Same shape.
     |
     */
     'notifications' => [
@@ -82,6 +84,12 @@ return [
             ],
         ],
         'operation_target' => [
+            'channels' => ['database'],
+            'recipients' => [
+                'roles' => ['admin', 'superadmin'],
+            ],
+        ],
+        'out_of_tolerance' => [
             'channels' => ['database'],
             'recipients' => [
                 'roles' => ['admin', 'superadmin'],
