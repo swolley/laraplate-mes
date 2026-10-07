@@ -23,6 +23,8 @@ return new class extends Migration
             $table->decimal('capacity_per_hour', 10, 4);
             $table->string('capacity_uom', 16);
             $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('micro_stop_threshold_seconds')->default(60);
+            $table->json('downtime_states')->nullable();
             MigrateUtils::timestamps($table, hasCreateUpdate: true, hasSoftDelete: true);
 
             $table->unique(['company_id', 'code'], "{$table_name}_company_code_UN");

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\DowntimeFactory;
 use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Enums\DowntimeSource;
 use Override;
 
 /**
@@ -24,12 +25,23 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $ended_at
  * @property string|null $duration_minutes
  * @property string|null $notes
+ * @property DowntimeSource $source
+ * @property int|null $machine_device_id
+ * @property string|null $alarm_code
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
 final class Downtime extends Model
 {
     use HasFactory;
+
+    /**
+     * Times keep their milliseconds: a machine downtime has to match its state interval exactly.
+     *
+     * @var string
+     */
+    #[Override]
+    protected $dateFormat = 'Y-m-d H:i:s.v';
 
     /**
      * @var string
@@ -50,6 +62,17 @@ final class Downtime extends Model
         'ended_at',
         'duration_minutes',
         'notes',
+        'source',
+        'machine_device_id',
+        'alarm_code',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    #[Override]
+    protected $attributes = [
+        'source' => 'manual',
     ];
 
     /**
@@ -58,6 +81,14 @@ final class Downtime extends Model
     public function workCenter(): BelongsTo
     {
         return $this->belongsTo(WorkCenter::class);
+    }
+
+    /**
+     * @return BelongsTo<MachineDevice, $this>
+     */
+    public function device(): BelongsTo
+    {
+        return $this->belongsTo(MachineDevice::class, 'machine_device_id');
     }
 
     /**
@@ -101,6 +132,7 @@ final class Downtime extends Model
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'duration_minutes' => 'decimal:4',
+            'source' => DowntimeSource::class,
         ];
     }
 }

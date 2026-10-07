@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Schema;
 use Modules\Core\Helpers\MigrateUtils;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Enums\DowntimeSource;
 use Modules\MES\Enums\MESTables;
 
 return new class extends Migration
@@ -30,13 +31,18 @@ return new class extends Migration
                 ->nullOnDelete();
             MigrateUtils::prefixIndex($table, 'production_order_operation_id');
             $table->enum('cause', DowntimeCause::values());
-            $table->dateTime('started_at');
-            $table->dateTime('ended_at')->nullable();
+            $table->dateTime('started_at', 3);
+            $table->dateTime('ended_at', 3)->nullable();
             $table->decimal('duration_minutes', 12, 4)->nullable();
             $table->text('notes')->nullable();
+            $table->enum('source', DowntimeSource::values())->default(DowntimeSource::Manual->value);
+            // No foreign key: the devices table comes later than this one, and a machine downtime outlives a deleted device's configuration.
+            $table->unsignedBigInteger('machine_device_id')->nullable();
+            $table->string('alarm_code', 64)->nullable();
             $table->timestamps();
 
-            $table->index(['work_center_id', 'started_at'], "{$table_name}_work_center_started_IDX");
+            $table->unique(['work_center_id', 'started_at'], "{$table_name}_work_center_started_UN");
+            $table->index(['machine_device_id', 'started_at'], "{$table_name}_device_started_IDX");
         });
     }
 

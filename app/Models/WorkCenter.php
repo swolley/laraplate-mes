@@ -17,6 +17,7 @@ use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Database\Factories\WorkCenterFactory;
 use Modules\MES\Enums\MESTables;
+use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\WorkCenterType;
 use Override;
 
@@ -44,6 +45,19 @@ final class WorkCenter extends Model implements IActivatableModel
         'capacity_per_hour',
         'capacity_uom',
         'is_active',
+        'micro_stop_threshold_seconds',
+        'downtime_states',
+    ];
+
+    /**
+     * Mirrors the column defaults, so a new instance reads them before it is saved.
+     *
+     * @var array<string, mixed>
+     */
+    #[Override]
+    protected $attributes = [
+        'micro_stop_threshold_seconds' => 60,
+        'downtime_states' => '["fault","stopped","setup","maintenance"]',
     ];
 
     /**
@@ -65,6 +79,9 @@ final class WorkCenter extends Model implements IActivatableModel
             'capacity_per_hour' => ['required', 'numeric', 'min:0'],
             'capacity_uom' => ['required', 'string', 'max:16'],
             'is_active' => ['sometimes', 'boolean'],
+            'micro_stop_threshold_seconds' => ['sometimes', 'integer', 'min:0'],
+            'downtime_states' => ['sometimes', 'array'],
+            'downtime_states.*' => ['string', Rule::in(MachineState::values())],
         ]);
 
         $rules['update'] = array_merge($rules['update'], [
@@ -74,6 +91,9 @@ final class WorkCenter extends Model implements IActivatableModel
             'capacity_per_hour' => ['sometimes', 'numeric', 'min:0'],
             'capacity_uom' => ['sometimes', 'string', 'max:16'],
             'is_active' => ['sometimes', 'boolean'],
+            'micro_stop_threshold_seconds' => ['sometimes', 'integer', 'min:0'],
+            'downtime_states' => ['sometimes', 'array'],
+            'downtime_states.*' => ['string', Rule::in(MachineState::values())],
         ]);
 
         return $rules;
@@ -100,6 +120,17 @@ final class WorkCenter extends Model implements IActivatableModel
     }
 
     /**
+     * Whether a stop in this state, lasting longer than the micro-stop threshold, is a downtime.
+     * A work center stored without a list uses the default four states.
+     */
+    public function isDowntimeState(MachineState $state): bool
+    {
+        $states = is_array($this->downtime_states) ? $this->downtime_states : ['fault', 'stopped', 'setup', 'maintenance'];
+
+        return in_array($state->value, $states, true);
+    }
+
+    /**
      * Scope to filter only active work centers.
      *
      * @param  Builder<WorkCenter>  $query
@@ -121,6 +152,8 @@ final class WorkCenter extends Model implements IActivatableModel
             'type' => WorkCenterType::class,
             'is_active' => 'boolean',
             'capacity_per_hour' => 'decimal:4',
+            'micro_stop_threshold_seconds' => 'integer',
+            'downtime_states' => 'array',
         ];
     }
 

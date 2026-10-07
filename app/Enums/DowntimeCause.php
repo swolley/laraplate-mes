@@ -12,6 +12,7 @@ enum DowntimeCause: string
     case MaterialShortage = 'material_shortage';
     case Quality = 'quality';
     case PlannedMaintenance = 'planned_maintenance';
+    case Unclassified = 'unclassified';
     case Other = 'other';
 
     /**
