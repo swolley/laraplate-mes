@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
+use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +14,8 @@ use Modules\MES\Enums\DowntimeSource;
 use Modules\MES\Events\DowntimeClosed;
 use Modules\MES\Events\DowntimeOpened;
 use Modules\MES\Machine\MachineConnectivity;
+use Modules\MES\Machine\States\MachineTime;
+use Modules\MES\Models\MachineDevice;
 use Modules\MES\Models\Downtime;
 use Modules\MES\Models\WorkCenter;
 
@@ -50,6 +53,63 @@ final class DowntimeService
         ]);
 
         DowntimeOpened::dispatch($downtime->company_id, $downtime->work_center_id, $downtime->id, $cause->value);
+
+        return $downtime;
+    }
+
+    /**
+     * Open the downtime of a machine stop (the dedicated action of the machine path): `machine` source,
+     * the device and the alarm code, starting when the machine stopped. Opening the same stop again returns
+     * the downtime it already has. A work center has at most one state device, so a start is unique per work center.
+     */
+    public function openFromMachine(MachineDevice $device, DowntimeCause $cause, CarbonInterface $started_at, ?string $alarm_code = null): Downtime
+    {
+        $existing = Downtime::query()
+            ->where('work_center_id', $device->work_center_id)
+            ->where('started_at', MachineTime::db($started_at))
+            ->first();
+
+        if ($existing instanceof Downtime) {
+            return $existing;
+        }
+
+        $downtime = Downtime::writingAsMachine(static fn (): Downtime => Downtime::query()->create([
+            'company_id' => $device->company_id,
+            'work_center_id' => $device->work_center_id,
+            'cause' => $cause->value,
+            'started_at' => $started_at,
+            'ended_at' => null,
+            'source' => DowntimeSource::Machine->value,
+            'machine_device_id' => $device->id,
+            'alarm_code' => $alarm_code,
+        ]));
+
+        DowntimeOpened::dispatch($downtime->company_id, $downtime->work_center_id, $downtime->id, $cause->value);
+
+        return $downtime;
+    }
+
+    /**
+     * Set the end of a machine downtime and its duration. `DowntimeClosed` is announced the first time
+     * only; a later call that moves the end (a late sample split the stop) just rewrites the times.
+     */
+    public function closeFromMachine(Downtime $downtime, CarbonInterface $ended_at): Downtime
+    {
+        $current_end = $downtime->ended_at;
+        $was_open = $current_end === null;
+
+        if ($current_end !== null && $current_end->format('Y-m-d H:i:s.v') === MachineTime::db($ended_at)) {
+            return $downtime;
+        }
+
+        $minutes = round($downtime->started_at->diffInMilliseconds($ended_at, true) / 60000, 4);
+
+        Downtime::writingAsMachine(static fn () => $downtime->update(['ended_at' => $ended_at, 'duration_minutes' => $minutes]));
+        $downtime->refresh();
+
+        if ($was_open) {
+            DowntimeClosed::dispatch($downtime->company_id, $downtime->work_center_id, $downtime->id, (float) $downtime->duration_minutes);
+        }
 
         return $downtime;
     }

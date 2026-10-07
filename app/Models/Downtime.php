@@ -83,6 +83,11 @@ final class Downtime extends Model
     /**
      * Runs a callback that may write machine downtimes: only the machine path creates them and moves
      * their times (the operator edits cause and notes). The permission is restored afterwards, even on an exception.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $callback
+     * @return TReturn
      */
     public static function writingAsMachine(Closure $callback): mixed
     {
