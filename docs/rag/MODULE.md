@@ -293,8 +293,18 @@ the foundation, with no consumer of the machine data yet.
   metrics are skipped; `source_seq` is null (the Sparkplug `seq` wraps at 255).
 - **Backoffice** (group "Machine connectivity"): sources, devices with a signals relation manager, profiles
   (import and export), unmapped signals (map in place), the message inbox (reprocess), incidents.
-  Not built yet: the MQTT bridge, `sparkplug_b`, states to downtime, counts, probe measurements, process
-  values.
+- **States and downtimes (step 3).** `MachineStateRecorder` (listener of `MachineStateObserved`) calls
+  `MachineStateIntervals::observe()/tagAlarm()` (idempotent history, split on late samples, merge of equal
+  neighbours; `MachineTime` keeps milliseconds) and `MachineDowntimeDeriver::sync()` (downtime when the
+  state is in `WorkCenter::isDowntimeState()` and the stop is longer than `micro_stop_threshold_seconds`;
+  times only are updated, cause and notes kept). `DowntimeService::openFromMachine()/closeFromMachine()`
+  write through `Downtime::writingAsMachine()`; `DowntimeCauseResolver` maps state and alarm code to a cause
+  (default `Unclassified`). `MachineConnectivity::isConnected()` (active device of an active source with a
+  state signal) gates manual downtimes and the ISO 22400 branch of `OeeCalculatorService::availability()`.
+  `mes:machine-open-stops` (every minute) opens the downtime of stops still open; `MachineWatchdog` records
+  and closes the synthetic `Offline` interval. `WorkCenterKpis::$incomplete_data` and the `mes:kpi:v2:` cache
+  key. User guide: `docs/MACHINE_CONNECTIVITY.md`.
+  Not built yet: counts, probe measurements, process values.
 
 ## Backoffice
 

@@ -128,6 +128,10 @@ Canonical English names for MES entities in this module. Use these terms in code
 |------|---------|
 | **UOM** | Unit of measure. |
 | **Domain action** | A verb on a record run through Core's domain-action registry (`release`, `start`, `explode`, ...), registered by `MesDomainActionRegistrar` and authorized by `MesModelPolicy` against seeded permissions. |
+| **State interval** | A stretch of time a machine device spent in one canonical state (`mes_machine_state_intervals`); the open one has no end. |
+| **Micro-stop** | A stop no longer than the work center's `micro_stop_threshold_seconds`; it leaves no downtime. |
+| **Connected work center** | A work center with an active device, of an active source, with a state signal: its downtimes come from the machine and its OEE availability follows ISO 22400. |
+| **Machine downtime** | A downtime derived from a state interval (`source = machine`); its times are locked, its cause and notes can be edited. |
 
 ## Related reading
 

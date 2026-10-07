@@ -127,15 +127,14 @@ The manufacturing domain is implemented and covered by the module test suite:
 -   No custom routes: entities go through Core's generic CRUD, domain verbs through the domain-action registry (`MesDomainActionRegistrar`, `MesModelPolicy`, permissions seeded by `MESDatabaseSeeder`)
 -   Filament backoffice (`Modules\MES\Filament\MESPlugin`): resources for work centers (with calendar), BOMs (with lines), routings, production orders (read-only operations, consumptions, quality checks and lots, and Release/Complete/Cancel header actions), quality plans, quality checks, non-conformances, downtimes and shifts, plus a production dashboard widget with four cached counts
 
--   Machine connectivity foundation: machines and probes push `laraplate-machine/1` messages over HTTP (`POST api/v1/mes/machine-data`, one token per source) into a durable inbox processed by an idempotent, per-source serialised job (normalise, resolve, attribute, typed events); unmapped signals, incidents, a watchdog for silent devices, reprocessing, importable machine profiles, and a "Machine connectivity" backoffice; a long-running MQTT bridge (`php artisan mes:machine-bridge`, QoS 1, persistent session, topics from the sources, `bridge_down` incident) and a `sparkplug_b` normaliser with a persisted alias map. Guide: `docs/MACHINE_CONNECTIVITY.md`
+-   Machine connectivity foundation: machines and probes push `laraplate-machine/1` messages over HTTP (`POST api/v1/mes/machine-data`, one token per source) into a durable inbox processed by an idempotent, per-source serialised job (normalise, resolve, attribute, typed events); unmapped signals, incidents, a watchdog for silent devices, reprocessing, importable machine profiles, and a "Machine connectivity" backoffice; a long-running MQTT bridge (`php artisan mes:machine-bridge`, QoS 1, persistent session, topics from the sources, `bridge_down` incident) and a `sparkplug_b` normaliser with a persisted alias map; a state history per device with downtimes derived from it (micro-stop threshold, alarm codes, `mes:machine-open-stops`, synthetic `Offline`), manual downtimes refused on connected work centers, and ISO 22400 OEE availability with an incomplete-data flag. Guide: `docs/MACHINE_CONNECTIVITY.md`
 
 Developer reference: `docs/rag/MODULE.md`. Operator guide (Italian): `docs/MES_GUIDA_SEMPLICE.md`.
 
 ## Roadmap
 
-Machine data acquisition (design: `docs/superpowers/specs/2026-10-05-mes-machine-data-acquisition-design.md` at the stack root). The foundation and the MQTT bridge are built; each step below has its own plan:
+Machine data acquisition (design: `docs/superpowers/specs/2026-10-05-mes-machine-data-acquisition-design.md` at the stack root). The foundation, the MQTT bridge and the machine states are built; each step below has its own plan:
 
--   Machine states to downtimes, and OEE availability with machine data
 -   Piece counts, and OEE performance and quality (ISO 22400)
 -   Probe measurements filling quality checks
 -   Process values (relational store, rollups, per-operation summaries)

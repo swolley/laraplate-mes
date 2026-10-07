@@ -10,6 +10,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
 use Modules\Core\Filament\Utils\HasForm;
 use Modules\MES\Enums\DowntimeCause;
+use Modules\MES\Enums\DowntimeSource;
+use Modules\MES\Models\Downtime;
 
 final class DowntimeForm
 {
@@ -30,15 +32,26 @@ final class DowntimeForm
                     ->relationship('workCenter', 'name')
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->disabled(self::isMachine(...)),
                 Select::make('cause')
                     ->options(array_combine(DowntimeCause::values(), DowntimeCause::values()))
                     ->required(),
                 DateTimePicker::make('started_at')
-                    ->required(),
-                DateTimePicker::make('ended_at'),
+                    ->required()
+                    ->disabled(self::isMachine(...)),
+                DateTimePicker::make('ended_at')
+                    ->disabled(self::isMachine(...)),
                 Textarea::make('notes')
                     ->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * Machine downtimes follow the machine: their times and work center are read-only here.
+     */
+    private static function isMachine(?Downtime $record): bool
+    {
+        return $record?->source === DowntimeSource::Machine;
     }
 }

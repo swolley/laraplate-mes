@@ -259,3 +259,100 @@ it('hides the transition actions from a user without the domain permissions', fu
         ->assertActionHidden('release')
         ->assertActionHidden('cancel');
 });
+
+/**
+ * @return array{0: WorkCenter, 1: Modules\MES\Models\MachineDevice}
+ */
+function connectedWorkCenterForFilament(): array
+{
+    $work_center = WorkCenter::factory()->create();
+    $device = Modules\MES\Models\MachineDevice::factory()->create(['work_center_id' => $work_center->id, 'company_id' => $work_center->company_id]);
+    Modules\MES\Models\MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 'state', 'role' => Modules\MES\Enums\SignalRole::State->value, 'config' => ['map' => ['RUN' => 'running']]]);
+
+    return [$work_center, $device];
+}
+
+it('saves the micro-stop threshold and the downtime states of a work center', function (): void {
+    $work_center = WorkCenter::factory()->create();
+
+    Livewire::test(EditWorkCenter::class, ['record' => $work_center->getKey()])
+        ->fillForm(['micro_stop_threshold_seconds' => 90, 'downtime_states' => ['fault', 'stopped']])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = WorkCenter::withoutGlobalScopes()->findOrFail($work_center->id);
+    expect($fresh->micro_stop_threshold_seconds)->toBe(90)
+        ->and($fresh->downtime_states)->toBe(['fault', 'stopped']);
+});
+
+it('rejects a negative micro-stop threshold', function (): void {
+    $work_center = WorkCenter::factory()->create();
+
+    Livewire::test(EditWorkCenter::class, ['record' => $work_center->getKey()])
+        ->fillForm(['micro_stop_threshold_seconds' => -1])
+        ->call('save')
+        ->assertHasFormErrors(['micro_stop_threshold_seconds']);
+});
+
+it('keeps the cause and notes of a machine downtime editable and its times locked', function (): void {
+    [$work_center, $device] = connectedWorkCenterForFilament();
+    $downtime = Downtime::writingAsMachine(static fn () => Downtime::factory()->create([
+        'company_id' => $work_center->company_id,
+        'work_center_id' => $work_center->id,
+        'source' => Modules\MES\Enums\DowntimeSource::Machine->value,
+        'machine_device_id' => $device->id,
+        'cause' => Modules\MES\Enums\DowntimeCause::Unclassified->value,
+        'started_at' => '2026-10-05 08:00:00',
+        'ended_at' => '2026-10-05 09:00:00',
+    ]));
+
+    Livewire::test(Modules\MES\Filament\Resources\Downtimes\Pages\EditDowntime::class, ['record' => $downtime->getKey()])
+        ->assertFormFieldIsDisabled('started_at')
+        ->assertFormFieldIsDisabled('ended_at')
+        ->assertFormFieldIsEnabled('cause')
+        ->fillForm(['cause' => 'breakdown', 'notes' => 'Belt snapped'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = Downtime::withoutGlobalScopes()->findOrFail($downtime->id);
+    expect($fresh->cause)->toBe(Modules\MES\Enums\DowntimeCause::Breakdown)
+        ->and($fresh->notes)->toBe('Belt snapped')
+        ->and($fresh->ended_at->format('H:i'))->toBe('09:00');
+
+    expect(fn () => $fresh->update(['ended_at' => '2026-10-05 10:00:00']))->toThrow(Illuminate\Validation\ValidationException::class);
+});
+
+it('lists machine downtimes with their source', function (): void {
+    [$work_center, $device] = connectedWorkCenterForFilament();
+    $downtime = Downtime::writingAsMachine(static fn () => Downtime::factory()->create([
+        'company_id' => $work_center->company_id,
+        'work_center_id' => $work_center->id,
+        'source' => Modules\MES\Enums\DowntimeSource::Machine->value,
+        'machine_device_id' => $device->id,
+        'alarm_code' => 'E42',
+        'started_at' => '2026-10-05 08:00:00',
+        'ended_at' => '2026-10-05 09:00:00',
+    ]));
+
+    $list = Livewire::test(ListDowntimes::class)->assertOk();
+    expect($list->instance()->getTableRecords()->modelKeys())->toContain($downtime->getKey());
+
+    $list->assertTableColumnStateSet('source', Modules\MES\Enums\DowntimeSource::Machine, $downtime)
+        ->assertTableColumnStateSet('alarm_code', 'E42', $downtime)
+        ->assertTableColumnStateSet('device.external_id', $device->external_id, $downtime);
+});
+
+it('refuses a manual downtime for a connected work center and stores nothing', function (): void {
+    [$work_center] = connectedWorkCenterForFilament();
+
+    Livewire::test(Modules\MES\Filament\Resources\Downtimes\Pages\CreateDowntime::class)
+        ->fillForm([
+            'company_id' => $work_center->company_id,
+            'work_center_id' => $work_center->id,
+            'cause' => 'breakdown',
+            'started_at' => '2026-10-05 08:00:00',
+        ])
+        ->call('create');
+
+    expect(Downtime::withoutGlobalScopes()->where('work_center_id', $work_center->id)->exists())->toBeFalse();
+});

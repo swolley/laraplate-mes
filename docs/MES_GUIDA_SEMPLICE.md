@@ -159,8 +159,8 @@ non a lavorare l'ordine tutti i giorni.
 ## Collegare le macchine
 
 Le macchine e i sistemi di misura possono mandare i loro dati direttamente al MES, senza che qualcuno li
-digiti. Per ora il MES li **riceve, li conserva e li prepara**; non li usa ancora per aprire fermi, contare
-pezzi o compilare i controlli qualità (arriverà nei passi successivi).
+digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi; non conta ancora i pezzi
+né compila i controlli qualità (arriverà nei passi successivi).
 
 - Dal gruppo **Machine connectivity** del pannello crei una **sorgente** (l'agente o il gateway che invia
   i dati) e le assegni un **token**: viene mostrato **una sola volta**, copialo subito; emetterne uno nuovo
@@ -175,6 +175,18 @@ pezzi o compilare i controlli qualità (arriverà nei passi successivi).
   **rielaborare**, anche per un intervallo di tempo dalla pagina della sorgente.
 - Gli **incidenti** segnalano buchi nella sequenza dei messaggi, orologi sfasati, messaggi falliti,
   accessi rifiutati e macchine che hanno smesso di inviare dati.
+
+### Fermi e OEE dalle macchine
+
+Un centro di lavoro con una macchina attiva che manda lo **stato** è "collegato": i suoi fermi li apre e li
+chiude la macchina, e non si possono inserire a mano (il sistema lo rifiuta). Un arresto diventa un fermo solo
+se dura **più** della **soglia dei micro-fermi** (60 secondi, modificabile nel centro di lavoro) e se lo stato
+è tra quelli che contano come fermo (anche questi si scelgono nel centro di lavoro). Gli orari del fermo
+vengono dalla macchina e non si cambiano; **causa e note** sì: finché non le imposti la causa è
+**unclassified**, salvo che un codice di allarme o lo stato (setup, manutenzione) la indichi. Se la macchina smette di inviare dati compare
+uno stato **Offline**: non è un fermo, ma l'OEE del giorno mostra **(incomplete)** perché i dati sono
+incompleti. La disponibilità dell'OEE per i centri collegati segue lo standard ISO 22400: la manutenzione
+programmata non conta come perdita.
 
 ### Le macchine che parlano tramite MQTT
 

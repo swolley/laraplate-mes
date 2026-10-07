@@ -26,6 +26,16 @@ final class DowntimesTable
                     TextColumn::make('cause')
                         ->badge()
                         ->sortable(),
+                    TextColumn::make('source')
+                        ->badge()
+                        ->sortable(),
+                    TextColumn::make('device.external_id')
+                        ->label('Device')
+                        ->placeholder('-')
+                        ->toggleable(),
+                    TextColumn::make('alarm_code')
+                        ->placeholder('-')
+                        ->toggleable(),
                     TextColumn::make('started_at')
                         ->dateTime()
                         ->sortable(),

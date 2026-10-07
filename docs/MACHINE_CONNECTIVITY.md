@@ -1,15 +1,14 @@
 # Machine connectivity
 
 Machines and probes push their data into the MES through the `laraplate-machine/1` protocol, over HTTP or
-through the customer's MQTT broker. This covers the foundation and the MQTT bridge (steps 1 and 2 of the
+through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states (steps 1 to 3 of the
 machine data acquisition design): the protocol, the HTTP endpoint, the bridge and the `sparkplug_b`
-normaliser, a durable inbox, the asynchronous pipeline with its configuration, and the backoffice. Nothing
-consumes the machine data yet: the pipeline dispatches typed events (`MachineStateObserved`,
-`PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`) that the later steps will listen to.
+normaliser, a durable inbox, the asynchronous pipeline with its configuration, the state history with the
+downtimes derived from it, and the backoffice. The pipeline dispatches typed events (`MachineStateObserved`,
+`PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`); only `MachineStateObserved` has a consumer so far.
 
-**Not built yet** (later steps): machine state intervals and automatic downtimes (step 3), piece counts and
-ISO 22400 OEE (step 4), probe measurements filling quality checks (step 5), process values and their
-storage (step 6).
+**Not built yet** (later steps): piece counts and OEE performance and quality (step 4), probe measurements
+filling quality checks (step 5), process values and their storage (step 6).
 
 ## How a message travels
 
@@ -270,12 +269,55 @@ arrive through the MQTT bridge.
   the single operation on the work center running at the sample time; none or several, nothing.
 - Typed events are dispatched per message, device and role, in time order.
 
+## States, downtimes and OEE availability
+
+**State history.** Every state a device reports is kept as an interval in `mes_machine_state_intervals`
+(device, work center, state, start, end; the open one has no end). Recording is idempotent: the same state at
+the same instant, or inside an interval already in that state, changes nothing, and the first state written
+for an instant wins. A state older than the open interval (a late sample) splits the interval that holds its
+moment; two neighbours left in the same state are merged. Times keep milliseconds.
+
+**Connected work center.** A work center is connected when it has an active device, of an active source, with
+a state signal. A work center has at most one state device (a second state signal on another device of the
+same work center is refused). On a connected work center the downtimes come from the machine:
+
+- a manual downtime is refused (`DowntimeService::open()` and the create page both say so);
+- a machine downtime cannot be closed by hand and its start, end and work center are locked; its cause and
+  notes stay editable.
+
+**Deriving downtimes.** A stop is a downtime when its state is one of the work center's `downtime_states`
+(by default `fault`, `stopped`, `setup` and `maintenance`) and it lasted strictly longer than
+`micro_stop_threshold_seconds` (default 60; both are edited on the work center). A shorter stop is a
+micro-stop and leaves no downtime. A downtime follows its interval in place: when a late sample moves or
+shortens the interval, only the times of the downtime change, so the operator's cause and notes survive; a
+downtime whose interval no longer qualifies is removed. A downtime is unique per work center and start.
+
+**Cause.** In order: the `map` (alarm code to downtime cause) of the device's alarm signals, for the alarm
+code seen during the stop; then the default of the state (`setup` gives Setup, `maintenance` gives Planned
+maintenance); otherwise `unclassified`, which the operator sorts out in the backoffice. The first alarm code
+seen during a stop tags that interval and is stored on the downtime as `alarm_code`.
+
+**Stops that go on.** A stop that is still open produces no new message, so `mes:machine-open-stops` runs
+every minute (`withoutOverlapping()->onOneServer()`) and opens the downtime of every open stop that has
+outlasted the threshold; the downtime closes when a later sample ends the interval.
+
+**Offline.** When a device goes silent (see below) and has a state signal, the watchdog records a synthetic
+`Offline` interval from the moment it was last heard, and closes it at that moment when the device is heard
+again (a state sample arriving first just ends it). `Offline` is never a downtime: it is a gap in the data.
+
+**OEE availability (ISO 22400).** For a connected work center the busy time is the calendar time minus the
+planned maintenance, and availability is the share of the busy time not lost to unplanned downtime, clamped
+to [0, 1] (1 when there is no busy time). Planned maintenance therefore no longer counts against it. Work
+centers without a machine keep the planned-time formula. The daily KPIs also carry an **incomplete data**
+flag, true when an `Offline` stretch overlaps the day; the work center list shows `OEE (today)` with
+`(incomplete)` then. KPI cache keys are `mes:kpi:v2:...`, so figures cached before this step are not read.
+
 ## Incidents and health
 
 Incidents (`mes_machine_incidents`): `seq_gap`, `clock_skew`, `message_failed`, `auth_failure`,
 `device_silent` and `bridge_down`. `mes:machine-watchdog` runs every minute: a
 device silent for longer than its source's `heartbeat_timeout_seconds` opens a `device_silent` incident,
-which closes when it is heard again. Incidents notify the roles and channels set under
+which closes when it is heard again (and the synthetic `Offline` interval with it). Incidents notify the roles and channels set under
 `mes.notifications.machine_incident`.
 
 ## Operations

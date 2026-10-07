@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Filament\Resources\WorkCenters\Schemas;
 
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 use Modules\Core\Filament\Utils\HasForm;
+use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\WorkCenterType;
 
 final class WorkCenterForm
@@ -62,6 +64,18 @@ final class WorkCenterForm
                     ->default('pcs'),
                 Toggle::make('is_active')
                     ->default(true),
+                TextInput::make('micro_stop_threshold_seconds')
+                    ->label('Micro-stop threshold (seconds)')
+                    ->helperText('A machine stop becomes a downtime only when it lasts longer than this.')
+                    ->required()
+                    ->integer()
+                    ->minValue(0)
+                    ->default(60),
+                CheckboxList::make('downtime_states')
+                    ->label('Machine states that count as downtime')
+                    ->helperText('Leave empty for the defaults.')
+                    ->options(array_combine(MachineState::values(), MachineState::values()))
+                    ->columns(3),
                 Repeater::make('calendar')
                     ->relationship()
                     ->label('Working calendar')

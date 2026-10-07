@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\ERP\Models\Company;
 use Modules\MES\Database\Factories\DowntimeFactory;
 use Modules\MES\Enums\DowntimeCause;
 use Illuminate\Validation\ValidationException;
@@ -131,6 +132,14 @@ final class Downtime extends Model
                 }
             }
         });
+    }
+
+    /**
+     * @return BelongsTo<Company, $this>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     /**

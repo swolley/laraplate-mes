@@ -45,3 +45,13 @@ it('publishes a schema that decodes', function () use ($module): void {
 
     expect($schema['properties']['protocol']['const'])->toBe('laraplate-machine/1');
 });
+
+it('documents the states, downtimes and availability', function () use ($module): void {
+    $document = (string) file_get_contents("{$module}/docs/MACHINE_CONNECTIVITY.md");
+
+    foreach (['mes:machine-open-stops', 'micro_stop_threshold_seconds', 'downtime_states', 'unclassified', 'Offline', 'ISO 22400', 'incomplete'] as $needle) {
+        expect($document)->toContain($needle);
+    }
+
+    expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Machine states to downtimes');
+});

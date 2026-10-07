@@ -49,6 +49,8 @@ it('returns an oee within [0, 1] for a work center', function (): void {
 });
 
 it('reduces availability as unplanned downtime grows', function (): void {
+    // Downtime times keep milliseconds, so the clock must not move between the writes and the reads.
+    $this->freezeTime();
     $company = MesTestHelpers::makeCompany();
     $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
 
@@ -108,7 +110,7 @@ it('counts only the part of a downtime that falls inside the window', function (
 /**
  * @return array{0: WorkCenter, 1: Carbon\CarbonImmutable}
  */
-function connectedWorkCenter(): array
+function oeeConnectedWorkCenter(): array
 {
     $company = MesTestHelpers::makeCompany();
     $work_center = WorkCenter::factory()->create(['company_id' => $company->id]);
@@ -118,7 +120,7 @@ function connectedWorkCenter(): array
     return [$work_center, Carbon\CarbonImmutable::parse('2026-10-05 00:00:00')];
 }
 
-function machineDowntime(WorkCenter $work_center, DowntimeCause $cause, string $from, string $to): void
+function oeeMachineDowntime(WorkCenter $work_center, DowntimeCause $cause, string $from, string $to): void
 {
     $device = Modules\MES\Models\MachineDevice::query()->where('work_center_id', $work_center->id)->firstOrFail();
     Downtime::writingAsMachine(static fn () => Downtime::factory()->create([
@@ -133,16 +135,16 @@ function machineDowntime(WorkCenter $work_center, DowntimeCause $cause, string $
 }
 
 it('measures a connected work center against its calendar time, planned maintenance left out of the busy time', function (): void {
-    [$work_center, $day] = connectedWorkCenter();
+    [$work_center, $day] = oeeConnectedWorkCenter();
     $to = $day->addMinutes(480);
     $service = resolve(OeeCalculatorService::class);
 
     expect($service->availability($work_center->id, $day, $to, 480.0))->toBe(1.0);
 
-    machineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 01:00:00', '2026-10-05 02:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-05 01:00:00', '2026-10-05 02:00:00');
     expect($service->availability($work_center->id, $day, $to, 480.0))->toBe(420.0 / 480.0);
 
-    machineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 03:00:00', '2026-10-05 05:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 03:00:00', '2026-10-05 05:00:00');
     expect(round($service->availability($work_center->id, $day, $to, 480.0), 4))->toBe(round(300.0 / 360.0, 4));
 });
 
@@ -157,18 +159,18 @@ it('keeps the planned-time formula for a work center without a machine', functio
 });
 
 it('counts only the part of a breakdown inside the window, and is fully available when maintenance fills the calendar', function (): void {
-    [$work_center, $day] = connectedWorkCenter();
+    [$work_center, $day] = oeeConnectedWorkCenter();
     $service = resolve(OeeCalculatorService::class);
-    machineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-04 23:00:00', '2026-10-05 01:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::Breakdown, '2026-10-04 23:00:00', '2026-10-05 01:00:00');
 
     expect($service->availability($work_center->id, $day, $day->addMinutes(480), 480.0))->toBe(420.0 / 480.0);
 
-    machineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 02:00:00', '2026-10-05 10:00:00');
+    oeeMachineDowntime($work_center, DowntimeCause::PlannedMaintenance, '2026-10-05 02:00:00', '2026-10-05 10:00:00');
     expect($service->availability($work_center->id, $day->addHours(2), $day->addHours(10), 480.0))->toBe(1.0);
 });
 
 it('flags offline stretches as incomplete data without counting them as downtime', function (): void {
-    [$work_center, $day] = connectedWorkCenter();
+    [$work_center, $day] = oeeConnectedWorkCenter();
     $device = Modules\MES\Models\MachineDevice::query()->where('work_center_id', $work_center->id)->firstOrFail();
     Modules\MES\Models\MachineStateInterval::factory()->create(['company_id' => $work_center->company_id, 'device_id' => $device->id, 'work_center_id' => $work_center->id, 'state' => 'offline', 'started_at' => '2026-10-05 01:00:00', 'ended_at' => '2026-10-05 02:00:00']);
     $service = resolve(OeeCalculatorService::class);
