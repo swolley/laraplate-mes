@@ -11,6 +11,7 @@ use Modules\MES\Machine\Data\ResolvedSample;
 use Modules\MES\Machine\States\MachineTime;
 use Modules\MES\Machine\Support\IdempotentWriter;
 use Modules\MES\Models\MachineCount;
+use Modules\MES\Services\OperationCountTally;
 
 /**
  * Stores the pieces counted: one row per count sample with its delta (see {@see CounterDelta}). A sample is
@@ -21,6 +22,7 @@ final class PartsCountRecorder
 {
     public function __construct(
         private readonly IdempotentWriter $writer,
+        private readonly OperationCountTally $tally,
     ) {}
 
     public function handle(PartsCounted $event): void
@@ -41,11 +43,14 @@ final class PartsCountRecorder
     }
 
     /**
-     * Called with the operations whose rows changed.
-     *
-     * @param  list<int>  $operation_ids
+     * @param  list<int>  $operation_ids  the operations whose rows changed
      */
-    protected function afterWrite(array $operation_ids): void {}
+    private function afterWrite(array $operation_ids): void
+    {
+        foreach ($operation_ids as $operation_id) {
+            $this->tally->refresh($operation_id);
+        }
+    }
 
     /**
      * @return list<int> the operations whose rows changed

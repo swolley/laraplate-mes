@@ -58,6 +58,8 @@ return [
     |   materialised load for the day exceeds its available minutes. Same shape.
     | - machine_incident: sent when a machine incident is recorded (sequence gap,
     |   clock skew, failed message, refused authentication, silent device). Same shape.
+    | - operation_target: sent once per operation when the machine counted the
+    |   planned quantity of its order (the operation is not completed). Same shape.
     |
     */
     'notifications' => [
@@ -74,6 +76,12 @@ return [
             ],
         ],
         'machine_incident' => [
+            'channels' => ['database'],
+            'recipients' => [
+                'roles' => ['admin', 'superadmin'],
+            ],
+        ],
+        'operation_target' => [
             'channels' => ['database'],
             'recipients' => [
                 'roles' => ['admin', 'superadmin'],

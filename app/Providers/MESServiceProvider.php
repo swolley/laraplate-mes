@@ -23,6 +23,7 @@ use Modules\MES\Contracts\StockReader;
 use Modules\MES\Events\CapacityOverloadDetected;
 use Modules\MES\Events\MachineIncidentRecorded;
 use Modules\MES\Events\MachineStateObserved;
+use Modules\MES\Events\OperationTargetReached;
 use Modules\MES\Events\PartsCounted;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Events\ProductionOrderCancelled;
@@ -33,6 +34,7 @@ use Modules\MES\Listeners\NotifyCapacityOverload;
 use Modules\MES\Listeners\MachineStateRecorder;
 use Modules\MES\Listeners\PartsCountRecorder;
 use Modules\MES\Listeners\NotifyMachineIncident;
+use Modules\MES\Listeners\NotifyOperationTargetReached;
 use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Listeners\ReleaseComponentsAfterCompletion;
 use Modules\MES\Listeners\ReleaseComponentsForProductionOrder;
@@ -142,6 +144,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         Event::listen(MachineIncidentRecorded::class, NotifyMachineIncident::class);
         Event::listen(MachineStateObserved::class, MachineStateRecorder::class);
         Event::listen(PartsCounted::class, PartsCountRecorder::class);
+        Event::listen(OperationTargetReached::class, NotifyOperationTargetReached::class);
     }
 
     #[Override]
