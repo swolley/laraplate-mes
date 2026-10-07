@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\MES\Enums\MachineState;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
+use Modules\MES\Machine\Counts\CountTotals;
 use Modules\MES\Machine\MachineConnectivity;
 use Modules\MES\Machine\States\MachineTime;
 use Modules\MES\Models\MachineCount;
@@ -220,18 +221,17 @@ final class OeeCalculatorService
             ->where('work_center_id', $work_center_id)
             ->where('ts', '>=', MachineTime::db(Carbon::parse($from)))
             ->where('ts', '<', MachineTime::db(Carbon::parse($to)))
-            ->groupBy('production_order_operation_id')
-            ->selectRaw('production_order_operation_id as operation_id, SUM(good) as good, SUM(scrap) as scrap, SUM(total) as total')
+            ->groupBy('production_order_operation_id', 'device_id')
+            ->selectRaw('production_order_operation_id as operation_id, device_id, SUM(good) as good, SUM(scrap) as scrap, SUM(total) as total')
             ->get();
         $counts = [];
 
         foreach ($rows as $row) {
-            $good = $this->number($row->good);
-            $total = $this->number($row->total);
+            $effective = CountTotals::effective($this->number($row->good), $this->number($row->scrap), $this->number($row->total));
             $counts[] = [
                 'operation_id' => is_numeric($row->operation_id) ? (int) $row->operation_id : null,
-                'good' => $good,
-                'total' => $total > 0.0 ? $total : $good + $this->number($row->scrap),
+                'good' => $effective['good'],
+                'total' => $effective['total'],
             ];
         }
 

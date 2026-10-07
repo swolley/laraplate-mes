@@ -91,7 +91,8 @@ final class PartsCountRecorder
             ]);
 
             if (! $stored) {
-                return [];
+                // Already stored: the tally of its operation is refreshed anyway, so a retry repairs a tally that failed.
+                return $sample->production_order_operation_id === null ? [] : [$sample->production_order_operation_id];
             }
 
             $changed = $sample->production_order_operation_id === null ? [] : [$sample->production_order_operation_id];

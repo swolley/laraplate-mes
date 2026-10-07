@@ -68,11 +68,6 @@ final class ProductionOrderOperation extends Model
         'actual_end_at',
         'actual_minutes',
         'efficiency',
-        'machine_good_quantity',
-        'machine_scrap_quantity',
-        'declared_good_quantity',
-        'declared_scrap_quantity',
-        'target_reached_at',
     ];
 
     /**

@@ -249,3 +249,26 @@ it('keeps the order-based formulas for a work center that has no count rows in t
     expect($service->quality($work_center->id, $day->addDay(), $day->addDays(2)))->toBe(1.0)
         ->and($service->performance($work_center->id, $day->addDay(), $day->addDays(2)))->toBe(1.0);
 });
+
+it('computes quality per device, so a device without a total counter is not mixed into another one\'s total', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    $operation = Modules\MES\Models\ProductionOrderOperation::factory()->create(['work_center_id' => $work_center->id]);
+    oeeCountRow($work_center, '10:00:00', ['good' => 90, 'total' => 100], $operation->id);
+    oeeCountRow($work_center, '10:00:00', ['good' => 50], $operation->id);
+    oeeCountRow($work_center, '10:00:00', ['scrap' => 50], $operation->id);
+
+    // Device A: 90 good of 100. Device B (two signals, no total): 50 good of 100. Together 140 of 200.
+    expect(round(resolve(OeeCalculatorService::class)->quality($work_center->id, $day, $day->addHours(8)), 4))->toBe(0.7);
+});
+
+it('derives good pieces from total minus scrap in quality when the device sends no good counter', function (): void {
+    [$work_center, $day] = oeeConnectedWorkCenter();
+    $device = Modules\MES\Models\MachineDevice::factory()->create(['work_center_id' => $work_center->id]);
+    $total = Modules\MES\Models\MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 't', 'role' => Modules\MES\Enums\SignalRole::TotalCount->value, 'config' => ['mode' => 'delta']]);
+    $scrap = Modules\MES\Models\MachineSignal::factory()->create(['device_id' => $device->id, 'key' => 's', 'role' => Modules\MES\Enums\SignalRole::ScrapCount->value, 'config' => ['mode' => 'delta']]);
+    foreach ([[$total, ['total' => 100]], [$scrap, ['scrap' => 5]]] as [$signal, $quantities]) {
+        Modules\MES\Models\MachineCount::factory()->create($quantities + ['signal_id' => $signal->id, 'device_id' => $device->id, 'work_center_id' => $work_center->id, 'ts' => '2026-10-05 10:00:00']);
+    }
+
+    expect(round(resolve(OeeCalculatorService::class)->quality($work_center->id, $day, $day->addHours(8)), 4))->toBe(0.95);
+});

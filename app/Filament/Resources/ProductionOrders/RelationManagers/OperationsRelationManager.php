@@ -94,7 +94,7 @@ final class OperationsRelationManager extends RelationManager
                     ])
                     ->visible(fn (): bool => Gate::allows('update', $this->getOwnerRecord()))
                     ->action(static function (ProductionOrderOperation $record, array $data): void {
-                        resolve(OperationQuantityDeclarer::class)->declare($record, (float) $data['declared_good_quantity'], (float) $data['declared_scrap_quantity'], auth()->id());
+                        resolve(OperationQuantityDeclarer::class)->declare($record, (float) $data['declared_good_quantity'], (float) $data['declared_scrap_quantity'], is_numeric(auth()->id()) ? (int) auth()->id() : null);
                     }),
                 Action::make('assign_counts')
                     ->label('Assign machine counts')
