@@ -16,6 +16,16 @@ use Override;
  * and its tolerance band. Mirrors {@see QualityCheckMeasurement} so a plan can
  * seed the measurements an operator records at execution time.
  */
+/**
+ * @property int $id
+ * @property int $quality_plan_id
+ * @property string $characteristic
+ * @property string|null $nominal
+ * @property string|null $lower_limit
+ * @property string|null $upper_limit
+ * @property int $sort_order
+ * @property int $required_samples
+ */
 final class QualityPlanCharacteristic extends Model
 {
     use HasFactory;

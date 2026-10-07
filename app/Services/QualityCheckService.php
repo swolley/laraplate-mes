@@ -9,51 +9,145 @@ use Modules\MES\Enums\QualityCheckStatus;
 use Modules\MES\Models\NonConformance;
 use Modules\MES\Models\QualityCheck;
 use Modules\MES\Models\QualityCheckMeasurement;
+use Modules\MES\Models\QualityPlanCharacteristic;
 
 /**
- * Executes a quality check against its measurements, deriving pass/fail from the
- * tolerance limits and opening a non-conformance when the check fails.
+ * Records measurements on a quality check and resolves the check against their tolerance limits, opening a
+ * non-conformance when it fails. {@see self::record()} and {@see self::resolve()} are the two halves that
+ * `execute()` runs together for a person entering the measurements; machines record as samples arrive and
+ * the check resolves once {@see self::isComplete()}.
+ *
+ * @phpstan-type MeasurementInput array{characteristic: string, measured_value: float|int|string, nominal?: float|int|string|null, lower_limit?: float|int|string|null, upper_limit?: float|int|string|null, quality_plan_characteristic_id?: int|null, serial?: string|null, measured_at?: mixed, source?: string, machine_signal_id?: int|null}
  */
 final class QualityCheckService
 {
     /**
      * Record measurements and resolve the check status.
      *
-     * @param  list<array{characteristic: string, measured_value: float|int|string, nominal?: float|int|string|null, lower_limit?: float|int|string|null, upper_limit?: float|int|string|null}>  $measurements
+     * @param  list<MeasurementInput>  $measurements
      */
     public function execute(QualityCheck $check, array $measurements): QualityCheck
     {
         return $check->getConnection()->transaction(function () use ($check, $measurements): QualityCheck {
-            $all_within_limits = true;
+            $rows = $this->store($check, $measurements);
+            $passed = collect($rows)->every(static fn (QualityCheckMeasurement $row): bool => $row->is_within_limits);
 
-            foreach ($measurements as $measurement) {
-                $within = $this->isWithinLimits($measurement);
-                $all_within_limits = $all_within_limits && $within;
-
-                QualityCheckMeasurement::query()->create([
-                    'quality_check_id' => $check->id,
-                    'characteristic' => $measurement['characteristic'],
-                    'nominal' => $measurement['nominal'] ?? null,
-                    'lower_limit' => $measurement['lower_limit'] ?? null,
-                    'upper_limit' => $measurement['upper_limit'] ?? null,
-                    'measured_value' => $measurement['measured_value'],
-                    'is_within_limits' => $within,
-                ]);
-            }
-
-            $status = $all_within_limits ? QualityCheckStatus::Passed : QualityCheckStatus::Failed;
-            $check->update(['status' => $status->value, 'checked_at' => now()]);
-
-            if ($status === QualityCheckStatus::Failed) {
-                $this->openNonConformance($check);
-            }
-
-            return $check->refresh();
+            return $this->settle($check, $passed, true);
         });
     }
 
     /**
-     * @param  array{measured_value: float|int|string, lower_limit?: float|int|string|null, upper_limit?: float|int|string|null}  $measurement
+     * Store measurements on the check. A pending check is not resolved; one that is already resolved gets a
+     * non-conformance for each out-of-limit measurement, its status unchanged.
+     *
+     * @param  list<MeasurementInput>  $measurements
+     * @return list<QualityCheckMeasurement>
+     */
+    public function record(QualityCheck $check, array $measurements): array
+    {
+        return $check->getConnection()->transaction(function () use ($check, $measurements): array {
+            $rows = $this->store($check, $measurements);
+
+            if ($check->status !== QualityCheckStatus::Pending) {
+                foreach ($rows as $row) {
+                    if (! $row->is_within_limits) {
+                        $this->openNonConformance($check, "Measurement out of limits after the check was resolved: {$row->characteristic} = {$row->measured_value}");
+                    }
+                }
+            }
+
+            return $rows;
+        });
+    }
+
+    /**
+     * Resolve the check from all its measurements: failed when any is out of limits, else passed. A failure
+     * opens a non-conformance once, when the check enters the failed status.
+     */
+    public function resolve(QualityCheck $check): QualityCheck
+    {
+        return $check->getConnection()->transaction(function () use ($check): QualityCheck {
+            $passed = ! QualityCheckMeasurement::query()
+                ->where('quality_check_id', $check->id)
+                ->where('is_within_limits', false)
+                ->exists();
+
+            return $this->settle($check, $passed, false);
+        });
+    }
+
+    /**
+     * Whether every characteristic of the plan has at least its required samples among the check's
+     * measurements. A check without a plan, or a plan without characteristics, is never complete.
+     */
+    public function isComplete(QualityCheck $check): bool
+    {
+        if ($check->quality_plan_id === null) {
+            return false;
+        }
+
+        $characteristics = QualityPlanCharacteristic::query()->where('quality_plan_id', $check->quality_plan_id)->get();
+
+        if ($characteristics->isEmpty()) {
+            return false;
+        }
+
+        $counts = QualityCheckMeasurement::query()
+            ->where('quality_check_id', $check->id)
+            ->whereNotNull('quality_plan_characteristic_id')
+            ->toBase()
+            ->selectRaw('quality_plan_characteristic_id, COUNT(*) as samples')
+            ->groupBy('quality_plan_characteristic_id')
+            ->pluck('samples', 'quality_plan_characteristic_id');
+
+        return $characteristics->every(static fn (QualityPlanCharacteristic $characteristic): bool => (is_numeric($counts[$characteristic->id] ?? null) ? (int) $counts[$characteristic->id] : 0) >= max(1, $characteristic->required_samples));
+    }
+
+    /**
+     * @param  list<MeasurementInput>  $measurements
+     * @return list<QualityCheckMeasurement>
+     */
+    private function store(QualityCheck $check, array $measurements): array
+    {
+        $rows = [];
+
+        foreach ($measurements as $measurement) {
+            $rows[] = QualityCheckMeasurement::query()->create([
+                'quality_check_id' => $check->id,
+                'characteristic' => $measurement['characteristic'],
+                'nominal' => $measurement['nominal'] ?? null,
+                'lower_limit' => $measurement['lower_limit'] ?? null,
+                'upper_limit' => $measurement['upper_limit'] ?? null,
+                'measured_value' => $measurement['measured_value'],
+                'is_within_limits' => $this->isWithinLimits($measurement),
+                'quality_plan_characteristic_id' => $measurement['quality_plan_characteristic_id'] ?? null,
+                'serial' => $measurement['serial'] ?? null,
+                'measured_at' => $measurement['measured_at'] ?? null,
+                'source' => $measurement['source'] ?? 'manual',
+                'machine_signal_id' => $measurement['machine_signal_id'] ?? null,
+            ]);
+        }
+
+        return $rows;
+    }
+
+    private function settle(QualityCheck $check, bool $passed, bool $always_open_non_conformance): QualityCheck
+    {
+        $was_failed = $check->status === QualityCheckStatus::Failed;
+        $status = $passed ? QualityCheckStatus::Passed : QualityCheckStatus::Failed;
+        $check->update(['status' => $status->value, 'checked_at' => now()]);
+
+        if ($status === QualityCheckStatus::Failed && ($always_open_non_conformance || ! $was_failed)) {
+            $this->openNonConformance($check, "Quality check failed: {$check->name}");
+        }
+
+        return $check->refresh();
+    }
+
+    /**
+     * Limits are inclusive.
+     *
+     * @param  MeasurementInput  $measurement
      */
     private function isWithinLimits(array $measurement): bool
     {
@@ -68,7 +162,7 @@ final class QualityCheckService
         return ! ($upper !== null && $value > (float) $upper);
     }
 
-    private function openNonConformance(QualityCheck $check): NonConformance
+    private function openNonConformance(QualityCheck $check, string $description): NonConformance
     {
         return NonConformance::query()->create([
             'company_id' => $check->company_id,
@@ -77,7 +171,7 @@ final class QualityCheckService
             'item_id' => $check->item_id,
             'status' => NonConformanceStatus::Open->value,
             'quantity' => 0,
-            'description' => "Quality check failed: {$check->name}",
+            'description' => $description,
         ]);
     }
 }

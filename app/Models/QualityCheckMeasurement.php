@@ -11,6 +11,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\MES\Database\Factories\QualityCheckMeasurementFactory;
 use Override;
 
+/**
+ * @property int $id
+ * @property int $quality_check_id
+ * @property string $characteristic
+ * @property string|null $nominal
+ * @property string|null $lower_limit
+ * @property string|null $upper_limit
+ * @property string $measured_value
+ * @property bool $is_within_limits
+ * @property int|null $quality_plan_characteristic_id
+ * @property string|null $serial
+ * @property \Illuminate\Support\Carbon|null $measured_at
+ * @property string $source
+ * @property int|null $machine_signal_id
+ */
 final class QualityCheckMeasurement extends Model
 {
     use HasFactory;
