@@ -15,11 +15,14 @@ use Modules\MES\Models\QualityPlan;
  * Creates pending {@see QualityCheck} records from the active {@see QualityPlan}
  * when an operation or an order completes. Non-blocking: absence of a plan is a
  * no-op, and creation is idempotent per (order, plan, operation) so replays and
- * re-completions never duplicate checks.
+ * re-completions never duplicate checks. A new check takes the probe measurements that waited for it.
  */
 final class QualityCheckPlanner
 {
-    public function __construct(private QualityPlanResolver $resolver) {}
+    public function __construct(
+        private QualityPlanResolver $resolver,
+        private UnattributedMeasurementAttacher $attacher,
+    ) {}
 
     /**
      * Create the in-process check for a completed operation, if a plan targets
@@ -73,7 +76,7 @@ final class QualityCheckPlanner
             return null;
         }
 
-        return QualityCheck::query()->create([
+        $check = QualityCheck::query()->create([
             'company_id' => $order->company_id,
             'production_order_id' => $order->id,
             'production_order_operation_id' => $operation_id,
@@ -82,5 +85,10 @@ final class QualityCheckPlanner
             'name' => $plan->name,
             'status' => QualityCheckStatus::Pending->value,
         ]);
+
+        // Probe measurements taken while the operation ran were waiting for this check.
+        $this->attacher->attachFor($check);
+
+        return $check->refresh();
     }
 }
