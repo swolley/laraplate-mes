@@ -194,3 +194,49 @@ it('prunes by the two retentions from the prune command, which is scheduled dail
         ->and(ProcessAggregate::query()->where('resolution', '1h')->count())->toBe(1)
         ->and($event?->expression)->toBe('0 0 * * *');
 });
+
+it('skips values that cannot be stored in the column, without losing the rest of the message', function (): void {
+    $rig = processRig();
+
+    handleProcess($rig, [processSampleOf($rig, '08:00:10', '1e400'), processSampleOf($rig, '08:00:20', 1.0E+15), processSampleOf($rig, '08:00:30', -2.0E+12), processSampleOf($rig, '08:00:40', 5)]);
+
+    expect(ProcessSample::query()->count())->toBe(1)
+        ->and((float) ProcessSample::query()->sole()->value)->toBe(5.0);
+});
+
+it('rolls up a backlog bigger than one batch in a single run of the command', function (): void {
+    $rig = processRig();
+    $rows = [];
+
+    for ($i = 0; $i < 1100; $i++) {
+        $rows[] = ['company_id' => $rig['signal']->company_id, 'signal_id' => $rig['signal']->id, 'bucket_start' => CarbonImmutable::parse('2026-10-05 00:00:00', config()->string('app.timezone'))->addMinutes($i)->format('Y-m-d H:i:s.v'), 'marked_at' => '2026-10-05 12:00:00.000'];
+    }
+
+    foreach (array_chunk($rows, 200) as $chunk) {
+        DB::table('mes_process_dirty_buckets')->insert($chunk);
+    }
+
+    $this->artisan('mes:machine-rollup')->assertSuccessful();
+
+    expect(DB::table('mes_process_dirty_buckets')->count())->toBe(0);
+});
+
+it('prunes in chunks, not with one statement', function (): void {
+    $rig = processRig();
+    $rows = [];
+
+    for ($i = 0; $i < 2100; $i++) {
+        $rows[] = ['company_id' => $rig['signal']->company_id, 'signal_id' => $rig['signal']->id, 'device_id' => $rig['device']->id, 'work_center_id' => $rig['device']->work_center_id, 'ts' => CarbonImmutable::parse('2026-08-01 00:00:00', config()->string('app.timezone'))->addSeconds($i)->format('Y-m-d H:i:s.v'), 'value' => 1, 'quality' => 'good', 'created_at' => '2026-08-01 00:00:00', 'updated_at' => '2026-08-01 00:00:00'];
+    }
+
+    foreach (array_chunk($rows, 300) as $chunk) {
+        DB::table('mes_process_samples')->insert($chunk);
+    }
+
+    DB::enableQueryLog();
+    $this->artisan('mes:machine-prune-process-values')->assertSuccessful();
+    $deletes = collect(DB::getQueryLog())->filter(static fn (array $query): bool => str_starts_with(mb_strtolower($query['query']), 'delete from "mes_process_samples"'))->count();
+
+    expect(ProcessSample::query()->count())->toBe(0)
+        ->and($deletes)->toBeGreaterThanOrEqual(2);
+});

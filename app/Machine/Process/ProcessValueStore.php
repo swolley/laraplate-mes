@@ -36,6 +36,11 @@ interface ProcessValueStore
     public function rollup(int $limit = 500): int;
 
     /**
+     * Whether some bucket still waits to be rebuilt.
+     */
+    public function hasPendingRollup(): bool;
+
+    /**
      * Deletes raw samples older than the given moment.
      *
      * @return int how many were deleted

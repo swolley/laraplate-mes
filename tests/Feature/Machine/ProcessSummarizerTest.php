@@ -31,6 +31,8 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     MesTestHelpers::makeCompany();
     Carbon::setTestNow('2026-10-05 12:00:00');
+    // The summaries are written by a queued job: run it in the process.
+    config(['mes.queue.connection' => 'sync']);
 });
 
 afterEach(function (): void {
@@ -150,4 +152,64 @@ it('gives a lot the process summaries of the operations of its production order,
     expect($summaries)->toHaveCount(1)
         ->and($summaries->first()->production_order_operation_id)->toBe($operation->id)
         ->and(resolve(LotTracingService::class)->processSummaries($without->id))->toHaveCount(0);
+});
+
+it('never replaces a summary with one computed from fewer samples than it already counted', function (): void {
+    $signal = summarySignal();
+    $operation = summaryOperation();
+    foreach (['08:00:00', '08:01:00', '08:02:00'] as $index => $time) {
+        storeSummarySample($signal, $operation->id, $time, 10.0 + $index);
+    }
+    resolve(ProductionOrderOperationService::class)->complete($operation);
+    expect(OperationProcessSummary::query()->sole()->count)->toBe(3);
+
+    ProcessSample::query()->where('ts', '<', '2026-10-05 08:02:00')->delete();
+    $written = resolve(ProcessSummarizer::class)->summarize($operation->id);
+
+    $summary = OperationProcessSummary::query()->sole();
+    expect($written)->toBe(0)
+        ->and($summary->count)->toBe(3)
+        ->and((float) $summary->min)->toBe(10.0);
+});
+
+it('queues the summary of a completed operation for new samples, and not at all for a replay', function (): void {
+    Illuminate\Support\Facades\Queue::fake();
+    $signal = summarySignal();
+    $device = $signal->device;
+    $operation = ProductionOrderOperation::factory()->create(['status' => ProductionOrderOperationStatus::Completed->value]);
+    $samples = [new ResolvedSample($device, $signal, new NormalizedSample('d', 'temp', CarbonImmutable::parse('2026-10-05 08:00:00', config()->string('app.timezone')), 10.0), $operation->id)];
+    $handle = static fn () => resolve(ProcessValueRecorder::class)->handle(new ProcessValuesSampled((int) $device->company_id, $device->id, (int) $device->work_center_id, $samples));
+
+    $handle();
+    Illuminate\Support\Facades\Queue::assertPushed(Modules\MES\Jobs\SummarizeOperationProcessValuesJob::class, 1);
+
+    // The uniqueness lock of the queued job is gone once it starts; a replay must still queue nothing.
+    Illuminate\Support\Facades\Cache::flush();
+    $handle();
+
+    Illuminate\Support\Facades\Queue::assertPushed(Modules\MES\Jobs\SummarizeOperationProcessValuesJob::class, 1);
+});
+
+it('queues the summary job when an operation completes', function (): void {
+    Illuminate\Support\Facades\Queue::fake();
+
+    resolve(ProductionOrderOperationService::class)->complete(summaryOperation());
+
+    Illuminate\Support\Facades\Queue::assertPushed(Modules\MES\Jobs\SummarizeOperationProcessValuesJob::class, 1);
+});
+
+it('lets the queued summary job be unique per operation until it starts', function (): void {
+    $job = new Modules\MES\Jobs\SummarizeOperationProcessValuesJob(42);
+
+    expect($job)->toBeInstanceOf(Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing::class)
+        ->and($job->uniqueId())->toBe('42');
+});
+
+it('does not fail the completion of an operation when the summary cannot be written', function (): void {
+    Illuminate\Support\Facades\Queue::fake();
+    $operation = summaryOperation();
+
+    $completed = resolve(ProductionOrderOperationService::class)->complete($operation);
+
+    expect($completed->status)->toBe(ProductionOrderOperationStatus::Completed);
 });

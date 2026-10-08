@@ -337,8 +337,9 @@ the foundation, with no consumer of the machine data yet.
   `marked_at`), `rollup()` rebuilds `1m` aggregates from raw and `1h` from the minutes (bad samples excluded,
   never from pruned raw), `prune()`/`pruneAggregates()` apply the retentions. `mes:machine-rollup` (every
   minute) and `mes:machine-prune-process-values` (daily). `ProcessSummarizer::summarize()` upserts
-  `mes_operation_process_summaries` on `OperationCompleted` (`SummarizeOperationProcessValues`) and from the
-  recorder for completed operations; `LotTracingService::processSummaries()`. User guide:
+  `mes_operation_process_summaries` (only with a count not below the stored one) from the unique queued
+  `SummarizeOperationProcessValuesJob`, dispatched by `SummarizeOperationProcessValues` on `OperationCompleted`
+  and by the recorder for completed operations when new samples were stored; `LotTracingService::processSummaries()`. User guide:
   `docs/MACHINE_CONNECTIVITY.md`. Everything in the design is built.
 
 ## Backoffice

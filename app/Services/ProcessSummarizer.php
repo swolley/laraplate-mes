@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
-use Illuminate\Support\Facades\DB;
 use Modules\MES\Enums\MESTables;
 use Modules\MES\Machine\Process\ProcessStatistics;
 use Modules\MES\Machine\Process\ProcessValueStore;
@@ -48,9 +47,20 @@ final class ProcessSummarizer
 
         $company_id = (int) $operation->productionOrder->company_id;
         $now = now()->format('Y-m-d H:i:s');
+        $summaries = $operation->getConnection()->table(MESTables::OperationProcessSummaries->value);
+        $counted = $operation->getConnection()->table(MESTables::OperationProcessSummaries->value)->where('production_order_operation_id', $operation_id)->pluck('count', 'signal_id');
+        $written = 0;
 
         foreach ($statistics as $row) {
-            DB::table(MESTables::OperationProcessSummaries->value)->upsert(
+            // Samples only ever leave the store by pruning: fewer than the summary already counted means part of
+            // them is gone, and the summary is the permanent record.
+            $already = $counted[$row->signal_id] ?? 0;
+
+            if (is_numeric($already) && (int) $already > $row->count) {
+                continue;
+            }
+
+            $summaries->upsert(
                 [[
                     'company_id' => $company_id,
                     'production_order_operation_id' => $operation_id,
@@ -68,9 +78,10 @@ final class ProcessSummarizer
                 ['production_order_operation_id', 'signal_id'],
                 ['min', 'max', 'avg', 'count', 'out_of_range_count', 'first_ts', 'last_ts', 'updated_at'],
             );
+            $written++;
         }
 
-        return count($statistics);
+        return $written;
     }
 
     /**

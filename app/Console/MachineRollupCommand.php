@@ -13,6 +13,8 @@ use Override;
  */
 final class MachineRollupCommand extends Command
 {
+    private const int BUDGET_SECONDS = 50;
+
     #[Override]
     protected $signature = 'mes:machine-rollup';
 
@@ -21,7 +23,13 @@ final class MachineRollupCommand extends Command
 
     public function handle(ProcessValueStore $store): int
     {
-        $rebuilt = $store->rollup();
+        // Batches until nothing waits, within a time budget so one run never outlives its minute.
+        $deadline = now()->addSeconds(self::BUDGET_SECONDS);
+        $rebuilt = 0;
+
+        do {
+            $rebuilt += $store->rollup();
+        } while ($store->hasPendingRollup() && now()->lessThan($deadline));
 
         $this->info("Minute buckets rebuilt: {$rebuilt}.");
 

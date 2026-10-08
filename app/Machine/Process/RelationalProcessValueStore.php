@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Connection;
 use Modules\MES\Enums\MESTables;
 use Modules\MES\Enums\SampleQuality;
 use Modules\MES\Machine\States\MachineTime;
@@ -26,6 +26,8 @@ use Modules\MES\Models\ProcessSample as ProcessSampleRow;
 final class RelationalProcessValueStore implements ProcessValueStore
 {
     private const int CHUNK = 500;
+
+    private const int PRUNE_CHUNK = 2000;
 
     public function __construct(
         private readonly IdempotentWriter $writer,
@@ -100,7 +102,7 @@ final class RelationalProcessValueStore implements ProcessValueStore
     #[\Override]
     public function rollup(int $limit = 500): int
     {
-        $marks = DB::table(MESTables::ProcessDirtyBuckets->value)->orderBy('marked_at')->limit($limit)->get();
+        $marks = $this->db()->table(MESTables::ProcessDirtyBuckets->value)->orderBy('marked_at')->limit($limit)->get();
         $raw_cutoff = MachineTime::db(CarbonImmutable::now()->subDays(config()->integer('mes.machine.raw_retention_days'))->startOfMinute());
         $rebuilt = 0;
         $hours = [];
@@ -122,7 +124,7 @@ final class RelationalProcessValueStore implements ProcessValueStore
 
         foreach ($marks as $mark) {
             // A mark set again while this ran has a newer time and stays for the next run.
-            DB::table(MESTables::ProcessDirtyBuckets->value)
+            $this->db()->table(MESTables::ProcessDirtyBuckets->value)
                 ->where('signal_id', $mark->signal_id)
                 ->where('bucket_start', $mark->bucket_start)
                 ->where('marked_at', $mark->marked_at)
@@ -133,15 +135,53 @@ final class RelationalProcessValueStore implements ProcessValueStore
     }
 
     #[\Override]
+    public function hasPendingRollup(): bool
+    {
+        return $this->db()->table(MESTables::ProcessDirtyBuckets->value)->exists();
+    }
+
+    #[\Override]
     public function prune(DateTimeInterface $before): int
     {
-        return $this->samples()->where('ts', '<', MachineTime::db(Carbon::parse($before)))->delete();
+        $limit = MachineTime::db(Carbon::parse($before));
+
+        return $this->deleteInChunks(fn (): Builder => $this->samples()->where('ts', '<', $limit));
     }
 
     #[\Override]
     public function pruneAggregates(DateTimeInterface $before): int
     {
-        return $this->aggregateRows()->where('resolution', '1m')->where('bucket_start', '<', MachineTime::db(Carbon::parse($before)))->delete();
+        $limit = MachineTime::db(Carbon::parse($before));
+
+        return $this->deleteInChunks(fn (): Builder => $this->aggregateRows()->where('resolution', '1m')->where('bucket_start', '<', $limit));
+    }
+
+    /**
+     * Deletes the rows a query matches a chunk at a time, so one statement never locks millions of rows (and stays
+     * under the parameter limit of the strictest driver).
+     *
+     * @param  \Closure(): Builder  $matching
+     */
+    private function deleteInChunks(\Closure $matching): int
+    {
+        $deleted = 0;
+
+        do {
+            $ids = $matching()->orderBy('id')->limit(self::PRUNE_CHUNK)->pluck('id')->all();
+
+            if ($ids === []) {
+                break;
+            }
+
+            $deleted += $matching()->whereIn('id', $ids)->delete();
+        } while (count($ids) === self::PRUNE_CHUNK);
+
+        return $deleted;
+    }
+
+    private function db(): Connection
+    {
+        return (new ProcessSampleRow())->getConnection();
     }
 
     #[\Override]
@@ -254,7 +294,7 @@ final class RelationalProcessValueStore implements ProcessValueStore
     {
         $now = now()->format('Y-m-d H:i:s');
 
-        DB::table(MESTables::ProcessAggregates->value)->upsert(
+        $this->db()->table(MESTables::ProcessAggregates->value)->upsert(
             [['company_id' => $company_id, 'signal_id' => $signal_id, 'resolution' => $resolution, 'bucket_start' => $bucket, 'min' => $min, 'max' => $max, 'avg' => $avg, 'last' => $last, 'count' => $count, 'created_at' => $now, 'updated_at' => $now]],
             ['signal_id', 'resolution', 'bucket_start'],
             ['min', 'max', 'avg', 'last', 'count', 'updated_at'],
@@ -269,7 +309,7 @@ final class RelationalProcessValueStore implements ProcessValueStore
         $at = now()->format('Y-m-d H:i:s.v');
 
         foreach (array_chunk($marks, self::CHUNK) as $chunk) {
-            DB::table(MESTables::ProcessDirtyBuckets->value)->upsert(
+            $this->db()->table(MESTables::ProcessDirtyBuckets->value)->upsert(
                 array_map(static fn (array $mark): array => $mark + ['marked_at' => $at], $chunk),
                 ['signal_id', 'bucket_start'],
                 ['marked_at'],
