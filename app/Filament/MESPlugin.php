@@ -46,11 +46,11 @@ final class MESPlugin implements Plugin
         // The panel lists the module groups alphabetically (tests/Feature/AdminNavigationGroupsTest.php).
         $panel->navigationGroups([
             NavigationGroup::make()
-                ->label('Machine connectivity')
-                ->icon(Heroicon::OutlinedSignal),
-            NavigationGroup::make()
                 ->label('MES')
                 ->icon(Heroicon::OutlinedWrenchScrewdriver),
+            NavigationGroup::make()
+                ->label('MES - Machine connectivity')
+                ->icon(Heroicon::OutlinedSignal),
         ]);
     }
 }
