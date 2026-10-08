@@ -91,9 +91,21 @@ it('stores many rows in one go, skips the ones already stored and reports how ma
         ->and(MachineMessage::query()->count())->toBe(3);
 });
 
-it('stores many rows one by one on a driver without insert-or-ignore, tolerating unique violations', function (): void {
+it('stores many rows in one statement on a driver without insert-or-ignore when none is a duplicate', function (): void {
     $builder = Mockery::mock(Builder::class);
-    $builder->shouldReceive('insert')->twice()->andReturn(true, false);
+    $builder->shouldReceive('insert')->once()->with([['a' => 1], ['a' => 2]])->andReturn(true);
+    $connection = Mockery::mock(Connection::class);
+    $connection->shouldReceive('getDriverName')->andReturn('sqlsrv');
+    $connection->shouldReceive('table')->with('t')->andReturn($builder);
+
+    expect(new IdempotentWriter()->insertMany($connection, 't', [['a' => 1], ['a' => 2]]))->toBe(2);
+});
+
+it('falls back to one row at a time for a chunk with a duplicate on a driver without insert-or-ignore', function (): void {
+    $builder = Mockery::mock(Builder::class);
+    $builder->shouldReceive('insert')->with([['a' => 1], ['a' => 2]])->once()->andThrow(new UniqueConstraintViolationException('sqlsrv', 'insert', [], new Exception('duplicate')));
+    $builder->shouldReceive('insert')->with([['a' => 1]])->once()->andReturn(true);
+    $builder->shouldReceive('insert')->with([['a' => 2]])->once()->andThrow(new UniqueConstraintViolationException('sqlsrv', 'insert', [], new Exception('duplicate')));
     $connection = Mockery::mock(Connection::class);
     $connection->shouldReceive('getDriverName')->andReturn('sqlsrv');
     $connection->shouldReceive('table')->with('t')->andReturn($builder);

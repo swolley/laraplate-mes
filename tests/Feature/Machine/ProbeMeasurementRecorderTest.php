@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Modules\Core\Models\Role;
@@ -246,4 +247,22 @@ it('notifies the recipients holding the configured role', function (): void {
     ));
 
     Notification::assertSentTo($user, OutOfToleranceNotification::class);
+});
+
+it('attaches a measurement to a check that appeared while the measurement was being stored as waiting', function (): void {
+    $rig = probeRig();
+    $rig['check']->forceFill(['production_order_operation_id' => null])->saveQuietly();
+    $created = false;
+    DB::listen(function ($query) use (&$created, $rig): void {
+        if (! $created && str_contains($query->sql, 'insert into "mes_machine_unattributed_measurements"')) {
+            $created = true;
+            $rig['check']->forceFill(['production_order_operation_id' => $rig['operation']->id])->saveQuietly();
+        }
+    });
+
+    probe($rig, 0, 10.5, '08:00:00');
+
+    expect(QualityCheckMeasurement::query()->where('quality_check_id', $rig['check']->id)->count())->toBe(1)
+        ->and(UnattributedMeasurement::query()->sole()->assigned_at)->not->toBeNull()
+        ->and($rig['check']->fresh()->status)->toBe(QualityCheckStatus::Passed);
 });

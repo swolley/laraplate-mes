@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\MES\Listeners;
 
+use DomainException;
 use Modules\MES\Events\OutOfToleranceMeasured;
 use Modules\MES\Events\ProbeMeasured;
 use Modules\MES\Machine\Data\ResolvedSample;
@@ -14,6 +15,7 @@ use Modules\MES\Models\QualityCheckMeasurement;
 use Modules\MES\Models\QualityPlanCharacteristic;
 use Modules\MES\Models\UnattributedMeasurement;
 use Modules\MES\Services\QualityCheckService;
+use Modules\MES\Services\UnattributedMeasurementAssigner;
 
 /**
  * Puts each probe measurement on the quality check of its operation: the check whose plan holds the
@@ -26,6 +28,7 @@ final class ProbeMeasurementRecorder
 {
     public function __construct(
         private readonly QualityCheckService $checks,
+        private readonly UnattributedMeasurementAssigner $assigner,
     ) {}
 
     public function handle(ProbeMeasured $event): void
@@ -87,7 +90,7 @@ final class ProbeMeasurementRecorder
 
                 $this->checks->resolveWhenComplete($check);
             } else {
-                UnattributedMeasurement::query()->create([
+                $waiting = UnattributedMeasurement::query()->create([
                     'company_id' => $event->company_id,
                     'signal_id' => $sample->signal->id,
                     'device_id' => $event->device_id,
@@ -98,6 +101,18 @@ final class ProbeMeasurementRecorder
                     'serial' => $serial,
                     'context' => $sample->sample->context === [] ? null : $sample->sample->context,
                 ]);
+
+                // The check of the operation may have been created while this was being stored: it would not
+                // look for a measurement that was not there yet, so look for its check once more.
+                $check = $characteristic instanceof QualityPlanCharacteristic ? $this->checkFor($sample->production_order_operation_id, $characteristic) : null;
+
+                if ($check instanceof QualityCheck) {
+                    try {
+                        $this->assigner->assign($waiting, $check);
+                    } catch (DomainException) {
+                        // Taken by the attaching of the check meanwhile.
+                    }
+                }
             }
 
             if (! $characteristic instanceof QualityPlanCharacteristic || ! $this->isOutOfLimits($characteristic, $value)) {

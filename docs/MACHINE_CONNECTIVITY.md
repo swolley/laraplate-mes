@@ -384,7 +384,8 @@ check resolved is stored on the check and opens a non-conformance linked to it; 
 not change.
 
 **Measurements that wait.** The quality check of an operation is created when the operation completes, so a
-probe measuring during production finds none; the recorder never creates a check. Such a measurement (and one
+probe measuring during production finds none; the recorder never creates a check (it does look once more for the check right after storing a measurement as
+waiting, in case it appeared meanwhile). Such a measurement (and one
 with no attributed operation) goes to `mes_machine_unattributed_measurements` (signal, time, value, serial,
 context, the operation when known, `assigned_at`). When the check of that operation is created, the waiting
 measurements of its plan's characteristics are put on it in time order and the check resolves if it is
@@ -406,14 +407,15 @@ operation, unique per signal and moment, so the same message twice stores nothin
 reference samples and values that are not numbers are ignored; so are values the column cannot hold (not finite, or
 beyond 12 integer digits), which are dropped and logged without failing the rest of the message. A `bad` sample is stored but left out of
 aggregates and summaries. A sample older than `mes.machine.raw_retention_days` (30) is not stored at all: the next
-prune would delete it and its minute could no longer be rebuilt. A message is written in batches of 500 rows, so
-the number of queries does not grow with the number of samples.
+prune would delete it and its minute could no longer be rebuilt. A message is written in batches (500 rows with insert-or-ignore, 200 per statement on SQL Server, redone row by
+row only for a batch that holds a duplicate), so the number of queries does not grow with the number of samples.
 
 **Aggregates.** Each stored sample marks its minute as dirty (`mes_process_dirty_buckets`). `mes:machine-rollup`
 runs every minute (`withoutOverlapping()->onOneServer()`) and rebuilds the marked minutes, 500 at a time and
 batch after batch until none waits or 50 seconds have passed, from the raw samples into `mes_process_aggregates` (resolution `1m`: min, max, average, last value, count), then the hours they
-touch (`1h`). A mark set while a rollup runs is kept for the next run, so a late sample or a reprocessed message
-is always absorbed. The hour is rebuilt from the minute aggregates (min of mins, max of maxes, counts added, the
+touch (`1h`). A rollup claims its marks (reads and deletes them, in one transaction) before it rebuilds, so a sample stored
+from then on marks its minute again for the next run and one stored before is seen by the rebuild: a late sample
+or a reprocessed message is always absorbed, whatever the clock says, and a failed run puts its marks back. The hour is rebuilt from the minute aggregates (min of mins, max of maxes, counts added, the
 average weighted by the counts, the last value of the last minute), because raw samples are pruned long before.
 A minute whose raw samples are gone is never recomputed, so an aggregate is never replaced by an empty one.
 Buckets follow the application timezone (keep it free of daylight saving time, as for the other machine data).

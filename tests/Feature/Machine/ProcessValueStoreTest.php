@@ -208,3 +208,34 @@ it('refuses an unknown store driver and names the known ones', function (): void
 
     expect(fn () => resolve(ProcessValueStore::class))->toThrow(RuntimeException::class, 'database');
 });
+
+it('keeps a mark set again in the very instant the rollup read it', function (): void {
+    $signal = processSignal();
+    store()->write([sampleOf($signal, '08:00:10', 10)]);
+    $remarked = false;
+    DB::listen(function ($query) use (&$remarked, $signal): void {
+        if (! $remarked && str_contains($query->sql, 'mes_process_aggregates')) {
+            $remarked = true;
+            // The clock has not moved: the new mark carries exactly the time of the one being processed.
+            store()->write([sampleOf($signal, '08:00:55', 40)]);
+        }
+    });
+
+    store()->rollup();
+    expect(DB::table('mes_process_dirty_buckets')->count())->toBe(1);
+
+    store()->rollup();
+    expect((float) ProcessAggregate::query()->where('resolution', '1m')->sole()->max)->toBe(40.0);
+});
+
+it('rebuilds the minute that sits exactly at the raw retention limit, whatever the milliseconds look like', function (): void {
+    $signal = processSignal();
+    config(['mes.machine.raw_retention_days' => 1]);
+    store()->write([sampleOf($signal, '12:00:10', 10)]);
+    DB::table('mes_process_dirty_buckets')->delete();
+    // Some drivers give back a datetime without ".000".
+    DB::table('mes_process_dirty_buckets')->insert(['company_id' => $signal->company_id, 'signal_id' => $signal->id, 'bucket_start' => '2026-10-04 12:00:00', 'marked_at' => '2026-10-05 12:00:00.000']);
+    ProcessSample::query()->update(['ts' => '2026-10-04 12:00:10.000']);
+
+    expect(store()->rollup())->toBe(1);
+});

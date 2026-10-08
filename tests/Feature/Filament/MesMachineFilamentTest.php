@@ -250,3 +250,21 @@ it('lists the process summaries of the operations and filters them by signal', f
 
     expect($list->instance()->getTableRecords()->modelKeys())->toBe([$summary->getKey()]);
 });
+
+it('offers only the checks of the same company whose plan holds the characteristic', function (): void {
+    $row = Modules\MES\Models\UnattributedMeasurement::factory()->create();
+    $plan_id = $row->signal->characteristic->quality_plan_id;
+    $good = Modules\MES\Models\QualityCheck::factory()->create(['company_id' => $row->company_id, 'quality_plan_id' => $plan_id]);
+    $other_plan = Modules\MES\Models\QualityCheck::factory()->create(['company_id' => $row->company_id, 'quality_plan_id' => Modules\MES\Models\QualityPlan::factory()->create()->id]);
+    $other_company = Modules\MES\Models\QualityCheck::factory()->create(['quality_plan_id' => $plan_id]);
+    $other_company->forceFill(['company_id' => Modules\ERP\Models\Company::factory()->create()->id])->saveQuietly();
+
+    $list = static fn () => Livewire::test(Modules\MES\Filament\Resources\UnattributedMeasurements\Pages\ListUnattributedMeasurements::class);
+
+    $list()->callTableAction('assign', $row, ['quality_check_id' => $other_plan->id])->assertHasTableActionErrors(['quality_check_id']);
+    $list()->callTableAction('assign', $row, ['quality_check_id' => $other_company->id])->assertHasTableActionErrors(['quality_check_id']);
+    expect($row->fresh()->assigned_at)->toBeNull();
+
+    $list()->callTableAction('assign', $row, ['quality_check_id' => $good->id])->assertHasNoTableActionErrors();
+    expect($row->fresh()->assigned_at)->not->toBeNull();
+});

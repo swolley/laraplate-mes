@@ -102,36 +102,42 @@ final class RelationalProcessValueStore implements ProcessValueStore
     #[\Override]
     public function rollup(int $limit = 500): int
     {
-        $marks = $this->db()->table(MESTables::ProcessDirtyBuckets->value)->orderBy('marked_at')->limit($limit)->get();
-        $raw_cutoff = MachineTime::db(CarbonImmutable::now()->subDays(config()->integer('mes.machine.raw_retention_days'))->startOfMinute());
-        $rebuilt = 0;
-        $hours = [];
+        // The marks are claimed (read and deleted) before the buckets are rebuilt, all in one transaction: a sample
+        // stored from now on marks its minute again and survives for the next run, one stored before is seen by the
+        // rebuild, and a failure puts the marks back. No timestamp comparison is needed to tell a new mark apart.
+        return $this->db()->transaction(function () use ($limit): int {
+            $table = MESTables::ProcessDirtyBuckets->value;
+            $marks = $this->db()->table($table)->orderBy('id')->limit($limit)->lockForUpdate()->get();
 
-        foreach ($marks as $mark) {
-            $bucket = (string) $mark->bucket_start;
-
-            if ($bucket >= $raw_cutoff && $this->rebuildMinute((int) $mark->company_id, (int) $mark->signal_id, $bucket)) {
-                $rebuilt++;
+            if ($marks->isEmpty()) {
+                return 0;
             }
 
-            $hour = $this->moment($bucket)->startOfHour()->format('Y-m-d H:i:s.v');
-            $hours["{$mark->signal_id}|{$hour}"] = [(int) $mark->company_id, (int) $mark->signal_id, $hour];
-        }
+            foreach ($marks->pluck('id')->chunk(self::CHUNK) as $ids) {
+                $this->db()->table($table)->whereIn('id', $ids->all())->delete();
+            }
 
-        foreach ($hours as [$company_id, $signal_id, $hour]) {
-            $this->rebuildHour($company_id, $signal_id, $hour);
-        }
+            $raw_cutoff = MachineTime::db(CarbonImmutable::now()->subDays(config()->integer('mes.machine.raw_retention_days'))->startOfMinute());
+            $rebuilt = 0;
+            $hours = [];
 
-        foreach ($marks as $mark) {
-            // A mark set again while this ran has a newer time and stays for the next run.
-            $this->db()->table(MESTables::ProcessDirtyBuckets->value)
-                ->where('signal_id', $mark->signal_id)
-                ->where('bucket_start', $mark->bucket_start)
-                ->where('marked_at', $mark->marked_at)
-                ->delete();
-        }
+            foreach ($marks as $mark) {
+                $bucket = $this->moment($mark->bucket_start)->format('Y-m-d H:i:s.v');
 
-        return $rebuilt;
+                if ($bucket >= $raw_cutoff && $this->rebuildMinute((int) $mark->company_id, (int) $mark->signal_id, $bucket)) {
+                    $rebuilt++;
+                }
+
+                $hour = $this->moment($bucket)->startOfHour()->format('Y-m-d H:i:s.v');
+                $hours["{$mark->signal_id}|{$hour}"] = [(int) $mark->company_id, (int) $mark->signal_id, $hour];
+            }
+
+            foreach ($hours as [$company_id, $signal_id, $hour]) {
+                $this->rebuildHour($company_id, $signal_id, $hour);
+            }
+
+            return $rebuilt;
+        });
     }
 
     #[\Override]

@@ -227,6 +227,8 @@ it('marks a message failed and records one incident when processing throws', fun
 });
 
 it('leaves the same data after a second processing', function (): void {
+    // The snapshot holds updated_at, which would differ across a second boundary.
+    $this->freezeTime();
     $ctx = pipelineSetup();
     $message = storeMessage($ctx['source'], [sampleRow('mystery', 5), sampleRow('state', 'HOLDING')]);
 

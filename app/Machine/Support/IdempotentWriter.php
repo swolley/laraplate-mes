@@ -19,6 +19,9 @@ final class IdempotentWriter
 
     private const int CHUNK = 500;
 
+    /** Small enough for the 2100 parameter limit of SQL Server with rows of ten columns. */
+    private const int SINGLE_STATEMENT_CHUNK = 200;
+
     /**
      * @param  array<string, mixed>  $row
      * @return bool true when the row was stored, false when a unique key already held it
@@ -37,8 +40,9 @@ final class IdempotentWriter
     }
 
     /**
-     * Writes many rows, skipping the ones whose unique keys are taken. Rows go in chunks, in one statement each
-     * where the driver has insert-or-ignore, one by one elsewhere.
+     * Writes many rows, skipping the ones whose unique keys are taken. Rows go in chunks, one insert-or-ignore
+     * statement each where the driver has it; elsewhere one plain insert each, redone row by row only for a chunk
+     * that holds a duplicate.
      *
      * @param  list<array<string, mixed>>  $rows
      * @return int how many rows were new
@@ -55,8 +59,16 @@ final class IdempotentWriter
             return $stored;
         }
 
-        foreach ($rows as $row) {
-            $stored += $this->insert($connection, $table, $row) ? 1 : 0;
+        // One statement per chunk; a chunk that hits a duplicate is redone row by row (a statement that fails stores nothing).
+        foreach (array_chunk($rows, self::SINGLE_STATEMENT_CHUNK) as $chunk) {
+            try {
+                $connection->table($table)->insert($chunk);
+                $stored += count($chunk);
+            } catch (UniqueConstraintViolationException) {
+                foreach ($chunk as $row) {
+                    $stored += $this->insert($connection, $table, $row) ? 1 : 0;
+                }
+            }
         }
 
         return $stored;
