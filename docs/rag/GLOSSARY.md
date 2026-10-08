@@ -159,6 +159,9 @@ Canonical English names for MES entities in this module. Use these terms in code
 | **Declared quantity** | The good and scrap quantity the operator confirms for an operation; prefilled from the machine count at completion, every correction audited. |
 | **Unattributed measurement** | A probe measurement with no quality check to go to yet (`mes_machine_unattributed_measurements`); it attaches when the check of its operation is created, or is assigned by hand. |
 | **Required samples** | How many measurements a plan characteristic needs before the check can resolve (`required_samples`, default 1). |
+| **Process sample** | One reading of a process value signal (`mes_process_samples`); raw samples are kept for `mes.machine.raw_retention_days`. |
+| **Process aggregate** | The minimum, maximum, average, last value and count of a signal over a minute or an hour (`mes_process_aggregates`), rebuilt by `mes:machine-rollup`. |
+| **Process summary** | What a process signal did while an operation ran (`mes_operation_process_summaries`); permanent, the link from a lot to its process parameters. |
 
 
 ## Related reading

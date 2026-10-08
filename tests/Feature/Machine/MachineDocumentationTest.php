@@ -75,3 +75,13 @@ it('documents the probe measurements', function () use ($module): void {
 
     expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Probe measurements filling quality checks');
 });
+
+it('documents the process values', function () use ($module): void {
+    $document = (string) file_get_contents("{$module}/docs/MACHINE_CONNECTIVITY.md");
+
+    foreach (['mes_process_samples', 'mes_process_aggregates', 'mes:machine-rollup', 'ProcessValueStore', 'mes_operation_process_summaries', 'raw_retention_days', 'minute_aggregate_retention_days', 'process_store'] as $needle) {
+        expect($document)->toContain($needle);
+    }
+
+    expect((string) file_get_contents("{$module}/README.md"))->not->toContain('-   Process values (relational store');
+});

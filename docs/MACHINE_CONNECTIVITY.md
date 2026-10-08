@@ -1,15 +1,15 @@
 # Machine connectivity
 
 Machines and probes push their data into the MES through the `laraplate-machine/1` protocol, over HTTP or
-through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states, the piece counts and the probe measurements (steps 1 to 5 of the
+through the customer's MQTT broker. This covers the foundation, the MQTT bridge and the machine states, the piece counts, the probe measurements and the process values (steps 1 to 6 of the
 machine data acquisition design): the protocol, the HTTP endpoint, the bridge and the `sparkplug_b`
 normaliser, a durable inbox, the asynchronous pipeline with its configuration, the state history with the
 downtimes derived from it, the stored piece counts with the OEE performance and quality built on them, and
-the probe measurements that fill quality checks, and the backoffice. The pipeline dispatches typed events
-(`MachineStateObserved`, `PartsCounted`, `ProbeMeasured`, `ProcessValuesSampled`); all but
-`ProcessValuesSampled` have a consumer so far.
+the probe measurements that fill quality checks, the process values with their aggregates and per-operation
+summaries, and the backoffice. The pipeline dispatches typed events (`MachineStateObserved`, `PartsCounted`,
+`ProbeMeasured`, `ProcessValuesSampled`), and each has a consumer.
 
-**Not built yet** (later step): process values and their storage (step 6).
+Everything in the machine data acquisition design is built.
 
 ## How a message travels
 
@@ -392,6 +392,43 @@ complete. The others are assigned one by one from "Unattributed measurements" in
 group. Idempotency comes from the unique `(signal_id, ts)` of that table plus an existence check under a lock
 on the signal, not from a unique index on the measurements: a nullable composite unique would break manual
 rows on some databases.
+
+## Process values
+
+**The store.** Samples of `process_value` signals go to a `ProcessValueStore` (contract: `write`,
+`aggregates`, `rollup`, `prune`, `pruneAggregates`, `operationStatistics`). The default driver is relational
+(`mes.machine.process_store = database`); another name is refused at start with the list of the known ones, so a
+time-series driver can be added later behind the same contract. The backend does not downsample on arrival:
+the agent decides what to send (on change beyond a deadband, plus a heartbeat).
+
+**Raw samples.** `mes_process_samples`: signal, time with milliseconds, value, quality and the attributed
+operation, unique per signal and moment, so the same message twice stores nothing new. Order and operation
+reference samples and values that are not numbers are ignored. A `bad` sample is stored but left out of
+aggregates and summaries. A sample older than `mes.machine.raw_retention_days` (30) is not stored at all: the next
+prune would delete it and its minute could no longer be rebuilt. A message is written in batches of 500 rows, so
+the number of queries does not grow with the number of samples.
+
+**Aggregates.** Each stored sample marks its minute as dirty (`mes_process_dirty_buckets`). `mes:machine-rollup`
+runs every minute (`withoutOverlapping()->onOneServer()`) and rebuilds up to 500 marked minutes from the raw
+samples into `mes_process_aggregates` (resolution `1m`: min, max, average, last value, count), then the hours they
+touch (`1h`). A mark set while a rollup runs is kept for the next run, so a late sample or a reprocessed message
+is always absorbed. The hour is rebuilt from the minute aggregates (min of mins, max of maxes, counts added, the
+average weighted by the counts, the last value of the last minute), because raw samples are pruned long before.
+A minute whose raw samples are gone is never recomputed, so an aggregate is never replaced by an empty one.
+Buckets follow the application timezone (keep it free of daylight saving time, as for the other machine data).
+
+**Retention.** `mes:machine-prune-process-values` runs daily: raw samples older than
+`mes.machine.raw_retention_days` (30) and minute aggregates older than
+`mes.machine.minute_aggregate_retention_days` (90) are deleted; hour aggregates and the summaries are kept.
+
+**Per-operation summaries.** `mes_operation_process_summaries` has one row per operation and signal: minimum,
+maximum, average, count, how many samples fall outside the signal's `config.min` / `config.max` (bounds are
+inclusive; none set means 0), first and last time. It is written when the operation completes, and written again
+when late or reprocessed samples attributed to an already completed operation arrive. A row is only replaced when
+the store still holds samples for that signal, so pruning never empties it; an operation that ran longer than the
+raw retention keeps the summary of what survived. `LotTracingService::processSummaries($lot_id)` returns the
+summaries of the operations of the lot's production order: the link from a lot to the process parameters it was
+made with. The "Process summaries" list in the "Machine connectivity" group shows them.
 
 ## Incidents and health
 

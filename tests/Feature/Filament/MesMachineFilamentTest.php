@@ -236,3 +236,17 @@ it('hides the assign action from an assigned row and from a user who may not ins
     Livewire::test(Modules\MES\Filament\Resources\UnattributedMeasurements\Pages\ListUnattributedMeasurements::class)
         ->assertTableActionHidden('assign', $waiting);
 });
+
+it('lists the process summaries of the operations and filters them by signal', function (): void {
+    $summary = Modules\MES\Models\OperationProcessSummary::factory()->create(['out_of_range_count' => 2]);
+    $other = Modules\MES\Models\OperationProcessSummary::factory()->create();
+
+    $list = Livewire::test(Modules\MES\Filament\Resources\OperationProcessSummaries\Pages\ListOperationProcessSummaries::class)->assertOk();
+    expect($list->instance()->getTableRecords()->modelKeys())->toContain($summary->getKey(), $other->getKey());
+
+    $list->assertTableColumnExists('operation.productionOrder.number')
+        ->assertTableColumnExists('out_of_range_count')
+        ->filterTable('signal_id', $summary->signal_id);
+
+    expect($list->instance()->getTableRecords()->modelKeys())->toBe([$summary->getKey()]);
+});

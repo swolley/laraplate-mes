@@ -330,7 +330,16 @@ the foundation, with no consumer of the machine data yet.
   `QualityCheckPlanner::createCheck()` calls `UnattributedMeasurementAttacher::attachFor()`;
   `UnattributedMeasurementAssigner::assign()` is the manual path (Filament "Unattributed measurements").
   `QualityCheckService::execute()` = `record()` + `resolve()`. User guide: `docs/MACHINE_CONNECTIVITY.md`.
-  Not built yet: process values.
+- **Process values (step 6).** `ProcessValueRecorder` (listener of `ProcessValuesSampled`) hands process-value
+  samples (numeric, not older than the raw retention) to the `ProcessValueStore` bound by
+  `mes.machine.process_store`; `RelationalProcessValueStore` writes `mes_process_samples` in batches through
+  `IdempotentWriter::insertMany()`, marks minutes in `mes_process_dirty_buckets` (upsert, so a re-mark changes
+  `marked_at`), `rollup()` rebuilds `1m` aggregates from raw and `1h` from the minutes (bad samples excluded,
+  never from pruned raw), `prune()`/`pruneAggregates()` apply the retentions. `mes:machine-rollup` (every
+  minute) and `mes:machine-prune-process-values` (daily). `ProcessSummarizer::summarize()` upserts
+  `mes_operation_process_summaries` on `OperationCompleted` (`SummarizeOperationProcessValues`) and from the
+  recorder for completed operations; `LotTracingService::processSummaries()`. User guide:
+  `docs/MACHINE_CONNECTIVITY.md`. Everything in the design is built.
 
 ## Backoffice
 

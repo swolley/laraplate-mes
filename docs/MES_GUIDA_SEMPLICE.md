@@ -160,7 +160,7 @@ non a lavorare l'ordine tutti i giorni.
 
 Le macchine e i sistemi di misura possono mandare i loro dati direttamente al MES, senza che qualcuno li
 digiti. Il MES li **riceve, li conserva** e usa lo stato della macchina per aprire i fermi , i contapezzi per le quantità
-prodotte e le sonde per i controlli qualità; non salva ancora i valori di processo (arriverà nel passo successivo).
+prodotte le sonde per i controlli qualità e i valori di processo (temperature, pressioni, ecc.).
 
 - Dal gruppo **Machine connectivity** del pannello crei una **sorgente** (l'agente o il gateway che invia
   i dati) e le assegni un **token**: viene mostrato **una sola volta**, copialo subito; emetterne uno nuovo
@@ -187,6 +187,16 @@ vengono dalla macchina e non si cambiano; **causa e note** sì: finché non le i
 uno stato **Offline**: non è un fermo, ma l'OEE del giorno mostra **(incomplete)** perché i dati sono
 incompleti. La disponibilità dell'OEE per i centri collegati segue lo standard ISO 22400: la manutenzione
 programmata non conta come perdita.
+
+### Valori di processo
+
+I valori di processo che la macchina manda (temperatura, pressione, velocità...) vengono salvati e riassunti
+per minuto e per ora; i campioni grezzi si conservano per 30 giorni e i minuti per 90 (l'ora resta). Quando
+un'operazione si chiude, per ogni valore il MES salva un **riepilogo permanente** (minimo, massimo, media,
+quanti campioni, quanti **fuori dai limiti** impostati sul segnale, da quando a quando): lo trovi in **Process
+summaries** e, partendo da un lotto, risali all'ordine, alle operazioni e ai parametri di processo con cui è
+stato prodotto. I campioni di qualità "cattiva" si conservano ma non entrano nelle statistiche. Se arrivano
+campioni in ritardo per un'operazione già chiusa, il riepilogo si aggiorna.
 
 ### Misure delle sonde
 
