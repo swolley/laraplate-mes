@@ -25,6 +25,7 @@ use Modules\MES\Contracts\StockReader;
 use Modules\MES\Events\CapacityOverloadDetected;
 use Modules\MES\Events\MachineIncidentRecorded;
 use Modules\MES\Events\MachineStateObserved;
+use Modules\MES\Events\OperationCompleted;
 use Modules\MES\Events\OperationTargetReached;
 use Modules\MES\Events\OutOfToleranceMeasured;
 use Modules\MES\Events\PartsCounted;
@@ -40,6 +41,7 @@ use Modules\MES\Listeners\MachineStateRecorder;
 use Modules\MES\Listeners\PartsCountRecorder;
 use Modules\MES\Listeners\ProbeMeasurementRecorder;
 use Modules\MES\Listeners\ProcessValueRecorder;
+use Modules\MES\Listeners\SummarizeOperationProcessValues;
 use Modules\MES\Listeners\NotifyMachineIncident;
 use Modules\MES\Listeners\NotifyOperationTargetReached;
 use Modules\MES\Listeners\NotifyOutOfTolerance;
@@ -161,6 +163,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         Event::listen(OperationTargetReached::class, NotifyOperationTargetReached::class);
         Event::listen(ProbeMeasured::class, ProbeMeasurementRecorder::class);
         Event::listen(ProcessValuesSampled::class, ProcessValueRecorder::class);
+        Event::listen(OperationCompleted::class, SummarizeOperationProcessValues::class);
         Event::listen(OutOfToleranceMeasured::class, NotifyOutOfTolerance::class);
     }
 

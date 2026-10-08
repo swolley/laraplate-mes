@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Modules\MES\Listeners;
 
 use Illuminate\Support\Facades\Log;
+use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Modules\MES\Enums\SignalRole;
 use Modules\MES\Events\ProcessValuesSampled;
 use Modules\MES\Machine\Process\ProcessSample;
 use Modules\MES\Machine\Process\ProcessValueStore;
+use Modules\MES\Models\ProductionOrderOperation;
+use Modules\MES\Services\ProcessSummarizer;
 
 /**
  * Hands the process value samples of a message to the store, in one batch. The event also carries the order and
@@ -20,6 +23,7 @@ final class ProcessValueRecorder
 {
     public function __construct(
         private readonly ProcessValueStore $store,
+        private readonly ProcessSummarizer $summarizer,
     ) {}
 
     public function handle(ProcessValuesSampled $event): void
@@ -56,9 +60,23 @@ final class ProcessValueRecorder
     }
 
     /**
-     * Called with the operations the stored samples are attributed to.
+     * Late or reprocessed samples of an operation that already completed bring its summaries up to date.
      *
-     * @param  list<int>  $operation_ids
+     * @param  list<int>  $operation_ids  the operations the stored samples are attributed to
      */
-    protected function afterWrite(array $operation_ids): void {}
+    private function afterWrite(array $operation_ids): void
+    {
+        if ($operation_ids === []) {
+            return;
+        }
+
+        $completed = ProductionOrderOperation::query()
+            ->whereIn('id', $operation_ids)
+            ->where('status', ProductionOrderOperationStatus::Completed->value)
+            ->get();
+
+        foreach ($completed as $operation) {
+            $this->summarizer->summarize($operation->id);
+        }
+    }
 }

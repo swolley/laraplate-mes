@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\MES\Services;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Modules\MES\Models\LotLineage;
 use Modules\MES\Models\LotNumber;
+use Modules\MES\Models\OperationProcessSummary;
 use Modules\MES\Models\ProductionOrder;
+use Modules\MES\Models\ProductionOrderOperation;
 
 /**
  * Generates lot codes and walks the lot genealogy in both directions.
@@ -64,6 +67,27 @@ final class LotTracingService
             ['parent_lot_id' => $parent->id, 'child_lot_id' => $child->id],
             ['production_order_id' => $production_order_id, 'quantity' => $quantity],
         );
+    }
+
+    /**
+     * What the process signals did while each operation of the lot's production order ran: the link from a lot
+     * to the process parameters it was made with.
+     *
+     * @return Collection<int, OperationProcessSummary>
+     */
+    public function processSummaries(int $lot_id): Collection
+    {
+        $order_id = LotNumber::query()->find($lot_id)?->production_order_id;
+
+        if ($order_id === null) {
+            return new Collection();
+        }
+
+        return OperationProcessSummary::query()
+            ->whereIn('production_order_operation_id', ProductionOrderOperation::query()->where('production_order_id', $order_id)->select('id'))
+            ->orderBy('production_order_operation_id')
+            ->orderBy('signal_id')
+            ->get();
     }
 
     /**
