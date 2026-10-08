@@ -27,7 +27,7 @@ final class OperationProcessSummaryResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
     #[Override]
-    protected static string|UnitEnum|null $navigationGroup = 'Machine connectivity';
+    protected static string|UnitEnum|null $navigationGroup = 'MES - Machine connectivity';
 
     #[Override]
     protected static ?int $navigationSort = 50;
