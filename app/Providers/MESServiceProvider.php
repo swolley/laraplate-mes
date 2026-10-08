@@ -15,8 +15,10 @@ use Modules\Core\Overrides\ModuleServiceProvider;
 use Modules\Core\Services\Crud\DomainActionRegistry;
 use Modules\ERP\Events\SalesOrderConfirmed;
 use Modules\MES\Console\MachineOpenStopsCommand;
+use Modules\MES\Console\MachineRollupCommand;
 use Modules\MES\Console\MachineWatchdogCommand;
 use Modules\MES\Console\MaterializeKpisCommand;
+use Modules\MES\Console\PruneProcessValuesCommand;
 use Modules\MES\Contracts\ProductionCostReader;
 use Modules\MES\Contracts\StockMovementRecorder;
 use Modules\MES\Contracts\StockReader;
@@ -27,6 +29,7 @@ use Modules\MES\Events\OperationTargetReached;
 use Modules\MES\Events\OutOfToleranceMeasured;
 use Modules\MES\Events\PartsCounted;
 use Modules\MES\Events\ProbeMeasured;
+use Modules\MES\Events\ProcessValuesSampled;
 use Modules\MES\Events\MaterialShortageDetected;
 use Modules\MES\Events\ProductionOrderCancelled;
 use Modules\MES\Events\ProductionOrderCompleted;
@@ -36,6 +39,7 @@ use Modules\MES\Listeners\NotifyCapacityOverload;
 use Modules\MES\Listeners\MachineStateRecorder;
 use Modules\MES\Listeners\PartsCountRecorder;
 use Modules\MES\Listeners\ProbeMeasurementRecorder;
+use Modules\MES\Listeners\ProcessValueRecorder;
 use Modules\MES\Listeners\NotifyMachineIncident;
 use Modules\MES\Listeners\NotifyOperationTargetReached;
 use Modules\MES\Listeners\NotifyOutOfTolerance;
@@ -156,6 +160,7 @@ final class MESServiceProvider extends ModuleServiceProvider
         Event::listen(PartsCounted::class, PartsCountRecorder::class);
         Event::listen(OperationTargetReached::class, NotifyOperationTargetReached::class);
         Event::listen(ProbeMeasured::class, ProbeMeasurementRecorder::class);
+        Event::listen(ProcessValuesSampled::class, ProcessValueRecorder::class);
         Event::listen(OutOfToleranceMeasured::class, NotifyOutOfTolerance::class);
     }
 
@@ -179,6 +184,17 @@ final class MESServiceProvider extends ModuleServiceProvider
                 ->command(MachineOpenStopsCommand::class)
                 ->everyMinute()
                 ->withoutOverlapping()
+                ->onOneServer();
+
+            $this->app->make(Schedule::class)
+                ->command(MachineRollupCommand::class)
+                ->everyMinute()
+                ->withoutOverlapping()
+                ->onOneServer();
+
+            $this->app->make(Schedule::class)
+                ->command(PruneProcessValuesCommand::class)
+                ->daily()
                 ->onOneServer();
 
             $this->app->make(Schedule::class)
