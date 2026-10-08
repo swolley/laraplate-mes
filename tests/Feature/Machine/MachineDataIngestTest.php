@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Modules\Core\Support\CrudApiExposure;
 use Modules\MES\Enums\MachineIncidentType;
 use Modules\MES\Jobs\ProcessMachineMessageJob;
 use Modules\MES\Machine\MachineSourceTokenService;
@@ -16,6 +17,7 @@ use Modules\MES\Tests\Support\MesTestHelpers;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    CrudApiExposure::enable();
     MesTestHelpers::makeCompany();
     Queue::fake();
 });
