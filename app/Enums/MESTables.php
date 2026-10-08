@@ -43,4 +43,8 @@ enum MESTables: string
     case MachineCounts = 'mes_machine_counts';
     case OperationQuantityAudits = 'mes_operation_quantity_audits';
     case UnattributedMeasurements = 'mes_machine_unattributed_measurements';
+    case ProcessSamples = 'mes_process_samples';
+    case ProcessAggregates = 'mes_process_aggregates';
+    case ProcessDirtyBuckets = 'mes_process_dirty_buckets';
+    case OperationProcessSummaries = 'mes_operation_process_summaries';
 }

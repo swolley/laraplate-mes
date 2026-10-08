@@ -112,6 +112,10 @@ return [
     | - inbox_retention_days: processed raw messages older than this are pruned;
     |   failed ones are kept.
     | - rate_limit_per_minute: HTTP requests accepted per source and minute.
+    | - raw_retention_days / minute_aggregate_retention_days: process value samples and
+    |   one-minute aggregates older than this are pruned; hour aggregates and per-operation
+    |   summaries are kept.
+    | - process_store: the process value store driver (`database`).
     |
     */
     'machine' => [
@@ -121,6 +125,9 @@ return [
         'clock_skew_seconds' => (int) env('MES_MACHINE_CLOCK_SKEW_SECONDS', 30),
         'inbox_retention_days' => (int) env('MES_MACHINE_INBOX_RETENTION_DAYS', 7),
         'rate_limit_per_minute' => (int) env('MES_MACHINE_RATE_LIMIT_PER_MINUTE', 600),
+        'raw_retention_days' => (int) env('MES_MACHINE_RAW_RETENTION_DAYS', 30),
+        'minute_aggregate_retention_days' => (int) env('MES_MACHINE_MINUTE_AGGREGATE_RETENTION_DAYS', 90),
+        'process_store' => env('MES_MACHINE_PROCESS_STORE', 'database'),
 
         /*
         | The MQTT broker the bridge (`mes:machine-bridge`) connects to: one per installation, provided

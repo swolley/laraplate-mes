@@ -11,13 +11,13 @@ it('documents every machine configuration key and env variable in the README', f
     preg_match_all('/MES_MACHINE_[A-Z_]+/', $config, $matches);
     $env_names = array_unique($matches[0]);
 
-    expect($env_names)->toHaveCount(13);
+    expect($env_names)->toHaveCount(16);
 
     foreach ($env_names as $env_name) {
         expect($readme)->toContain($env_name);
     }
 
-    foreach (['queue', 'max_samples', 'max_body_kb', 'clock_skew_seconds', 'inbox_retention_days', 'rate_limit_per_minute', 'mqtt.host', 'mqtt.port', 'mqtt.username', 'mqtt.password', 'mqtt.tls', 'mqtt.client_id', 'mqtt.topic_prefix'] as $key) {
+    foreach (['queue', 'max_samples', 'max_body_kb', 'clock_skew_seconds', 'inbox_retention_days', 'rate_limit_per_minute', 'raw_retention_days', 'minute_aggregate_retention_days', 'process_store', 'mqtt.host', 'mqtt.port', 'mqtt.username', 'mqtt.password', 'mqtt.tls', 'mqtt.client_id', 'mqtt.topic_prefix'] as $key) {
         expect($readme)->toContain("mes.machine.{$key}");
     }
 });

@@ -1,0 +1,48 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\MES\Database\Factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\MES\Database\Factories\Concerns\UsesDefaultCompany;
+use Modules\MES\Enums\SignalRole;
+use Modules\MES\Models\MachineDevice;
+use Modules\MES\Models\MachineSignal;
+use Modules\MES\Models\ProcessAggregate;
+use Override;
+
+/**
+ * @extends Factory<ProcessAggregate>
+ */
+final class ProcessAggregateFactory extends Factory
+{
+    use UsesDefaultCompany;
+
+    /**
+     * @var class-string<ProcessAggregate>
+     */
+    protected $model = ProcessAggregate::class;
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function definition(): array
+    {
+        $device = MachineDevice::factory()->create();
+        $signal = MachineSignal::factory()->create(['device_id' => $device->id, 'role' => SignalRole::ProcessValue->value, 'config' => []]);
+
+        return [
+            'company_id' => $device->company_id,
+            'signal_id' => $signal->id,
+            'resolution' => '1m',
+            'bucket_start' => now()->startOfMinute(),
+            'min' => 1,
+            'max' => 3,
+            'avg' => 2,
+            'last' => 3,
+            'count' => 3,
+        ];
+    }
+}
