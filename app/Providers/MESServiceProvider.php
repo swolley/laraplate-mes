@@ -43,6 +43,8 @@ use Modules\MES\Listeners\NotifyMaterialShortage;
 use Modules\MES\Listeners\ReleaseComponentsAfterCompletion;
 use Modules\MES\Listeners\ReleaseComponentsForProductionOrder;
 use Modules\MES\Listeners\ReserveComponentsForProductionOrder;
+use Modules\MES\Machine\Process\ProcessValueStore;
+use Modules\MES\Machine\Process\RelationalProcessValueStore;
 use Modules\MES\Machine\Mqtt\MachineMessageSubscriber;
 use Modules\MES\Machine\Mqtt\MqttIngest;
 use Modules\MES\Machine\Mqtt\MqttMessageHandler;
@@ -98,6 +100,10 @@ final class MESServiceProvider extends ModuleServiceProvider
             ErpStockMovementRecorder::class,
         );
 
+        $this->app->bind(ProcessValueStore::class, static fn ($app): ProcessValueStore => match (config()->string('mes.machine.process_store')) {
+            'database' => $app->make(RelationalProcessValueStore::class),
+            default => throw new \RuntimeException(sprintf('Unknown process value store [%s]. Known stores: database.', config()->string('mes.machine.process_store'))),
+        });
         $this->app->bind(MachineMessageSubscriber::class, PhpMqttSubscriber::class);
         $this->app->bind(MqttMessageHandler::class, MqttIngest::class);
 

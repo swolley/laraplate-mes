@@ -17,6 +17,8 @@ final class IdempotentWriter
 {
     private const array INSERT_OR_IGNORE_DRIVERS = ['mysql', 'mariadb', 'pgsql', 'sqlite'];
 
+    private const int CHUNK = 500;
+
     /**
      * @param  array<string, mixed>  $row
      * @return bool true when the row was stored, false when a unique key already held it
@@ -32,5 +34,31 @@ final class IdempotentWriter
         } catch (UniqueConstraintViolationException) {
             return false;
         }
+    }
+
+    /**
+     * Writes many rows, skipping the ones whose unique keys are taken. Rows go in chunks, in one statement each
+     * where the driver has insert-or-ignore, one by one elsewhere.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return int how many rows were new
+     */
+    public function insertMany(Connection $connection, string $table, array $rows): int
+    {
+        $stored = 0;
+
+        if (in_array($connection->getDriverName(), self::INSERT_OR_IGNORE_DRIVERS, true)) {
+            foreach (array_chunk($rows, self::CHUNK) as $chunk) {
+                $stored += $connection->table($table)->insertOrIgnore($chunk);
+            }
+
+            return $stored;
+        }
+
+        foreach ($rows as $row) {
+            $stored += $this->insert($connection, $table, $row) ? 1 : 0;
+        }
+
+        return $stored;
     }
 }

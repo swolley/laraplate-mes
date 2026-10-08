@@ -66,3 +66,37 @@ it('does not use insert-or-ignore on SQL Server, whose grammar lacks it', functi
 
     expect(new IdempotentWriter()->insert($connection, 't', ['a' => 1]))->toBeFalse();
 });
+
+it('stores many rows in one go, skips the ones already stored and reports how many were new', function (): void {
+    MesTestHelpers::makeCompany();
+    $source = MachineSource::factory()->create();
+    $writer = new IdempotentWriter();
+    $row = static fn (string $id): array => [
+        'company_id' => $source->company_id,
+        'source_id' => $source->id,
+        'message_id' => $id,
+        'transport' => 'http',
+        'payload' => '{}',
+        'received_at' => now(),
+        'status' => 'pending',
+        'attempts' => 0,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ];
+    $connection = new MachineMessage()->getConnection();
+
+    expect($writer->insertMany($connection, 'mes_machine_messages', [$row('a'), $row('b')]))->toBe(2)
+        ->and($writer->insertMany($connection, 'mes_machine_messages', [$row('b'), $row('c')]))->toBe(1)
+        ->and($writer->insertMany($connection, 'mes_machine_messages', []))->toBe(0)
+        ->and(MachineMessage::query()->count())->toBe(3);
+});
+
+it('stores many rows one by one on a driver without insert-or-ignore, tolerating unique violations', function (): void {
+    $builder = Mockery::mock(Builder::class);
+    $builder->shouldReceive('insert')->twice()->andReturn(true, false);
+    $connection = Mockery::mock(Connection::class);
+    $connection->shouldReceive('getDriverName')->andReturn('sqlsrv');
+    $connection->shouldReceive('table')->with('t')->andReturn($builder);
+
+    expect(new IdempotentWriter()->insertMany($connection, 't', [['a' => 1], ['a' => 2]]))->toBe(1);
+});
