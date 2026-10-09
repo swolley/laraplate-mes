@@ -7,6 +7,8 @@ namespace Modules\MES\Models;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\MES\Database\Factories\SparkplugAliasFactory;
 use Override;
@@ -22,7 +24,7 @@ use Override;
  * @property string $name
  * @property \Illuminate\Support\Carbon $declared_at
  */
-final class SparkplugAlias extends Model
+final class SparkplugAlias extends Model implements IsPartOfParent
 {
     /** @use HasFactory<SparkplugAliasFactory> */
     use BelongsToCompany, HasFactory;
@@ -45,6 +47,25 @@ final class SparkplugAlias extends Model
         'name',
         'declared_at',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'source';
+    }
+
+    /**
+     * The source whose device declared the alias.
+     *
+     * @return BelongsTo<MachineSource, $this>
+     */
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(MachineSource::class, 'source_id');
+    }
 
     /**
      * @return Factory<SparkplugAlias>

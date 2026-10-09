@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\QualityCheckMeasurementFactory;
 use Override;
 
@@ -26,7 +27,7 @@ use Override;
  * @property string $source
  * @property int|null $machine_signal_id
  */
-final class QualityCheckMeasurement extends Model
+final class QualityCheckMeasurement extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -62,6 +63,15 @@ final class QualityCheckMeasurement extends Model
         'source',
         'machine_signal_id',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'qualityCheck';
+    }
 
     /**
      * @return BelongsTo<QualityCheck, $this>

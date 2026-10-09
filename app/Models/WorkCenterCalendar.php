@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\WorkCenterCalendarFactory;
 use Override;
 
@@ -18,7 +19,7 @@ use Override;
  * @property string $start_time
  * @property string $end_time
  */
-final class WorkCenterCalendar extends Model
+final class WorkCenterCalendar extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -45,6 +46,15 @@ final class WorkCenterCalendar extends Model
         'start_time',
         'end_time',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'workCenter';
+    }
 
     /**
      * The work center this calendar slot belongs to.

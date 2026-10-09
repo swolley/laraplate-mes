@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Models\Item;
 use Modules\ERP\Models\Warehouse;
 use Modules\MES\Database\Factories\MaterialConsumptionFactory;
 use Override;
 
-final class MaterialConsumption extends Model
+final class MaterialConsumption extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -40,6 +41,15 @@ final class MaterialConsumption extends Model
         'stock_shortage',
         'recorded_at',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'productionOrder';
+    }
 
     /**
      * The production order this consumption belongs to.

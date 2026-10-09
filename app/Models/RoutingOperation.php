@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\Core\Models\Concerns\HasPrefixedTableName;
 use Modules\Core\Models\Concerns\HasValidations;
 use Modules\Core\Models\Concerns\HasVersions;
@@ -15,7 +16,7 @@ use Modules\MES\Database\Factories\RoutingOperationFactory;
 use Modules\MES\Enums\MESTables;
 use Override;
 
-final class RoutingOperation extends Model
+final class RoutingOperation extends Model implements IsPartOfParent
 {
     use HasFactory;
     use HasPrefixedTableName;
@@ -80,6 +81,15 @@ final class RoutingOperation extends Model
         ]);
 
         return $rules;
+    }
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'routing';
     }
 
     /**

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\MES\Database\Factories\MachineCountFactory;
 use Override;
@@ -28,7 +29,7 @@ use Override;
  * @property string $total
  * @property string $raw_value
  */
-final class MachineCount extends Model
+final class MachineCount extends Model implements IsPartOfParent
 {
     /** @use HasFactory<MachineCountFactory> */
     use BelongsToCompany, HasFactory;
@@ -63,6 +64,15 @@ final class MachineCount extends Model
         'total',
         'raw_value',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'signal';
+    }
 
     /**
      * @return BelongsTo<MachineSignal, $this>

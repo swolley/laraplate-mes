@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\MES\Database\Factories\ProcessSampleFactory;
 use Modules\MES\Enums\SampleQuality;
@@ -27,7 +28,7 @@ use Override;
  * @property string $value
  * @property SampleQuality $quality
  */
-final class ProcessSample extends Model
+final class ProcessSample extends Model implements IsPartOfParent
 {
     /** @use HasFactory<ProcessSampleFactory> */
     use BelongsToCompany, HasFactory;
@@ -60,6 +61,15 @@ final class ProcessSample extends Model
         'value',
         'quality',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'signal';
+    }
 
     /**
      * @return BelongsTo<MachineSignal, $this>

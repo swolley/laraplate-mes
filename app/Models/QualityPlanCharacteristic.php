@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\QualityPlanCharacteristicFactory;
 use Override;
 
@@ -25,7 +26,7 @@ use Override;
  * @property int $sort_order
  * @property int $required_samples
  */
-final class QualityPlanCharacteristic extends Model
+final class QualityPlanCharacteristic extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -48,6 +49,15 @@ final class QualityPlanCharacteristic extends Model
         'sort_order',
         'required_samples',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'qualityPlan';
+    }
 
     /**
      * @return BelongsTo<QualityPlan, $this>

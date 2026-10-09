@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\ShiftInstanceFactory;
 use Override;
 
-final class ShiftInstance extends Model
+final class ShiftInstance extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -33,6 +34,15 @@ final class ShiftInstance extends Model
         'starts_at',
         'ends_at',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'shift';
+    }
 
     /**
      * @return BelongsTo<Shift, $this>

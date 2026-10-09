@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\Rule;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\Core\Models\Concerns\HasPrefixedTableName;
 use Modules\Core\Models\Concerns\HasValidations;
 use Modules\Core\Models\Concerns\HasVersions;
@@ -19,7 +20,7 @@ use Modules\MES\Enums\ConsumptionMethod;
 use Modules\MES\Enums\MESTables;
 use Override;
 
-final class BomLine extends Model
+final class BomLine extends Model implements IsPartOfParent
 {
     use HasFactory;
     use HasPrefixedTableName;
@@ -83,6 +84,15 @@ final class BomLine extends Model
         ]);
 
         return $rules;
+    }
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'bom';
     }
 
     /**

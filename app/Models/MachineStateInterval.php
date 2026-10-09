@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\MES\Database\Factories\MachineStateIntervalFactory;
 use Modules\MES\Enums\MachineState;
@@ -28,7 +29,7 @@ use Override;
  * @property \Illuminate\Support\Carbon $started_at
  * @property \Illuminate\Support\Carbon|null $ended_at
  */
-final class MachineStateInterval extends Model
+final class MachineStateInterval extends Model implements IsPartOfParent
 {
     /** @use HasFactory<MachineStateIntervalFactory> */
     use BelongsToCompany, HasFactory;
@@ -62,6 +63,15 @@ final class MachineStateInterval extends Model
     ];
 
     /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'device';
+    }
+
+    /**
      * @return BelongsTo<MachineDevice, $this>
      */
     public function device(): BelongsTo
@@ -78,6 +88,14 @@ final class MachineStateInterval extends Model
     }
 
     /**
+     * @return Factory<MachineStateInterval>
+     */
+    protected static function newFactory(): Factory
+    {
+        return MachineStateIntervalFactory::new();
+    }
+
+    /**
      * @param  Builder<MachineStateInterval>  $query
      * @return Builder<MachineStateInterval>
      */
@@ -85,14 +103,6 @@ final class MachineStateInterval extends Model
     protected function open(Builder $query): Builder
     {
         return $query->whereNull('ended_at');
-    }
-
-    /**
-     * @return Factory<MachineStateInterval>
-     */
-    protected static function newFactory(): Factory
-    {
-        return MachineStateIntervalFactory::new();
     }
 
     /**

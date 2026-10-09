@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\MES\Database\Factories\ProcessAggregateFactory;
 use Override;
@@ -26,7 +27,7 @@ use Override;
  * @property string $last
  * @property int $count
  */
-final class ProcessAggregate extends Model
+final class ProcessAggregate extends Model implements IsPartOfParent
 {
     /** @use HasFactory<ProcessAggregateFactory> */
     use BelongsToCompany, HasFactory;
@@ -60,6 +61,15 @@ final class ProcessAggregate extends Model
         'last',
         'count',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'signal';
+    }
 
     /**
      * @return BelongsTo<MachineSignal, $this>

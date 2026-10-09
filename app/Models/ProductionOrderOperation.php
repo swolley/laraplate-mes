@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\ProductionOrderOperationFactory;
 use Modules\MES\Enums\ProductionOrderOperationStatus;
 use Override;
@@ -38,7 +39,7 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
-final class ProductionOrderOperation extends Model
+final class ProductionOrderOperation extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -69,6 +70,15 @@ final class ProductionOrderOperation extends Model
         'actual_minutes',
         'efficiency',
     ];
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'productionOrder';
+    }
 
     /**
      * The production order this operation belongs to.

@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Contracts\IsPartOfParent;
 use Modules\MES\Database\Factories\LotLineageFactory;
 use Override;
 
-final class LotLineage extends Model
+final class LotLineage extends Model implements IsPartOfParent
 {
     use HasFactory;
 
@@ -40,6 +41,15 @@ final class LotLineage extends Model
     public function parentLot(): BelongsTo
     {
         return $this->belongsTo(LotNumber::class, 'parent_lot_id');
+    }
+
+    /**
+     * The relation to the record this one only exists inside, whose visibility it inherits.
+     */
+    #[Override]
+    public function parentRelation(): string
+    {
+        return 'childLot';
     }
 
     /**
