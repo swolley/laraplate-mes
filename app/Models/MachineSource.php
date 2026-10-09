@@ -6,15 +6,18 @@ namespace Modules\MES\Models;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\Sanctum;
 use Modules\Core\Overrides\Model;
 use Modules\ERP\Concerns\BelongsToCompany;
 use Modules\ERP\Enums\ERPTables;
 use Modules\MES\Database\Factories\MachineSourceFactory;
-use Modules\MES\Enums\MESTables;
-use Illuminate\Validation\ValidationException;
 use Modules\MES\Enums\MachineTransport;
+use Modules\MES\Enums\MESTables;
 use Modules\MES\Machine\Mqtt\MqttMessageRouter;
 use Override;
 
@@ -115,12 +118,70 @@ final class MachineSource extends Model
         return $rules;
     }
 
+    /**
+     * The topic this source's messages arrive on: the configured one, or for a canonical source
+     * `{topic_prefix}/laraplate-machine/1/{code}`. Empty when there is none to derive.
+     */
+    public function effectiveMqttTopic(): string
+    {
+        if (is_string($this->mqtt_topic) && $this->mqtt_topic !== '') {
+            return $this->mqtt_topic;
+        }
+
+        return $this->normalizer === 'canonical'
+            ? config()->string('mes.machine.mqtt.topic_prefix') . '/laraplate-machine/1/' . $this->code
+            : '';
+    }
+
+    /**
+     * The ingest tokens of the source. Declared with its relation type, which Sanctum leaves to PHPDoc: a
+     * relation a request names is called only when its declaration says it returns a relation.
+     *
+     * @return MorphMany<PersonalAccessToken, $this>
+     */
+    public function tokens(): MorphMany
+    {
+        return $this->morphMany(Sanctum::$personalAccessTokenModel, 'tokenable');
+    }
+
+    /**
+     * @return HasMany<MachineDevice, $this>
+     */
+    public function devices(): HasMany
+    {
+        return $this->hasMany(MachineDevice::class, 'source_id');
+    }
+
     #[Override]
     protected static function booted(): void
     {
-        static::saving(static function (self $source): void {
+        self::saving(static function (self $source): void {
             $source->assertTopicIsUsable();
         });
+    }
+
+    /**
+     * @return Factory<MachineSource>
+     */
+    protected static function newFactory(): Factory
+    {
+        return MachineSourceFactory::new();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'transport' => MachineTransport::class,
+            'normalizer_options' => 'array',
+            'heartbeat_timeout_seconds' => 'integer',
+            'last_seen_at' => 'datetime',
+            'last_seq' => 'integer',
+            'is_active' => 'boolean',
+        ];
     }
 
     /**
@@ -151,52 +212,5 @@ final class MachineSource extends Model
                 throw ValidationException::withMessages(['mqtt_topic' => ["The topic overlaps the one of the source {$other->code}."]]);
             }
         }
-    }
-
-    /**
-     * The topic this source's messages arrive on: the configured one, or for a canonical source
-     * `{topic_prefix}/laraplate-machine/1/{code}`. Empty when there is none to derive.
-     */
-    public function effectiveMqttTopic(): string
-    {
-        if (is_string($this->mqtt_topic) && $this->mqtt_topic !== '') {
-            return $this->mqtt_topic;
-        }
-
-        return $this->normalizer === 'canonical'
-            ? config()->string('mes.machine.mqtt.topic_prefix') . '/laraplate-machine/1/' . $this->code
-            : '';
-    }
-
-    /**
-     * @return HasMany<MachineDevice, $this>
-     */
-    public function devices(): HasMany
-    {
-        return $this->hasMany(MachineDevice::class, 'source_id');
-    }
-
-    /**
-     * @return Factory<MachineSource>
-     */
-    protected static function newFactory(): Factory
-    {
-        return MachineSourceFactory::new();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    #[Override]
-    protected function casts(): array
-    {
-        return [
-            'transport' => MachineTransport::class,
-            'normalizer_options' => 'array',
-            'heartbeat_timeout_seconds' => 'integer',
-            'last_seen_at' => 'datetime',
-            'last_seq' => 'integer',
-            'is_active' => 'boolean',
-        ];
     }
 }
