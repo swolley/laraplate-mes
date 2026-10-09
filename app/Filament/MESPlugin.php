@@ -43,7 +43,8 @@ final class MESPlugin implements Plugin
             $panel->colors([$this->getId() => $color]);
         }
 
-        // The panel lists the module groups alphabetically (tests/Feature/AdminNavigationGroupsTest.php).
+        // The panel lists the modules alphabetically, each with its groups together in the module's own
+        // order (tests/Feature/AdminNavigationGroupsTest.php).
         $panel->navigationGroups([
             NavigationGroup::make()
                 ->label('MES')
